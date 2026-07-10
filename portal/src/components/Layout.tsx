@@ -4,7 +4,6 @@ import { useAuth } from "../lib/auth";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { benutzer, abmelden } = useAuth();
-  const istVerwalter = benutzer?.zugriff["verwaltung"] === "admin";
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -14,13 +13,8 @@ export default function Layout({ children }: { children: ReactNode }) {
             ÖHTB Tool-Suite
           </Link>
           <nav className="flex items-center gap-4 text-sm">
-            {istVerwalter && (
-              <Link to="/verwaltung" className="text-gray-600 hover:text-gray-900">
-                Verwaltung
-              </Link>
-            )}
-            <span className="text-gray-400">|</span>
             <span className="text-gray-500">{benutzer?.name}</span>
+            <span className="text-gray-400">|</span>
             <button
               onClick={() => abmelden()}
               className="text-blue-600 hover:underline"
