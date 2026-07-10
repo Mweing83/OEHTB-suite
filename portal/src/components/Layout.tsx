@@ -14,9 +14,6 @@ export default function Layout({ children }: { children: ReactNode }) {
             ÖHTB Tool-Suite
           </Link>
           <nav className="flex items-center gap-4 text-sm">
-            <Link to="/" className="text-gray-600 hover:text-gray-900">
-              ← Portal
-            </Link>
             {istVerwalter && (
               <Link to="/verwaltung" className="text-gray-600 hover:text-gray-900">
                 Verwaltung
