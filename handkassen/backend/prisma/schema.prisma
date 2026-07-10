@@ -1,0 +1,315 @@
+// ÖHTB Handkassen-System – Datenmodell
+// Geldbeträge IMMER in Cent (Int). Niemals Float.
+
+generator client {
+  provider      = "prisma-client-js"
+  // Architektur wird automatisch erkannt: "native" baut die Query-Engine
+  // jeweils fuer die Maschine, auf der `prisma generate` laeuft – also passend
+  // fuer x64 UND ARM64, ohne manuelle Umstellung. Der binary-Engine-Typ
+  // funktioniert auf beiden Architekturen (u. a. zuverlaessig unter Windows on
+  // ARM64). Wichtig: `prisma generate` muss auf jeder Zielmaschine laufen
+  // (lokal wie im Server-/Docker-Build) – dann wird automatisch die richtige
+  // Engine geholt.
+  engineType    = "binary"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rolle {
+  erfasser
+  leitung
+  finanzen
+  admin
+}
+
+enum BuchungsTyp {
+  eingang
+  ausgang
+}
+
+enum AbschlussStatus {
+  offen
+  eingereicht
+  geprueft
+  freigegeben
+}
+
+model Benutzer {
+  id           Int       @id @default(autoincrement())
+  benutzername String    @unique
+  name         String
+  // Null, solange der/die Benutzer:in noch kein Passwort gesetzt hat.
+  // Seit der Suite-Integration liegt das Login im Portal; dieses Feld bleibt
+  // fuer den Uebergang/Import erhalten, wird im SSO-Betrieb aber nicht genutzt.
+  passwortHash String?
+  // true, wenn beim nächsten Login ein neues Passwort gesetzt werden muss
+  passwortSetzen Boolean @default(true)
+  // Verknuepfung zum zentralen Suite-Benutzer (Auto-Provisioning beim Login).
+  suiteUserId  String?   @unique
+  rolle        Rolle
+  aktiv        Boolean   @default(true)
+  // Zentral geloescht (Tombstone): blockiert Zugriff, erhaelt aber die Historie
+  // (Buchungen/Audit referenzieren diesen Benutzer weiterhin).
+  geloescht    Boolean   @default(false)
+  erstelltAm   DateTime  @default(now())
+
+  kostenstellen BenutzerKostenstelle[]
+  buchungen     Buchung[]              @relation("Ersteller")
+  auditEintraege AuditLog[]
+
+  @@map("benutzer")
+}
+
+model Kostenstelle {
+  id          Int       @id @default(autoincrement())
+  // Offizielle Kostenstellen-Nummer (z. B. "1260"). Dient als Präfix der Belegnummer.
+  nummer      String    @unique
+  bezeichnung String
+  // BMD-Gegenkonto (Verrechnungskonto) für den Export. App-seitig Pflichtfeld;
+  // in der DB optional, damit bestehende Datensätze nicht brechen.
+  gegenkonto  String?
+  // Bereich und Kassenart sind jetzt pflegbare Stammdaten (eigene Tabellen)
+  // statt fester Enums. Verwaltung -> Kostenstellen.
+  bereichId   Int
+  bereich     Bereich   @relation(fields: [bereichId], references: [id])
+  kassenartId Int
+  kassenart   Kassenart @relation(fields: [kassenartId], references: [id])
+  // Anfangssaldo (Startbestand) der Kasse in Cent
+  anfangssaldoCent Int  @default(0)
+  // Aktueller Kassenstand in Cent (wird aus Buchungen abgeleitet/gepflegt)
+  saldoCent   Int       @default(0)
+  aktiv       Boolean   @default(true)
+
+  benutzer    BenutzerKostenstelle[]
+  buchungen   Buchung[]
+  abschluesse Abschluss[]
+  monatsSperren MonatsSperre[]
+
+  @@index([bereichId])
+  @@index([kassenartId])
+  @@map("kostenstelle")
+}
+
+// Pflegbare Stammdaten: Bereich einer Kostenstelle (z. B. VBW, GVB, TBW).
+// Wird nur deaktiviert, nie gelöscht (revisionssicher; Altdaten behalten Bezug).
+model Bereich {
+  id          Int     @id @default(autoincrement())
+  bezeichnung String  @unique
+  aktiv       Boolean @default(true)
+
+  kostenstellen Kostenstelle[]
+
+  @@map("bereich")
+}
+
+// Pflegbare Stammdaten: Kassenart (z. B. Einrichtung, Klientenkasse).
+model Kassenart {
+  id          Int     @id @default(autoincrement())
+  bezeichnung String  @unique
+  aktiv       Boolean @default(true)
+
+  kostenstellen Kostenstelle[]
+
+  @@map("kassenart")
+}
+
+// n:m – welche:r Erfasser:in ist für welche Kostenstelle freigeschaltet (Anf. P-02)
+model BenutzerKostenstelle {
+  benutzerId     Int
+  kostenstelleId Int
+  benutzer       Benutzer     @relation(fields: [benutzerId], references: [id])
+  kostenstelle   Kostenstelle @relation(fields: [kostenstelleId], references: [id])
+
+  @@id([benutzerId, kostenstelleId])
+  @@map("benutzer_kostenstelle")
+}
+
+model Konto {
+  id          Int     @id @default(autoincrement())
+  nummer      String  @unique // z. B. "50250"
+  bezeichnung String
+  beschreibung String?
+  anmerkung   String?
+  aktiv       Boolean @default(true)
+
+  positionen  BuchungsPosition[]
+
+  @@map("konto")
+}
+
+// Anpassbare Mehrwertsteuersätze (Stammdaten, durch Admin pflegbar).
+// prozent ist der Satz als Ganzzahl (z. B. 0, 10, 20).
+model Steuersatz {
+  id      Int     @id @default(autoincrement())
+  prozent Int     @unique
+  bezeichnung String   // z. B. "Normalsatz 20 %"
+  aktiv   Boolean @default(true)
+
+  @@map("steuersatz")
+}
+
+model Buchung {
+  id             Int          @id @default(autoincrement())
+  buchungsnummer Int          @unique // global fortlaufend, automatisch
+  // Belegnummer JE Kostenstelle UND Jahr: belegLaufnummer ist der Zähler, der
+  // pro Jahr und Kostenstelle bei 1 startet; belegnummer ist die volle Nummer
+  // im Format "JJJJ-<ksnummer>-<lauf>" (z. B. "2026-1370-01").
+  belegJahr      Int          // Jahr (aus dem Belegdatum)
+  belegLaufnummer Int         // laufende Nummer je Kostenstelle und Jahr
+  belegnummer    String       // volle Belegnummer, bei Anlage fest vergeben
+  buchungsdatum  DateTime     @default(now()) // tagesaktuell
+  belegdatum     DateTime     // frei wählbar
+  betragCent     Int          // Gesamtbetrag in Cent (Summe der Positionen)
+  typ            BuchungsTyp
+  beschreibung   String?
+
+  kostenstelleId Int
+  kostenstelle   Kostenstelle @relation(fields: [kostenstelleId], references: [id])
+
+  erstellerId    Int
+  ersteller      Benutzer     @relation("Ersteller", fields: [erstellerId], references: [id])
+
+  belegId        Int?         @unique
+  beleg          Beleg?       @relation(fields: [belegId], references: [id])
+
+  positionen     BuchungsPosition[]
+
+  // gesperrt, sobald der zugehörige Abschluss freigegeben ist
+  gesperrt       Boolean      @default(false)
+  storniert      Boolean      @default(false)
+
+  // Korrektur-Verweis: wenn diese Buchung eine Korrektur einer anderen ist,
+  // zeigt korrekturVonId auf das (stornierte) Original.
+  korrekturVonId Int?
+  korrekturVon   Buchung?     @relation("Korrektur", fields: [korrekturVonId], references: [id])
+  korrekturen    Buchung[]    @relation("Korrektur")
+  korrekturGrund String?
+
+  erstelltAm     DateTime     @default(now())
+
+  @@unique([kostenstelleId, belegJahr, belegLaufnummer])
+  @@index([kostenstelleId])
+  @@map("buchung")
+}
+
+// Teilbuchung (auch bei nicht-Split: genau eine Position)
+model BuchungsPosition {
+  id          Int     @id @default(autoincrement())
+  buchungId   Int
+  buchung     Buchung @relation(fields: [buchungId], references: [id], onDelete: Cascade)
+  betragCent  Int     // Teilbetrag in Cent
+  steuersatz  Int     // 0, 10 oder 20 (Prozent)
+  kontoId     Int
+  konto       Konto   @relation(fields: [kontoId], references: [id])
+
+  @@index([buchungId])
+  @@map("buchungsposition")
+}
+
+model Beleg {
+  id            Int      @id @default(autoincrement())
+  dateipfad     String   // Pfad im lokalen uploads-Verzeichnis
+  originalname  String
+  hochgeladenAm DateTime @default(now())
+  buchung       Buchung?
+
+  @@map("beleg")
+}
+
+model Abschluss {
+  id             Int             @id @default(autoincrement())
+  kostenstelleId Int
+  kostenstelle   Kostenstelle    @relation(fields: [kostenstelleId], references: [id])
+  jahr           Int
+  monat          Int             // 1–12
+  zaehllisteCent Int             // gezählter Ist-Bestand in Cent
+  status         AbschlussStatus @default(offen)
+  eingereichtAm  DateTime?
+  geprueftAm     DateTime?
+  freigegebenAm  DateTime?
+  erstelltAm     DateTime        @default(now())
+
+  @@unique([kostenstelleId, jahr, monat])
+  @@map("abschluss")
+}
+
+// Revisionssicheres Protokoll – nur anhängen, nie ändern/löschen
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  zeitpunkt   DateTime @default(now())
+  benutzerId  Int?
+  benutzer    Benutzer? @relation(fields: [benutzerId], references: [id])
+  aktion      String   // z. B. "buchung.erstellt"
+  entitaet    String   // z. B. "buchung"
+  entitaetId  Int?
+  alteWerte   Json?
+  neueWerte   Json?
+
+  @@index([entitaet, entitaetId])
+  @@map("audit_log")
+}
+
+// Einstellungen + Status der automatischen Datensicherung (genau eine Zeile).
+// Wird über den Admin-Tab "Datensicherung" gepflegt; der Backup-Dienst liest
+// die Einstellungen und schreibt Status/Bericht zurück.
+model BackupKonfig {
+  id                    Int       @id @default(autoincrement())
+  // Einstellungen (über die Oberfläche änderbar)
+  uhrzeit               String    @default("02:00") @map("uhrzeit") // täglicher Lauf, HH:MM
+  aufbewahrungTaeglich  Int       @default(14)      @map("aufbewahrung_taeglich")
+  aufbewahrungMonatlich Int       @default(12)      @map("aufbewahrung_monatlich")
+  zielNasAktiv          Boolean   @default(true)    @map("ziel_nas_aktiv")
+  zielUsbAktiv          Boolean   @default(true)    @map("ziel_usb_aktiv")
+  // Ablageorte (optional; überschreiben die Umgebungsvariablen)
+  pfadLokal             String?                     @map("pfad_lokal")
+  pfadNas               String?                     @map("pfad_nas")
+  pfadUsb               String?                     @map("pfad_usb")
+  // Steuerung: "Jetzt sichern"-Knopf setzt dieses Flag
+  laufAngefordert       Boolean   @default(false)   @map("lauf_angefordert")
+  // Status (vom Backup-Dienst geschrieben)
+  letzterLaufAm         DateTime?                   @map("letzter_lauf_am")
+  letzterErfolg         Boolean   @default(false)   @map("letzter_erfolg")
+  letzteMeldung         String?                     @map("letzte_meldung")
+  bericht               String?                     @map("bericht") // mehrzeilige Übersicht der Ablageorte
+
+  @@map("backup_konfig")
+}
+
+// Allgemeine Einstellungen (genau eine Zeile). Verwaltung -> Allgemein.
+model AllgemeinKonfig {
+  id             Int @id @default(autoincrement())
+  // Frist in Tagen nach Monatsende, bis eine Kasse automatisch gesperrt wird.
+  sperrFristTage Int @default(5) @map("sperr_frist_tage")
+  // Wenn true: Buchungen erfordern einen Beleg (vom Administrator schaltbar).
+  belegPflicht   Boolean @default(false) @map("beleg_pflicht")
+  // Belegfotos: maximale Kantenlaenge (px) und JPEG-Qualitaet (1-100) beim Speichern.
+  fotoMaxKantePx Int @default(1600) @map("foto_max_kante_px")
+  fotoQualitaet  Int @default(80) @map("foto_qualitaet")
+  // Kontaktdaten des Administrators (fuer alle Nutzer sichtbar, Menuepunkt "Kontakt").
+  kontaktName    String @default("") @map("kontakt_name")
+  kontaktEmail   String @default("") @map("kontakt_email")
+  kontaktTelefon String @default("") @map("kontakt_telefon")
+  kontaktHinweis String @default("") @map("kontakt_hinweis")
+
+  @@map("allgemein_konfig")
+}
+
+// Manuelle Monatssperre je Kostenstelle (Admin-Override). Liegt KEIN Eintrag vor,
+// gilt die automatische Frist-Regel (Monatsende + sperrFristTage). gesperrt=true:
+// erzwungen gesperrt; gesperrt=false: erzwungen offen (z. B. fuer Nachtraege).
+model MonatsSperre {
+  id             Int          @id @default(autoincrement())
+  kostenstelleId Int          @map("kostenstelle_id")
+  kostenstelle   Kostenstelle @relation(fields: [kostenstelleId], references: [id])
+  jahr           Int
+  monat          Int          // 1–12
+  gesperrt       Boolean
+  geaendertAm    DateTime     @default(now()) @map("geaendert_am")
+
+  @@unique([kostenstelleId, jahr, monat])
+  @@map("monats_sperre")
+}

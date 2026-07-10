@@ -1,0 +1,109 @@
+// Prisma-Schema der OEHTB-Suite: zentrale Benutzer, Tool-Registry und
+// Zugriffsrechte (wer darf in welches Tool, mit welcher Rolle).
+// Fachdaten bleiben in den jeweiligen Tool-Datenbanken.
+
+generator client {
+  provider = "prisma-client-js"
+  // Windows ARM64 (Entwicklungsrechner): Binary-Engine, siehe Stunden-Tool.
+  engineType    = "binary"
+  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Zentrale Benutzer (Identitaet: Benutzername, wie Handkassen)
+// ---------------------------------------------------------------------------
+model SuiteUser {
+  id             String    @id @default(cuid())
+  benutzername   String    @unique
+  name           String
+  email          String?
+  // Null, solange noch kein Passwort gesetzt wurde (Erstlogin-Flow).
+  passwortHash   String?
+  // true = beim naechsten Login muss ein neues Passwort gesetzt werden.
+  passwortSetzen Boolean   @default(true)
+  aktiv          Boolean   @default(true)
+  letzterLogin   DateTime?
+  erstelltAm     DateTime  @default(now())
+
+  zugriffe Zugriff[]
+
+  @@map("suite_user")
+}
+
+// ---------------------------------------------------------------------------
+// Tool-Registry: jedes eingebundene Tool (auch die Verwaltung selbst).
+// "rollen" = Liste der im Tool gueltigen Rollennamen (JSON-Array von Strings).
+// ---------------------------------------------------------------------------
+model Tool {
+  id           String  @id @default(cuid())
+  slug         String  @unique // z. B. "handkassen", "stunden", "verwaltung"
+  name         String
+  beschreibung String?
+  pfad         String // Link-Ziel im Portal, z. B. "/handkassen/"
+  rollen       Json // z. B. ["erfasser","leitung","finanzen","admin"]
+  aktiv        Boolean @default(true)
+  reihenfolge  Int     @default(0)
+  // Interne URL (Docker-Netz) des Tool-Backends fuer User-Provisionierung.
+  // Null = kein eigenes Backend (z. B. die "verwaltung" selbst).
+  provisionUrl String?
+
+  zugriffe Zugriff[]
+
+  @@map("tool")
+}
+
+// ---------------------------------------------------------------------------
+// Provisionierungs-Outbox: jede Benutzeraenderung wird pro betroffenem Tool
+// als Auftrag hinterlegt und von einem Worker zuverlaessig zugestellt (Retry).
+// So bleiben die lokalen Benutzer-Spiegel der Tools konsistent, auch wenn ein
+// Tool kurzzeitig nicht erreichbar ist.
+// ---------------------------------------------------------------------------
+model ProvisionOutbox {
+  id           String    @id @default(cuid())
+  toolSlug     String
+  suiteUserId  String
+  op           String // "UPSERT" | "DELETE"
+  payload      Json
+  status       String    @default("PENDING") // PENDING | DONE | FEHLER
+  versuche     Int       @default(0)
+  letzterFehler String?
+  erstelltAm   DateTime  @default(now())
+  erledigtAm   DateTime?
+
+  @@index([status, erstelltAm])
+  @@map("provision_outbox")
+}
+
+// ---------------------------------------------------------------------------
+// Zugriff: Benutzer x Tool -> Rolle. Kein Eintrag = kein Zutritt.
+// ---------------------------------------------------------------------------
+model Zugriff {
+  userId String
+  toolId String
+  rolle  String
+
+  user SuiteUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool Tool      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@id([userId, toolId])
+  @@map("zugriff")
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog der Suite (Logins, Rechteaenderungen, Benutzerverwaltung)
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String? // handelnder Benutzer (Suite-ID)
+  aktion    String
+  zeitpunkt DateTime @default(now())
+  details   Json?
+
+  @@index([zeitpunkt])
+  @@map("audit_log")
+}

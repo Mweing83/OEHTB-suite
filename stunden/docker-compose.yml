@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16
+    container_name: stunden-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stunden
+      POSTGRES_PASSWORD: stunden_dev_passwort
+      POSTGRES_DB: stunden
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+
+  # App-Service nur fuer den Produktionsbetrieb (Profil "produktion").
+  # In der Entwicklung laeuft das Backend ueber "npm run dev" lokal,
+  # damit Port 3002 nicht doppelt belegt wird (Lehre aus Handkassen).
+  app:
+    profiles: ["produktion"]
+    build: ./backend
+    container_name: stunden-app
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://stunden:stunden_dev_passwort@db:5432/stunden"
+      PORT: "3002"
+    ports:
+      - "3002:3002"

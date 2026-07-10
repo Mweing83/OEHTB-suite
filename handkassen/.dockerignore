@@ -1,0 +1,32 @@
+# Build-Kontext schlank halten (Kontext = Projektwurzel, siehe docker-compose.yml).
+# Diese Pfade NICHT an den Docker-Build senden:
+
+# Abhaengigkeiten/Buildergebnisse (werden im Image frisch erzeugt)
+**/node_modules
+**/dist
+**/build
+
+# Versionsverwaltung & Editor
+.git
+.gitignore
+.gitattributes
+.vscode
+.idea
+
+# Sicherungen und deren Ablageorte
+backups
+backups-nas
+backups-usb
+
+# Lokale Konfiguration / Geheimnisse NIEMALS ins Image
+.env
+**/.env
+*.env
+
+# Hochgeladene Belege (laufen ueber das Volume, nicht ins Image)
+backend/uploads
+
+# Logs & OS-Kram
+*.log
+.DS_Store
+Thumbs.db

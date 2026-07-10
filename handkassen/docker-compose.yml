@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-handkassen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-handkassen}
+      POSTGRES_DB: ${POSTGRES_DB:-handkassen}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-handkassen}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    # Profil "produktion": Dieser Dienst startet NICHT bei einem einfachen
+    # "docker compose up -d" (Entwicklungsbetrieb, Backend läuft dort per npm).
+    # Nur die Datenbank startet dann. Für den Produktivbetrieb gezielt starten mit:
+    #   docker compose --profile produktion up -d
+    profiles: ["produktion"]
+    build:
+      # Kontext = Projektwurzel, damit das Image Frontend UND Backend baut
+      # (siehe backend/Dockerfile, mehrstufig). Das Backend liefert die SPA mit aus.
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-handkassen}:${POSTGRES_PASSWORD:-handkassen}@db:5432/${POSTGRES_DB:-handkassen}
+      JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      PORT: 3001
+      NODE_ENV: production
+      # HTTPS-Terminierung/Proxy: nur setzen, wenn Reverse-Proxy/Tailscale davorsteht
+      # (dann TRUST_PROXY=1 in .env). Im reinen LAN-HTTP-Betrieb leer lassen.
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      # Reiner HTTP-Betrieb im internen Netz: secure-Cookie abschalten (COOKIE_INSECURE=1 in .env).
+      # ACHTUNG: unverschluesselt - nur im vertrauenswuerdigen, abgeschotteten LAN.
+      COOKIE_INSECURE: ${COOKIE_INSECURE:-}
+      # Lokaler Sicherungsordner (read-only) fuer die Backup-Uebersicht/-Pruefung im Admin-Bereich.
+      BACKUP_LOKAL_PFAD: /backups/lokal
+    volumes:
+      - belege_data:/app/uploads
+      # Lokale Sicherungen nur lesend einbinden, damit der Admin-Bereich sie auflisten/pruefen kann.
+      - ${BACKUP_LOKAL:-./backups}:/backups/lokal:ro
+    ports:
+      - "3001:3001"
+
+  backup:
+    # Datensicherung (läuft im Produktivbetrieb mit). Gleiches Postgres-Image
+    # wie "db", damit pg_dump/pg_restore exakt zur Datenbankversion passen.
+    # Sichert nächtlich Datenbank + Belegfotos auf lokal / NAS / USB.
+    profiles: ["produktion"]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-handkassen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-handkassen}
+      POSTGRES_DB: ${POSTGRES_DB:-handkassen}
+      DB_HOST: db
+    entrypoint: ["/bin/sh", "/backup/entrypoint.sh"]
+    volumes:
+      - ./backup:/backup:ro
+      # Quelle der Belegfotos: in Produktion das Volume "belege_data".
+      # Für lokalen Test ggf. auf ./backend/uploads setzen (BACKUP_UPLOADS_SRC).
+      - ${BACKUP_UPLOADS_SRC:-belege_data}:/uploads:ro
+      # Ablageorte (am Server auf die echten NAS-/USB-Pfade setzen):
+      - ${BACKUP_LOKAL:-./backups}:/backups/lokal
+      - ${BACKUP_NAS:-./backups-nas}:/backups/nas
+      - ${BACKUP_USB:-./backups-usb}:/backups/usb
+
+volumes:
+  db_data:
+  belege_data:

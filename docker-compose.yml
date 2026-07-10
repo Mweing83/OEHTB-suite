@@ -1,0 +1,190 @@
+# OEHTB-Suite: Gesamt-Deployment.
+#
+# ENTWICKLUNG:  docker compose up -d
+#   -> startet NUR suite-db (Handkassen-/Stunden-DBs laufen wie bisher aus
+#      den jeweiligen Projektordnern; Apps per "npm run dev").
+#
+# PRODUKTION:   docker compose --profile produktion up -d --build
+#   -> startet alles: nginx (Port 80), Portal, beide Tools, drei DBs, Backup.
+#
+# WICHTIG (Cutover vom alten Handkassen-Server): Die Volumes der bestehenden
+# Handkassen-Installation werden ueber explizite "name:"-Eintraege
+# weiterverwendet (handkassen_db_data, handkassen_belege_data). Dadurch
+# uebernimmt die Suite die vorhandenen Produktivdaten.
+
+services:
+  # ---------------------------------------------------------------------------
+  # Suite-Datenbank (laeuft auch in der Entwicklung)
+  # ---------------------------------------------------------------------------
+  suite-db:
+    image: postgres:16-alpine
+    container_name: suite-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SUITE_DB_USER:-suite}
+      POSTGRES_PASSWORD: ${SUITE_DB_PASSWORD:-suite_dev_passwort}
+      POSTGRES_DB: ${SUITE_DB_NAME:-suite}
+    volumes:
+      - suite_db_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SUITE_DB_USER:-suite}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Reverse-Proxy: einziger veroeffentlichter Port der Suite
+  # ---------------------------------------------------------------------------
+  proxy:
+    profiles: ["produktion"]
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - portal-app
+      - handkassen-app
+      - stunden-app
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+
+  # ---------------------------------------------------------------------------
+  # Portal (Suite-Backend + Portal-SPA)
+  # ---------------------------------------------------------------------------
+  portal-app:
+    profiles: ["produktion"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      suite-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${SUITE_DB_USER:-suite}:${SUITE_DB_PASSWORD:-suite_dev_passwort}@suite-db:5432/${SUITE_DB_NAME:-suite}
+      JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      # Gemeinsames Geheimnis fuer die interne User-Provisionierung (Suite->Tools).
+      PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
+      PORT: 3000
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      COOKIE_INSECURE: ${COOKIE_INSECURE:-}
+      SESSION_TIMEOUT_MINUTEN: ${SESSION_TIMEOUT_MINUTEN:-15}
+      STATIC_DIR: /app/static
+
+  # ---------------------------------------------------------------------------
+  # Handkassen (bestehendes Projekt, Build-Kontext ./handkassen)
+  # ---------------------------------------------------------------------------
+  handkassen-db:
+    profiles: ["produktion"]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${HK_DB_USER:-handkassen}
+      POSTGRES_PASSWORD: ${HK_DB_PASSWORD:-handkassen}
+      POSTGRES_DB: ${HK_DB_NAME:-handkassen}
+    volumes:
+      - handkassen_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${HK_DB_USER:-handkassen}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  handkassen-app:
+    profiles: ["produktion"]
+    build:
+      context: ./handkassen
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      handkassen-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${HK_DB_USER:-handkassen}:${HK_DB_PASSWORD:-handkassen}@handkassen-db:5432/${HK_DB_NAME:-handkassen}
+      JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
+      PORT: 3001
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      COOKIE_INSECURE: ${COOKIE_INSECURE:-}
+      # Suite-SSO: Slug dieses Tools + interne URL des Portals (Rechte-Refresh).
+      TOOL_SLUG: handkassen
+      SUITE_URL: http://portal-app:3000
+      BACKUP_LOKAL_PFAD: /backups/lokal
+    volumes:
+      - handkassen_belege_data:/app/uploads
+      - ${BACKUP_LOKAL:-./handkassen/backups}:/backups/lokal:ro
+
+  handkassen-backup:
+    profiles: ["produktion"]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      handkassen-db:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${HK_DB_USER:-handkassen}
+      POSTGRES_PASSWORD: ${HK_DB_PASSWORD:-handkassen}
+      POSTGRES_DB: ${HK_DB_NAME:-handkassen}
+      DB_HOST: handkassen-db
+    entrypoint: ["/bin/sh", "/backup/entrypoint.sh"]
+    volumes:
+      - ./handkassen/backup:/backup:ro
+      - handkassen_belege_data:/uploads:ro
+      - ${BACKUP_LOKAL:-./handkassen/backups}:/backups/lokal
+      - ${BACKUP_NAS:-./handkassen/backups-nas}:/backups/nas
+      - ${BACKUP_USB:-./handkassen/backups-usb}:/backups/usb
+
+  # ---------------------------------------------------------------------------
+  # Stunden (bestehendes Projekt, Build-Kontext ./stunden)
+  # ---------------------------------------------------------------------------
+  stunden-db:
+    profiles: ["produktion"]
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${STUNDEN_DB_USER:-stunden}
+      POSTGRES_PASSWORD: ${STUNDEN_DB_PASSWORD:-stunden_dev_passwort}
+      POSTGRES_DB: ${STUNDEN_DB_NAME:-stunden}
+    volumes:
+      - stunden_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STUNDEN_DB_USER:-stunden}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  stunden-app:
+    profiles: ["produktion"]
+    build:
+      context: ./stunden
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      stunden-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${STUNDEN_DB_USER:-stunden}:${STUNDEN_DB_PASSWORD:-stunden_dev_passwort}@stunden-db:5432/${STUNDEN_DB_NAME:-stunden}
+      JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      ENCRYPTION_KEY: ${STUNDEN_ENCRYPTION_KEY:-bitte-32-zeichen-schluessel-setzen}
+      PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
+      PORT: 3002
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      COOKIE_INSECURE: ${COOKIE_INSECURE:-}
+      TOOL_SLUG: stunden
+      SUITE_URL: http://portal-app:3000
+      STATIC_DIR: /app/static
+
+volumes:
+  suite_db_data:
+  # Bestehende Handkassen-Produktivdaten weiterverwenden (siehe Kopfkommentar).
+  handkassen_db_data:
+    name: handkassen_db_data
+  handkassen_belege_data:
+    name: handkassen_belege_data
+  stunden_db_data:
+    name: stunden_db_data

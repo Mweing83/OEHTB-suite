@@ -1,0 +1,164 @@
+// Prisma-Schema fuer das Stunden-Tool OEHTB
+// Datenmodell siehe PLAN.md, Abschnitt 2.
+
+generator client {
+  provider = "prisma-client-js"
+  // --- Windows ARM64 (Snapdragon/Copilot+ PC) ---
+  // Prisma erkennt ARM64-Windows nicht als eigene Zielplattform und laedt
+  // sonst die x64-Engine ("not a valid Win32 application").
+  // engineType = "binary" erzwingt die Query-Engine als separaten Prozess,
+  // der unter ARM64 per Emulation laeuft.
+  // debian-openssl-3.0.x: fuer den Produktions-Container (node:20-slim, Suite).
+  engineType    = "binary"
+  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Stammdaten der betroffenen Personen
+// ---------------------------------------------------------------------------
+model Mitarbeiter {
+  id             String   @id @default(cuid())
+  vorname        String
+  nachname       String
+  personalnummer String   @unique
+  email          String?
+  bereich        String? // z. B. VBW / GVB / TBW
+  aktiv          Boolean  @default(true)
+  // Datiertes Austrittsdatum (letzter Beschaeftigungstag). null = kein Austritt
+  // erfasst. Wird fuer Stichtags-Snapshots genutzt: an einem Stichtag S gilt
+  // eine Person als beschaeftigt, wenn austrittAm null ODER austrittAm >= S ist.
+  austrittAm     DateTime? @db.Date
+  erstelltAm     DateTime @default(now())
+
+  beschaeftigungen Beschaeftigung[]
+
+  @@index([nachname, vorname])
+}
+
+// ---------------------------------------------------------------------------
+// Zeitliche Historie der Beschaeftigung – NIE ueberschreiben!
+// Jede Aenderung = neuer Datensatz mit Gueltigkeitsdatum.
+// Aktueller Stand = juengster Eintrag mit gueltigAb <= heute.
+// ---------------------------------------------------------------------------
+model Beschaeftigung {
+  id                  String         @id @default(cuid())
+  mitarbeiter         Mitarbeiter    @relation(fields: [mitarbeiterId], references: [id], onDelete: Cascade)
+  mitarbeiterId       String
+  wochenstunden       Decimal        @db.Decimal(5, 2)
+  ausmassProzent      Decimal        @db.Decimal(5, 2)
+  gueltigAb           DateTime       @db.Date
+  erfasstAm           DateTime       @default(now())
+  erfasstVon          String? // User-ID (kein Klarname)
+  quelle              Quelle         @default(MANUELL)
+  aenderungsanfrage   Aenderungsanfrage? @relation(fields: [aenderungsanfrageId], references: [id])
+  aenderungsanfrageId String?
+  notiz               String?
+
+  @@index([mitarbeiterId, gueltigAb])
+}
+
+enum Quelle {
+  MANUELL
+  MAIL_IMAP
+  MAIL_PASTE
+}
+
+// ---------------------------------------------------------------------------
+// Eingehende Aenderungsanfrage (Mail-Workflow)
+// ---------------------------------------------------------------------------
+model Aenderungsanfrage {
+  id               String          @id @default(cuid())
+  rohtext          String
+  eingegangenAm    DateTime        @default(now())
+  quelle           AnfrageQuelle
+  absenderEmail    String?
+  status           AnfrageStatus   @default(NEU)
+  parseErgebnis    Json? // strukturiertes KI-Ergebnis
+  konfidenz        Float?
+  pseudonymMapping Json? // LOKAL – verlaesst das System nie
+  bearbeitetVon    String? // User-ID (wer bestaetigt/abgelehnt hat)
+  bearbeitetAm     DateTime?
+  ablehnungsgrund  String?
+  // Zweite Stufe: Verarbeitung durch die Personalverrechnung.
+  verarbeitetVon   String? // User-ID der Personalverrechnung
+  verarbeitetAm    DateTime?
+  verarbeitungNotiz String?
+
+  beschaeftigungen Beschaeftigung[]
+
+  @@index([status, eingegangenAm])
+}
+
+enum AnfrageQuelle {
+  IMAP
+  PASTE
+}
+
+enum AnfrageStatus {
+  NEU
+  GEPARSED
+  ZUR_BESTAETIGUNG
+  BESTAETIGT
+  VERARBEITET
+  ABGELEHNT
+  FEHLER
+}
+
+// ---------------------------------------------------------------------------
+// Tool-Benutzer mit Rollen
+// ---------------------------------------------------------------------------
+model User {
+  id           String   @id @default(cuid())
+  // Von der Suite provisioniert; darf leer sein (nicht jeder Suite-Benutzer hat
+  // eine E-Mail). Der fruehere synthetische "@suite.local"-Platzhalter entfaellt.
+  email        String?  @unique
+  // Passwort/Login liegen seit der Suite-Integration im Portal; hier optional
+  // (lokale User-Zeile bleibt fuer Audit-/erfasstVon-Referenzen erhalten).
+  passwortHash String?
+  // Verknuepfung zum zentralen Suite-Benutzer (Auto-Provisioning beim Login).
+  suiteUserId  String?  @unique
+  name         String?
+  rolle        Rolle    @default(LESER)
+  aktiv        Boolean  @default(true)
+  // Zentral geloescht (Tombstone): sperrt den Zugang, erhaelt aber die Historie.
+  geloescht    Boolean  @default(false)
+  letzterLogin DateTime?
+  erstelltAm   DateTime @default(now())
+}
+
+enum Rolle {
+  ADMIN
+  SACHBEARBEITER
+  PERSONALVERRECHNUNG
+  LESER
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog (GDPR-Nachweis) – keine Klarnamen, nur IDs
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id                    String   @id @default(cuid())
+  userId                String?
+  aktion                String
+  betroffenerMitarbeiterId String?
+  zeitpunkt             DateTime @default(now())
+  details               Json?
+
+  @@index([zeitpunkt])
+  @@index([betroffenerMitarbeiterId])
+}
+
+// ---------------------------------------------------------------------------
+// Admin-Konfiguration (Key-Value)
+// ---------------------------------------------------------------------------
+model Einstellung {
+  id         String   @id @default(cuid())
+  schluessel String   @unique
+  wert       Json
+  geaendertAm DateTime @default(now()) @updatedAt
+}

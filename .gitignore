@@ -1,0 +1,30 @@
+# === Abhaengigkeiten / Builds ===
+node_modules/
+dist/
+build/
+coverage/
+
+# === Secrets & lokale Env (NIE committen) ===
+.env
+.env.local
+.env.*.local
+.env.*.bak
+*.bak
+
+# === Logs / OS ===
+*.log
+.DS_Store
+
+# === Deaktivierte Original-Tool-Repos (eigene Historie, reversibel) ===
+.git-DISABLED/
+
+# === Laufzeitdaten der Tools (nicht ins Repo) ===
+uploads/
+backups/
+backups-nas/
+backups-usb/
+postgres-data/
+
+# === Sonstiges ===
+backend/import-mapping.json
+.claude/
