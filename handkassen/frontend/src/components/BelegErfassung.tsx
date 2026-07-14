@@ -190,7 +190,7 @@ export default function BelegErfassung({ onDatei }: Props) {
             <button
               type="button"
               onClick={ausloesen}
-              className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800"
+              className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800"
             >
               Auslösen
             </button>
@@ -238,7 +238,7 @@ export default function BelegErfassung({ onDatei }: Props) {
             <button type="button" onClick={entfernen} className="text-sm text-red-600 hover:underline">
               Entfernen
             </button>
-            <button type="button" onClick={kameraStarten} className="text-sm text-blue-700 hover:underline">
+            <button type="button" onClick={kameraStarten} className="text-sm text-marke-700 hover:underline">
               Neu aufnehmen
             </button>
           </div>

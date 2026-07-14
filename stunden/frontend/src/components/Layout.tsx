@@ -2,7 +2,8 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
-// Gemeinsames Seitenlayout mit Kopfzeile und Navigation.
+// Gemeinsames Seitenlayout mit markanter Kopfleiste (Marken-Navy) und
+// Navigation – einheitlich mit Portal und Handkassen.
 export default function Layout({ children }: { children: ReactNode }) {
   const { benutzer, abmelden } = useAuth();
   const ort = useLocation();
@@ -12,11 +13,12 @@ export default function Layout({ children }: { children: ReactNode }) {
     return (
       <Link
         to={pfad}
+        aria-current={aktiv ? "page" : undefined}
         className={
-          "px-3 py-2 rounded text-sm font-medium " +
+          "px-3 py-2 rounded-md text-sm font-medium " +
           (aktiv
-            ? "bg-blue-100 text-blue-800"
-            : "text-gray-600 hover:bg-gray-100")
+            ? "bg-marke-700 text-white"
+            : "text-marke-100 hover:bg-marke-800")
         }
       >
         {text}
@@ -25,34 +27,36 @@ export default function Layout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <h1 className="text-lg font-semibold text-gray-800">
-              Stunden-Tool ÖHTB
-            </h1>
-            <nav className="flex items-center gap-1">
-              <a
-                href="/"
-                className="px-3 py-2 rounded text-sm font-medium text-gray-600 hover:bg-gray-100"
-              >
-                ← Portal
-              </a>
-              {navLink("/", "Dashboard")}
-              {navLink("/anfragen", "Anfragen")}
-              {navLink("/mitarbeiter", "Mitarbeiter")}
-              {benutzer?.rolle === "ADMIN" && navLink("/admin", "Administration")}
-            </nav>
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-marke-900 text-white">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold tracking-tight">ÖHTB</span>
+            <span className="text-marke-300" aria-hidden="true">
+              ·
+            </span>
+            <span className="text-base font-medium text-marke-100">Stunden</span>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-gray-600">
+          <nav className="flex items-center gap-1 flex-wrap">
+            <a
+              href="/"
+              className="px-3 py-2 rounded-md text-sm font-medium text-marke-100 hover:bg-marke-800"
+            >
+              ← Portal
+            </a>
+            {navLink("/", "Dashboard")}
+            {navLink("/anfragen", "Anfragen")}
+            {navLink("/mitarbeiter", "Mitarbeiter")}
+            {benutzer?.rolle === "ADMIN" && navLink("/admin", "Verwaltung")}
+          </nav>
+          <div className="ml-auto flex items-center gap-3 text-sm">
+            <span className="text-marke-200">
               {benutzer?.name ?? benutzer?.email}{" "}
-              <span className="text-gray-400">({benutzer?.rolle})</span>
+              <span className="text-marke-300">({benutzer?.rolle})</span>
             </span>
             <button
               onClick={() => abmelden()}
-              className="text-blue-600 hover:underline"
+              className="rounded-md bg-marke-800 px-3 py-1.5 font-medium hover:bg-marke-700"
             >
               Abmelden
             </button>

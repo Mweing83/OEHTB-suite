@@ -28,3 +28,6 @@ postgres-data/
 # === Sonstiges ===
 backend/import-mapping.json
 .claude/
+
+# TypeScript inkrementelle Build-Info (Artefakt)
+*.tsbuildinfo

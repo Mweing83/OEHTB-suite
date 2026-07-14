@@ -9,7 +9,7 @@ import { formatCent, euroStringZuCent } from "../lib/geld.js";
 function Karte({ titel, children }: { titel: string; children: React.ReactNode }) {
   return (
     <div className="bg-white rounded-lg shadow p-5 mb-6">
-      <h2 className="font-semibold text-blue-900 mb-4">{titel}</h2>
+      <h2 className="font-semibold text-marke-900 mb-4">{titel}</h2>
       {children}
     </div>
   );
@@ -40,7 +40,7 @@ function StatusKnopf({ aktiv, onClick }: { aktiv: boolean; onClick: () => void }
 // Bearbeiten-Link (startet den Inline-Bearbeitungsmodus einer Zeile)
 function BearbeitenKnopf({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="text-xs text-blue-700 hover:underline">
+    <button onClick={onClick} className="text-xs text-marke-700 hover:underline">
       bearbeiten
     </button>
   );
@@ -50,7 +50,7 @@ function BearbeitenKnopf({ onClick }: { onClick: () => void }) {
 function SpeichernAbbrechen({ onSpeichern, onAbbrechen }: { onSpeichern: () => void; onAbbrechen: () => void }) {
   return (
     <>
-      <button onClick={onSpeichern} className="text-xs text-blue-700 font-medium hover:underline">speichern</button>
+      <button onClick={onSpeichern} className="text-xs text-marke-700 font-medium hover:underline">speichern</button>
       <button onClick={onAbbrechen} className="text-xs text-slate-500 hover:underline">abbrechen</button>
     </>
   );
@@ -133,7 +133,7 @@ function BenutzerTab() {
         <Fehlerzeile text={fehler} />
         <p className="text-sm text-slate-600 mb-4">
           Benutzer, Rollen und der grundsätzliche Zugang zu Handkassen werden
-          zentral im <a href="/" className="text-blue-700 hover:underline">Portal (Verwaltung)</a>{" "}
+          zentral im <a href="/" className="text-marke-700 hover:underline">Portal (Verwaltung)</a>{" "}
           gepflegt. Hier legen Sie fest, welche Kostenstellen ein Benutzer
           bearbeiten darf (gilt nicht für Admin/Finanzen – die sehen alle).
         </p>
@@ -173,11 +173,11 @@ function BenutzerTab() {
                 <td>{b.name}</td>
                 <td>{b.rolle}</td>
                 <td>
-                  {b.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-400">inaktiv</span>}
+                  {b.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}
                 </td>
                 <td>{b.kostenstellen.length}</td>
                 <td className="text-right whitespace-nowrap">
-                  <button onClick={() => zuweisungOeffnen(b)} className="text-xs text-blue-700 hover:underline">
+                  <button onClick={() => zuweisungOeffnen(b)} className="text-xs text-marke-700 hover:underline">
                     Kassen zuordnen
                   </button>
                 </td>
@@ -190,7 +190,7 @@ function BenutzerTab() {
       {zuweisung && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-10">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h3 className="font-semibold text-blue-900 mb-1">Kostenstellen für {zuweisung.name}</h3>
+            <h3 className="font-semibold text-marke-900 mb-1">Kostenstellen für {zuweisung.name}</h3>
             <p className="text-sm text-slate-500 mb-4">Welche Kassen darf dieser Benutzer bearbeiten?</p>
             <div className="max-h-64 overflow-auto space-y-2 mb-4">
               {kostenstellen.filter((k) => k.aktiv).map((k) => (
@@ -204,13 +204,13 @@ function BenutzerTab() {
                       )
                     }
                   />
-                  {k.bezeichnung} <span className="text-slate-400">({k.bereich.bezeichnung})</span>
+                  {k.bezeichnung} <span className="text-slate-500">({k.bereich.bezeichnung})</span>
                 </label>
               ))}
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setZuweisung(null)} className="px-3 py-2 text-sm text-slate-600 hover:underline">Abbrechen</button>
-              <button onClick={zuweisungSpeichern} className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800">Speichern</button>
+              <button onClick={zuweisungSpeichern} className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">Speichern</button>
             </div>
           </div>
         </div>
@@ -342,7 +342,7 @@ function KostenstellenTab() {
             <input className="w-full border rounded px-3 py-2 text-right" placeholder="0,00" value={neu.anfangssaldo}
               onChange={(e) => setNeu({ ...neu, anfangssaldo: e.target.value })} />
           </div>
-          <button onClick={anlegen} className="bg-blue-700 text-white rounded py-2 font-medium hover:bg-blue-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
         {(aktiveBereiche.length === 0 || aktiveArten.length === 0) && (
           <p className="text-xs text-amber-600 mt-2">
@@ -406,7 +406,7 @@ function KostenstellenTab() {
                   ) : formatCent(k.anfangssaldoCent)}
                 </td>
                 <td className="text-right">{formatCent(k.saldoCent)}</td>
-                <td>{k.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-400">inaktiv</span>}</td>
+                <td>{k.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
                 <td className="text-right space-x-2 whitespace-nowrap">
                   {imEdit ? (
                     <SpeichernAbbrechen onSpeichern={() => bearbeitenSpeichern(k.id)} onAbbrechen={() => setBearbeiteId(null)} />
@@ -477,7 +477,7 @@ function SteuersaetzeTab() {
             <input className="w-full border rounded px-3 py-2" value={neu.bezeichnung}
               onChange={(e) => setNeu({ ...neu, bezeichnung: e.target.value })} />
           </div>
-          <button onClick={anlegen} className="bg-blue-700 text-white rounded py-2 font-medium hover:bg-blue-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
         <p className="text-xs text-slate-500 mt-2">
           Deaktivierte Sätze stehen bei neuen Buchungen nicht mehr zur Auswahl, bleiben aber für Altbuchungen erhalten.
@@ -496,7 +496,7 @@ function SteuersaetzeTab() {
               <tr key={s.id} className="border-b last:border-0">
                 <td className="py-2">{s.prozent} %</td>
                 <td>{s.bezeichnung}</td>
-                <td>{s.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-400">inaktiv</span>}</td>
+                <td>{s.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
                 <td className="text-right"><StatusKnopf aktiv={s.aktiv} onClick={() => aktivSchalten(s)} /></td>
               </tr>
             ))}
@@ -580,7 +580,7 @@ function KontenTab() {
             <input className="w-full border rounded px-3 py-2" value={neu.beschreibung}
               onChange={(e) => setNeu({ ...neu, beschreibung: e.target.value })} />
           </div>
-          <button onClick={anlegen} className="bg-blue-700 text-white rounded py-2 font-medium hover:bg-blue-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
       </Karte>
 
@@ -615,7 +615,7 @@ function KontenTab() {
                       onChange={(e) => setEntwurf({ ...entwurf, anmerkung: e.target.value })} />
                   ) : (k.anmerkung || "–")}
                 </td>
-                <td>{k.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-400">inaktiv</span>}</td>
+                <td>{k.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
                 <td className="text-right space-x-2 whitespace-nowrap">
                   {imEdit ? (
                     <SpeichernAbbrechen onSpeichern={() => bearbeitenSpeichern(k.id)} onAbbrechen={() => setBearbeiteId(null)} />
@@ -701,7 +701,7 @@ function StammwertTab({
             <input className="w-full border rounded px-3 py-2" value={neu}
               onChange={(e) => setNeu(e.target.value)} />
           </div>
-          <button onClick={anlegen} className="bg-blue-700 text-white rounded py-2 font-medium hover:bg-blue-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
         <p className="text-xs text-slate-500 mt-2">
           Deaktivierte Einträge stehen bei neuen Kostenstellen nicht mehr zur Auswahl,
@@ -727,7 +727,7 @@ function StammwertTab({
                       onChange={(e) => setEntwurf(e.target.value)} />
                   ) : s.bezeichnung}
                 </td>
-                <td>{s.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-400">inaktiv</span>}</td>
+                <td>{s.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
                 <td className="text-right space-x-2 whitespace-nowrap">
                   {imEdit ? (
                     <SpeichernAbbrechen onSpeichern={() => bearbeitenSpeichern(s.id)} onAbbrechen={() => setBearbeiteId(null)} />
@@ -862,8 +862,8 @@ function VerzeichnisBrowser({
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-lg flex flex-col" style={{ maxHeight: "80vh" }}>
         <div className="px-4 py-3 border-b flex items-center gap-2">
-          <span className="font-semibold text-blue-900 text-sm flex-1">Ordner wählen</span>
-          <button onClick={onAbbrechen} className="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+          <span className="font-semibold text-marke-900 text-sm flex-1">Ordner wählen</span>
+          <button onClick={onAbbrechen} className="text-slate-500 hover:text-slate-700 text-xl leading-none">&times;</button>
         </div>
 
         <div className="px-3 py-2 border-b bg-slate-50 flex items-center gap-2">
@@ -888,13 +888,13 @@ function VerzeichnisBrowser({
 
         <div className="overflow-y-auto flex-1 py-1">
           {fehler && <p className="text-sm text-red-600 px-4 py-2">{fehler}</p>}
-          {laeuft && <p className="text-sm text-slate-400 px-4 py-2">Lade…</p>}
+          {laeuft && <p className="text-sm text-slate-500 px-4 py-2">Lade…</p>}
           {!laeuft && !fehler && ordner.length === 0 && (
-            <p className="text-sm text-slate-400 px-4 py-2">Keine Unterordner vorhanden.</p>
+            <p className="text-sm text-slate-500 px-4 py-2">Keine Unterordner vorhanden.</p>
           )}
           {ordner.map((name) => (
             <button key={name} onClick={() => navigieren(unterordnerPfad(name))}
-              className="w-full text-left px-4 py-1.5 text-sm hover:bg-blue-50 flex items-center gap-2">
+              className="w-full text-left px-4 py-1.5 text-sm hover:bg-marke-50 flex items-center gap-2">
               <svg className="h-4 w-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
               </svg>
@@ -904,11 +904,11 @@ function VerzeichnisBrowser({
         </div>
 
         <div className="px-4 py-3 border-t flex items-center justify-between gap-2">
-          <span className="text-xs text-slate-400 font-mono truncate">{pfad || "—"}</span>
+          <span className="text-xs text-slate-500 font-mono truncate">{pfad || "—"}</span>
           <div className="flex gap-2 flex-shrink-0">
             <button onClick={onAbbrechen} className="px-3 py-1.5 text-sm text-slate-600 hover:underline">Abbrechen</button>
             <button onClick={() => onAuswaehlen(pfad)} disabled={!pfad}
-              className="bg-blue-700 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-blue-800 disabled:opacity-50">
+              className="bg-marke-700 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-800 disabled:opacity-50">
               Auswählen
             </button>
           </div>
@@ -1031,17 +1031,17 @@ function BackupTab() {
           </div>
         )}
         <div className="mt-4 flex gap-3 items-center">
-          <button onClick={jetztSichern} className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800">Jetzt sichern</button>
-          <button onClick={laden} className="text-sm text-blue-700 hover:underline">Aktualisieren</button>
+          <button onClick={jetztSichern} className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">Jetzt sichern</button>
+          <button onClick={laden} className="text-sm text-marke-700 hover:underline">Aktualisieren</button>
         </div>
       </Karte>
 
       <Karte titel="Sicherungen (lokal)">
         <div className="flex items-center gap-3 mb-3">
-          <button onClick={dateienLaden} className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800">
+          <button onClick={dateienLaden} className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
             {dateien === null ? "Sicherungen anzeigen" : "Aktualisieren"}
           </button>
-          {dateienPfad && <span className="text-xs text-slate-400">Ordner: {dateienPfad}</span>}
+          {dateienPfad && <span className="text-xs text-slate-500">Ordner: {dateienPfad}</span>}
         </div>
 
         {dateien !== null && dateien.length === 0 && (
@@ -1067,7 +1067,7 @@ function BackupTab() {
                     <td className="whitespace-nowrap">{new Date(d.erstelltAm).toLocaleString("de-AT")}</td>
                     <td className="text-right">
                       <button onClick={() => pruefen(d)} disabled={p?.laeuft}
-                        className="text-xs text-blue-700 hover:underline disabled:opacity-60">
+                        className="text-xs text-marke-700 hover:underline disabled:opacity-60">
                         {p?.laeuft ? "prüfe…" : "prüfen"}
                       </button>
                       {p && !p.laeuft && p.meldung && (
@@ -1105,7 +1105,7 @@ function BackupTab() {
             <input type="number" min={0} className="w-full border rounded px-3 py-2 text-right" value={form.aufbewahrungMonatlich}
               onChange={(e) => setForm({ ...form, aufbewahrungMonatlich: e.target.value })} />
           </div>
-          <button onClick={speichern} className="bg-blue-700 text-white rounded py-2 font-medium hover:bg-blue-800">Speichern</button>
+          <button onClick={speichern} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Speichern</button>
         </div>
         <div className="mt-4 flex flex-wrap gap-6">
           <label className="flex items-center gap-2 text-sm">
@@ -1139,7 +1139,7 @@ function BackupTab() {
             </button>
           </div>
         </div>
-        <p className="text-xs text-slate-400 mt-3">
+        <p className="text-xs text-slate-500 mt-3">
           Hinweis: <strong>Wohin</strong> gesichert wird (lokal, NAS, USB), wird am Server in der
           Datei <code className="bg-slate-100 px-1 rounded">.env</code> festgelegt – nicht hier.
           Dieser Pfad beeinflusst nur die Anzeige. Änderungen werden beim Klick auf „Speichern" übernommen.
@@ -1243,7 +1243,7 @@ function BelegeTab() {
             <input type="number" min={30} max={100} className="w-40 border rounded px-3 py-2 text-right"
               value={fotoQualitaet} onChange={(e) => setFotoQualitaet(e.target.value)} />
           </div>
-          <button onClick={fotoSpeichern} className="bg-blue-700 text-white rounded px-5 py-2 font-medium hover:bg-blue-800">Speichern</button>
+          <button onClick={fotoSpeichern} className="bg-marke-700 text-white rounded px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
         </div>
         <p className="text-xs text-slate-500 mt-3">
           Beim Speichern eines Belegfotos wird die längere Bildkante auf diesen Wert begrenzt
@@ -1320,7 +1320,7 @@ function KassensperreTab() {
             <input type="number" min={0} max={366} className="w-40 border rounded px-3 py-2 text-right"
               value={frist} onChange={(e) => setFrist(e.target.value)} />
           </div>
-          <button onClick={fristSpeichern} className="bg-blue-700 text-white rounded px-5 py-2 font-medium hover:bg-blue-800">Speichern</button>
+          <button onClick={fristSpeichern} className="bg-marke-700 text-white rounded px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
         </div>
         <p className="text-xs text-slate-500 mt-3">
           Jede Kasse wird automatisch gesperrt, sobald nach dem Monatsende so viele Tage vergangen sind.
@@ -1365,14 +1365,14 @@ function KassensperreTab() {
                   {m.gesperrt
                     ? <span className="text-red-700 font-medium">gesperrt</span>
                     : <span className="text-green-700">offen</span>}
-                  <span className="ml-2 text-xs text-slate-400">{m.manuell ? "(manuell)" : "(automatisch)"}</span>
+                  <span className="ml-2 text-xs text-slate-500">{m.manuell ? "(manuell)" : "(automatisch)"}</span>
                 </td>
                 <td className="text-right space-x-3 whitespace-nowrap">
                   {m.gesperrt
                     ? <button onClick={() => setzen(m.monat, "entsperren")} className="text-xs text-green-700 hover:underline">entsperren</button>
                     : <button onClick={() => setzen(m.monat, "sperren")} className="text-xs text-red-600 hover:underline">sperren</button>}
                   {m.manuell && (
-                    <button onClick={() => setzen(m.monat, "automatisch")} className="text-xs text-blue-700 hover:underline">auf automatisch</button>
+                    <button onClick={() => setzen(m.monat, "automatisch")} className="text-xs text-marke-700 hover:underline">auf automatisch</button>
                   )}
                 </td>
               </tr>
@@ -1450,7 +1450,7 @@ function KontaktTab() {
             onChange={(e) => setForm({ ...form, kontaktHinweis: e.target.value })}
             placeholder="z. B. Erreichbarkeit, Zuständigkeit…" />
         </div>
-        <button onClick={speichern} className="bg-blue-700 text-white rounded px-5 py-2 font-medium hover:bg-blue-800">Speichern</button>
+        <button onClick={speichern} className="bg-marke-700 text-white rounded px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
       </div>
       <p className="text-xs text-slate-500 mt-3">
         Diese Angaben sehen alle angemeldeten Nutzer im Menüpunkt „Kontakt“.
@@ -1520,7 +1520,7 @@ export default function AdminSeite() {
             key={g.id}
             onClick={() => gruppeWaehlen(g.id)}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${
-              gruppeId === g.id ? "border-blue-700 text-blue-900" : "border-transparent text-slate-500 hover:text-slate-700"
+              gruppeId === g.id ? "border-marke-700 text-marke-900" : "border-transparent text-slate-500 hover:text-slate-700"
             }`}
           >
             {g.label}
@@ -1536,7 +1536,7 @@ export default function AdminSeite() {
               key={u.id}
               onClick={() => setUnter(u.id as UnterId)}
               className={`px-3 py-1.5 text-sm rounded ${
-                unter === u.id ? "bg-blue-700 text-white" : "text-slate-600 hover:bg-slate-100"
+                unter === u.id ? "bg-marke-700 text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
               {u.label}

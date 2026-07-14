@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { MitarbeiterListe } from "../lib/typen";
 import Layout from "../components/Layout";
+import { hinweis } from "../components/dialog";
 
 // Datum DD/MM/YYYY (europaeisches Layout) fuer die Anzeige.
 function datumDe(iso: string): string {
@@ -57,7 +58,7 @@ async function csvHerunterladen(pfad: string, dateiname: string): Promise<void> 
   try {
     const res = await fetch(pfad, { credentials: "include" });
     if (!res.ok) {
-      alert("Export fehlgeschlagen.");
+      await hinweis("Export fehlgeschlagen.");
       return;
     }
     const blob = await res.blob();
@@ -70,7 +71,7 @@ async function csvHerunterladen(pfad: string, dateiname: string): Promise<void> 
     a.remove();
     URL.revokeObjectURL(url);
   } catch {
-    alert("Export fehlgeschlagen.");
+    await hinweis("Export fehlgeschlagen.");
   }
 }
 
@@ -88,7 +89,7 @@ function StatKarte({
     <div className="bg-white rounded-lg shadow-sm px-4 py-3">
       <div className="text-xs text-gray-500">{label}</div>
       <div className="text-2xl font-semibold text-gray-800 mt-0.5">{wert}</div>
-      {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+      {sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -307,7 +308,7 @@ export default function DashboardSeite() {
           </div>
 
           {analytik.ohneDaten > 0 && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-slate-500 mt-2">
               Hinweis: {analytik.ohneDaten} Mitarbeiter ohne aktuelle
               Beschäftigungsdaten (nicht in FTE/Wochenstunden enthalten).
             </p>
@@ -358,7 +359,7 @@ export default function DashboardSeite() {
                   <td className="px-4 py-3">
                     <Link
                       to={`/mitarbeiter/${m.id}`}
-                      className="text-blue-600 hover:underline font-medium"
+                      className="text-marke-600 hover:underline font-medium"
                     >
                       {m.nachname}, {m.vorname}
                     </Link>
@@ -391,7 +392,7 @@ export default function DashboardSeite() {
                         Std
                       </span>
                     ) : (
-                      <span className="text-gray-400 text-xs">–</span>
+                      <span className="text-slate-500 text-xs">–</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -406,7 +407,7 @@ export default function DashboardSeite() {
               ))}
               {gefiltert.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                     Keine Mitarbeiter gefunden.
                   </td>
                 </tr>

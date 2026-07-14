@@ -3,6 +3,7 @@ import { api } from "../lib/api.js";
 import { formatCent, summeSteuerCent } from "../lib/geld.js";
 import BuchungsFormular, { type KorrekturVorlage } from "../components/BuchungsFormular.js";
 import DatumFeld, { isoZuDe } from "../components/DatumFeld.js";
+import { bestaetigen, hinweis } from "../components/dialog.js";
 
 interface Kostenstelle {
   id: number;
@@ -31,6 +32,7 @@ export default function BuchungenSeite() {
   const [kostenstellen, setKostenstellen] = useState<Kostenstelle[]>([]);
   const [aktiv, setAktiv] = useState<number | null>(null);
   const [buchungen, setBuchungen] = useState<Buchung[]>([]);
+  const [ladeFehler, setLadeFehler] = useState<string | null>(null);
 
   // Filter-Zustand (alles im Browser, sofort wirkend)
   const [suche, setSuche] = useState("");
@@ -54,7 +56,18 @@ export default function BuchungenSeite() {
   }, []);
 
   function ladeBuchungen(ksId: number) {
-    api.get<Buchung[]>(`/buchungen?kostenstelle=${ksId}`).then(setBuchungen).catch(() => setBuchungen([]));
+    setLadeFehler(null);
+    api
+      .get<Buchung[]>(`/buchungen?kostenstelle=${ksId}`)
+      .then(setBuchungen)
+      .catch((e) => {
+        setBuchungen([]);
+        // Nicht stumm scheitern: leere Liste sonst nicht von einem Ladefehler
+        // unterscheidbar. Fehler sichtbar melden.
+        setLadeFehler(
+          e instanceof Error ? e.message : "Buchungen konnten nicht geladen werden.",
+        );
+      });
   }
 
   useEffect(() => {
@@ -98,8 +111,17 @@ export default function BuchungenSeite() {
   }
 
   async function storno(id: number) {
-    if (!confirm("Diese Buchung stornieren?")) return;
-    await api.post(`/buchungen/${id}/storno`).catch((e) => alert((e as Error).message));
+    if (
+      !(await bestaetigen("Diese Buchung stornieren?", {
+        titel: "Buchung stornieren",
+        bestaetigenText: "Stornieren",
+        gefahr: true,
+      }))
+    )
+      return;
+    await api
+      .post(`/buchungen/${id}/storno`)
+      .catch((e) => hinweis((e as Error).message));
     if (aktiv) {
       ladeBuchungen(aktiv);
       api.get<Kostenstelle[]>("/kostenstellen").then(setKostenstellen);
@@ -162,7 +184,7 @@ export default function BuchungenSeite() {
 
         <div className="flex gap-6 items-start">
           <div className="bg-white rounded-lg shadow p-5 flex-1 min-w-0">
-          <h2 className="font-semibold text-blue-900 mb-4">Buchungen</h2>
+          <h2 className="font-semibold text-marke-900 mb-4">Buchungen</h2>
 
           {/* Filterleiste */}
           <div className="mb-4 space-y-3">
@@ -210,7 +232,7 @@ export default function BuchungenSeite() {
                   onChange={(e) => setStornierteZeigen(e.target.checked)} />
                 Stornierte anzeigen
               </label>
-              <button onClick={filterZuruecksetzen} className="text-sm text-blue-700 hover:underline">
+              <button onClick={filterZuruecksetzen} className="text-sm text-marke-700 hover:underline">
                 Filter zurücksetzen
               </button>
               <span className="ml-auto text-xs text-slate-500">
@@ -219,7 +241,17 @@ export default function BuchungenSeite() {
             </div>
           </div>
 
-          {buchungen.length === 0 ? (
+          {ladeFehler ? (
+            <div className="text-sm text-gefahr-700 bg-gefahr-50 border border-gefahr-600/20 rounded px-3 py-2">
+              {ladeFehler}{" "}
+              <button
+                onClick={() => aktiv && ladeBuchungen(aktiv)}
+                className="font-medium underline hover:no-underline"
+              >
+                Erneut versuchen
+              </button>
+            </div>
+          ) : buchungen.length === 0 ? (
             <p className="text-sm text-slate-500">Noch keine Buchungen.</p>
           ) : gefiltert.length === 0 ? (
             <p className="text-sm text-slate-500">Keine Buchungen entsprechen den Filterkriterien.</p>
@@ -240,7 +272,7 @@ export default function BuchungenSeite() {
               </thead>
               <tbody>
                 {gefiltert.map((b) => (
-                  <tr key={b.id} className={`border-b last:border-0 ${b.storniert ? "text-slate-400 line-through" : ""}`}>
+                  <tr key={b.id} className={`border-b last:border-0 ${b.storniert ? "text-slate-500 line-through" : ""}`}>
                     <td className="py-2">{b.buchungsnummer}</td>
                     <td>{b.belegnummer.replace(/^\d{4}-/, "")}</td>
                     <td>
@@ -248,7 +280,7 @@ export default function BuchungenSeite() {
                         <button
                           type="button"
                           onClick={() => setBelegVorschau({ id: b.beleg!.id, originalname: b.beleg!.originalname, belegnummer: b.belegnummer })}
-                          className={belegVorschau?.id === b.beleg.id ? "text-blue-900" : "text-blue-700 hover:text-blue-900"}
+                          className={belegVorschau?.id === b.beleg.id ? "text-marke-900" : "text-marke-700 hover:text-marke-900"}
                           title={`Beleg ansehen (${b.beleg.originalname})`}
                         >
                           <svg
@@ -267,16 +299,16 @@ export default function BuchungenSeite() {
                           </svg>
                         </button>
                       ) : (
-                        <span className="text-slate-400">–</span>
+                        <span className="text-slate-500">–</span>
                       )}
                     </td>
                     <td>{isoZuDe(b.belegdatum.slice(0, 10))}</td>
                     <td>
-                      {b.beschreibung || <span className="text-slate-400">–</span>}
+                      {b.beschreibung || <span className="text-slate-500">–</span>}
                       {b.korrekturVon && (
                         <span className="ml-2 text-xs text-amber-700">(Korrektur von Nr. {b.korrekturVon.buchungsnummer})</span>
                       )}
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-slate-500">
                         {b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ")}
                       </div>
                     </td>
@@ -290,7 +322,7 @@ export default function BuchungenSeite() {
                     <td className="text-right">
                       {!b.storniert && !b.gesperrt && (
                         <div className="flex gap-2 justify-end">
-                          <button onClick={() => korrekturStarten(b)} className="text-xs text-blue-700 hover:underline">
+                          <button onClick={() => korrekturStarten(b)} className="text-xs text-marke-700 hover:underline">
                             Korrigieren
                           </button>
                           <button onClick={() => storno(b.id)} className="text-xs text-red-600 hover:underline">
@@ -298,7 +330,7 @@ export default function BuchungenSeite() {
                           </button>
                         </div>
                       )}
-                      {b.gesperrt && <span className="text-xs text-slate-400">gesperrt</span>}
+                      {b.gesperrt && <span className="text-xs text-slate-500">gesperrt</span>}
                     </td>
                   </tr>
                 ))}
@@ -311,7 +343,7 @@ export default function BuchungenSeite() {
           {belegVorschau && (
             <aside className="bg-white rounded-lg shadow p-4 w-[440px] shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-auto">
               <div className="flex items-center justify-between mb-3 gap-2">
-                <h3 className="font-semibold text-blue-900 text-sm truncate" title={belegVorschau.belegnummer}>
+                <h3 className="font-semibold text-marke-900 text-sm truncate" title={belegVorschau.belegnummer}>
                   Beleg: {belegVorschau.belegnummer}
                   {belegVorschau.originalname.includes(".")
                     ? belegVorschau.originalname.slice(belegVorschau.originalname.lastIndexOf("."))
@@ -343,7 +375,7 @@ export default function BuchungenSeite() {
                 href={`/api/buchungen/belege/${belegVorschau.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block mt-3 text-xs text-blue-700 hover:underline"
+                className="inline-block mt-3 text-xs text-marke-700 hover:underline"
               >
                 In neuem Tab öffnen
               </a>

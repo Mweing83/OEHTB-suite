@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, FormEvent } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
+import { bestaetigen } from "../components/dialog";
 
 interface ToolInfo {
   id: string;
@@ -81,7 +82,15 @@ export default function VerwaltungSeite() {
   }
 
   async function passwortZuruecksetzen(userId: string) {
-    if (!window.confirm("Passwort wirklich zurücksetzen? Der Benutzer muss beim nächsten Login ein neues festlegen.")) {
+    if (
+      !(await bestaetigen(
+        "Der Benutzer muss beim nächsten Login ein neues Passwort festlegen.",
+        {
+          titel: "Passwort zurücksetzen?",
+          bestaetigenText: "Zurücksetzen",
+        },
+      ))
+    ) {
       return;
     }
     setMeldung(null);
@@ -94,7 +103,14 @@ export default function VerwaltungSeite() {
   }
 
   async function loeschen(userId: string, name: string) {
-    if (!window.confirm(`Benutzer "${name}" wirklich löschen?`)) return;
+    if (
+      !(await bestaetigen(`Benutzer "${name}" wirklich löschen?`, {
+        titel: "Benutzer löschen",
+        bestaetigenText: "Löschen",
+        gefahr: true,
+      }))
+    )
+      return;
     setMeldung(null);
     try {
       await api.delete(`/api/suite/admin/benutzer/${userId}`);
@@ -152,7 +168,7 @@ export default function VerwaltungSeite() {
                   <tr key={b.id}>
                     <td className="py-2 pr-4">
                       <div className="font-medium text-gray-800">{b.name}</div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-slate-500">
                         {b.benutzername}
                         {b.passwortSetzen && (
                           <span className="ml-2 text-amber-600">
@@ -196,7 +212,7 @@ export default function VerwaltungSeite() {
                     <td className="py-2 whitespace-nowrap">
                       <button
                         onClick={() => passwortZuruecksetzen(b.id)}
-                        className="text-xs text-blue-600 hover:underline mr-3"
+                        className="text-xs text-marke-600 hover:underline mr-3"
                       >
                         Passwort zurücksetzen
                       </button>
@@ -214,7 +230,7 @@ export default function VerwaltungSeite() {
                   <tr>
                     <td
                       colSpan={4 + tools.length}
-                      className="py-4 text-center text-gray-400"
+                      className="py-4 text-center text-slate-500"
                     >
                       Keine Benutzer.
                     </td>
@@ -266,7 +282,7 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
         <h3 className="font-semibold text-gray-800">Neuer Benutzer</h3>
         <button
           onClick={() => setZeigt((v) => !v)}
-          className="bg-blue-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-blue-700"
+          className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
         >
           {zeigt ? "Abbrechen" : "+ Anlegen"}
         </button>
@@ -312,11 +328,11 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
             <button
               type="submit"
               disabled={speichert}
-              className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
             >
               {speichert ? "Speichern …" : "Anlegen"}
             </button>
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-slate-500 mt-2">
               Nach dem Anlegen muss der Benutzer beim ersten Login selbst ein
               Passwort festlegen. Zugriff auf Tools wird unten in der Tabelle
               vergeben.
@@ -366,7 +382,7 @@ function AuditAnsicht() {
         </div>
         <button
           onClick={laden}
-          className="bg-blue-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-blue-700"
+          className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
         >
           {geladen ? "Aktualisieren" : "Protokoll laden"}
         </button>
@@ -400,7 +416,7 @@ function AuditAnsicht() {
               ))}
               {eintraege.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-4 text-center text-gray-400">
+                  <td colSpan={3} className="py-4 text-center text-slate-500">
                     Keine Einträge.
                   </td>
                 </tr>

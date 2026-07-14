@@ -5,6 +5,7 @@ import { MitarbeiterListe } from "../lib/typen";
 import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
 import DatumEingabe from "../components/DatumEingabe";
+import { bestaetigen, hinweis } from "../components/dialog";
 
 // Datum DD/MM/YYYY (europaeisches Layout) fuer die Anzeige.
 function datumDe(iso: string): string {
@@ -108,10 +109,11 @@ export default function MitarbeiterSeite() {
   async function loeschen(id: string, hart: boolean) {
     if (
       hart &&
-      !window.confirm(
+      !(await bestaetigen(
         "Person und gesamten Beschäftigungsverlauf endgültig löschen? " +
-          "Diese Aktion kann nicht rückgängig gemacht werden."
-      )
+          "Diese Aktion kann nicht rückgängig gemacht werden.",
+        { titel: "Endgültig löschen", bestaetigenText: "Löschen", gefahr: true },
+      ))
     ) {
       return;
     }
@@ -121,7 +123,7 @@ export default function MitarbeiterSeite() {
       setLoeschId(null);
       laden();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Fehler beim Löschen.");
+      await hinweis(err instanceof Error ? err.message : "Fehler beim Löschen.");
     } finally {
       setLoescht(false);
     }
@@ -134,7 +136,7 @@ export default function MitarbeiterSeite() {
         {darfBearbeiten && (
           <button
             onClick={() => (zeigeFormular ? abbrechen() : neuOeffnen())}
-            className="bg-blue-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-blue-700"
+            className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
           >
             {zeigeFormular ? "Abbrechen" : "+ Neuer Mitarbeiter"}
           </button>
@@ -210,7 +212,7 @@ export default function MitarbeiterSeite() {
                   onChange={setAustrittAm}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Leer = beschäftigt. Ab diesem Tag zählt die Person nicht mehr
                   zum aktuellen Stand und wird in Stichtags-Exporten danach
                   ausgeblendet.
@@ -226,7 +228,7 @@ export default function MitarbeiterSeite() {
               <button
                 type="submit"
                 disabled={speichert}
-                className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 {speichert
                   ? "Speichern …"
@@ -269,7 +271,7 @@ export default function MitarbeiterSeite() {
                   <td className="px-4 py-3">
                     <Link
                       to={`/mitarbeiter/${m.id}`}
-                      className="text-blue-600 hover:underline font-medium"
+                      className="text-marke-600 hover:underline font-medium"
                     >
                       {m.nachname}, {m.vorname}
                     </Link>
@@ -284,7 +286,7 @@ export default function MitarbeiterSeite() {
                     {m.austrittAm && m.austrittAm <= heute ? (
                       <span className="text-red-600 text-xs">ausgetreten</span>
                     ) : !m.aktiv ? (
-                      <span className="text-gray-400 text-xs">inaktiv</span>
+                      <span className="text-slate-500 text-xs">inaktiv</span>
                     ) : (
                       <span className="text-green-700 text-xs">aktiv</span>
                     )}
@@ -325,7 +327,7 @@ export default function MitarbeiterSeite() {
                         <div className="flex items-center justify-end gap-3">
                           <button
                             onClick={() => bearbeitenOeffnen(m)}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-marke-600 hover:text-marke-800"
                             title="Bearbeiten"
                             aria-label="Bearbeiten"
                           >
@@ -377,7 +379,7 @@ export default function MitarbeiterSeite() {
                 <tr>
                   <td
                     colSpan={darfBearbeiten ? 6 : 5}
-                    className="px-4 py-6 text-center text-gray-400"
+                    className="px-4 py-6 text-center text-slate-500"
                   >
                     Noch keine Mitarbeiter angelegt.
                   </td>

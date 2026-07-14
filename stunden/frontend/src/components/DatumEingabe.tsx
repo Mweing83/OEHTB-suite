@@ -157,7 +157,7 @@ export default function DatumEingabe({ value, onChange, className, id }: Props) 
           type="button"
           onClick={oeffnen}
           aria-label="Kalender öffnen"
-          className="absolute inset-y-0 right-0 flex items-center px-2 text-gray-400 hover:text-gray-600"
+          className="absolute inset-y-0 right-0 flex items-center px-2 text-slate-500 hover:text-gray-600"
         >
           {/* Kalender-Symbol */}
           <svg
@@ -201,7 +201,7 @@ export default function DatumEingabe({ value, onChange, className, id }: Props) 
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs text-slate-500">
             {WOCHENTAGE.map((w) => (
               <div key={w} className="py-1">
                 {w}
@@ -221,11 +221,11 @@ export default function DatumEingabe({ value, onChange, className, id }: Props) 
                   type="button"
                   onClick={() => tagWaehlen(tag)}
                   className={
-                    "rounded py-1 hover:bg-blue-100 " +
+                    "rounded py-1 hover:bg-marke-100 " +
                     (istGewaehlt
-                      ? "bg-blue-600 text-white hover:bg-blue-600"
+                      ? "bg-marke-600 text-white hover:bg-marke-600"
                       : istHeute
-                      ? "border border-blue-400 text-blue-700"
+                      ? "border border-marke-400 text-marke-700"
                       : "text-gray-700")
                   }
                 >

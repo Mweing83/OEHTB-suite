@@ -227,7 +227,7 @@ function LlmEinstellungen() {
               placeholder={keyGesetzt ? "•••••••• (unverändert)" : "API-Key eingeben"}
               className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Der Key wird verschlüsselt gespeichert und nie im Klartext
               zurückgegeben.
             </p>
@@ -239,7 +239,7 @@ function LlmEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
@@ -340,11 +340,11 @@ function OllamaInstallation() {
           <button
             onClick={installieren}
             disabled={startet || laeuftGerade}
-            className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
           >
             {laeuftGerade ? "Installiere …" : "Ollama installieren"}
           </button>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-slate-500 mt-2">
             Die Installation läuft mit erhöhten Rechten. Am Server erscheint ggf.
             eine UAC-/Rechteabfrage, die dort bestätigt werden muss.
           </p>
@@ -371,7 +371,7 @@ function OllamaInstallation() {
         <div className="mt-4">
           <p className="text-sm mb-1">
             {status.install.status === "laeuft" && (
-              <span className="text-blue-700">Installation läuft …</span>
+              <span className="text-marke-700">Installation läuft …</span>
             )}
             {status.install.status === "fertig" && (
               <span className="text-green-700">
@@ -393,7 +393,7 @@ function OllamaInstallation() {
           )}
           <button
             onClick={laden}
-            className="mt-2 text-xs text-blue-600 hover:underline"
+            className="mt-2 text-xs text-marke-600 hover:underline"
           >
             Status aktualisieren
           </button>
@@ -457,7 +457,7 @@ function VollzeitEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
@@ -552,7 +552,7 @@ function WorkflowEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
@@ -611,7 +611,7 @@ function AuditAnsicht() {
         </div>
         <button
           onClick={laden}
-          className="bg-blue-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-blue-700"
+          className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
         >
           {geladen ? "Aktualisieren" : "Protokoll laden"}
         </button>
@@ -649,7 +649,7 @@ function AuditAnsicht() {
               ))}
               {eintraege.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="py-4 text-center text-gray-400">
+                  <td colSpan={4} className="py-4 text-center text-slate-500">
                     Keine Einträge.
                   </td>
                 </tr>
@@ -837,7 +837,7 @@ function ImapEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
@@ -932,7 +932,7 @@ function ErlaubteAbsender() {
         <button
           onClick={hinzufuegen}
           disabled={speichert}
-          className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           Hinzufügen
         </button>

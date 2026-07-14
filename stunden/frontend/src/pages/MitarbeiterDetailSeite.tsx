@@ -5,6 +5,7 @@ import { MitarbeiterDetail } from "../lib/typen";
 import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
 import DatumEingabe from "../components/DatumEingabe";
+import { bestaetigen, hinweis } from "../components/dialog";
 
 // Datum DD/MM/YYYY (europaeisches Layout) fuer die Anzeige.
 function datumDe(iso: string): string {
@@ -120,10 +121,11 @@ export default function MitarbeiterDetailSeite() {
   async function loeschen(hart: boolean) {
     if (
       hart &&
-      !window.confirm(
+      !(await bestaetigen(
         "Person und gesamten Beschäftigungsverlauf endgültig löschen? " +
-          "Diese Aktion kann nicht rückgängig gemacht werden."
-      )
+          "Diese Aktion kann nicht rückgängig gemacht werden.",
+        { titel: "Endgültig löschen", bestaetigenText: "Löschen", gefahr: true },
+      ))
     ) {
       return;
     }
@@ -132,7 +134,7 @@ export default function MitarbeiterDetailSeite() {
       await api.delete(`/api/mitarbeiter/${id}${hart ? "?hart=1" : ""}`);
       window.location.href = "/";
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Fehler beim Loeschen.");
+      await hinweis(err instanceof Error ? err.message : "Fehler beim Löschen.");
       setLoescht(false);
     }
   }
@@ -192,7 +194,7 @@ export default function MitarbeiterDetailSeite() {
     return (
       <Layout>
         <p className="text-red-600">{fehler ?? "Nicht gefunden."}</p>
-        <Link to="/" className="text-blue-600 hover:underline text-sm">
+        <Link to="/" className="text-marke-600 hover:underline text-sm">
           ← Zurück zum Dashboard
         </Link>
       </Layout>
@@ -203,7 +205,7 @@ export default function MitarbeiterDetailSeite() {
 
   return (
     <Layout>
-      <Link to="/" className="text-blue-600 hover:underline text-sm">
+      <Link to="/" className="text-marke-600 hover:underline text-sm">
         ← Zurück zum Dashboard
       </Link>
 
@@ -337,7 +339,7 @@ export default function MitarbeiterDetailSeite() {
                 onChange={setBAustritt}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               />
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Leer = beschäftigt. Ab diesem Tag zählt die Person nicht mehr zum
                 aktuellen Stand und wird in Stichtags-Exporten danach
                 ausgeblendet.
@@ -350,7 +352,7 @@ export default function MitarbeiterDetailSeite() {
               <button
                 type="submit"
                 disabled={bSpeichert}
-                className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 {bSpeichert ? "Speichern …" : "Stammdaten speichern"}
               </button>
@@ -428,19 +430,19 @@ export default function MitarbeiterDetailSeite() {
         </div>
 
         <div className="mt-6 flex gap-6">
-          <div className="bg-blue-50 rounded-lg px-5 py-4">
-            <span className="text-xs text-blue-700 block">
+          <div className="bg-marke-50 rounded-lg px-5 py-4">
+            <span className="text-xs text-marke-700 block">
               Aktuelle Wochenstunden
             </span>
-            <span className="text-2xl font-semibold text-blue-900">
+            <span className="text-2xl font-semibold text-marke-900">
               {daten.aktuellerStand
                 ? daten.aktuellerStand.wochenstunden.toLocaleString("de-DE")
                 : "–"}
             </span>
           </div>
-          <div className="bg-blue-50 rounded-lg px-5 py-4">
-            <span className="text-xs text-blue-700 block">Aktuelles Ausmaß</span>
-            <span className="text-2xl font-semibold text-blue-900">
+          <div className="bg-marke-50 rounded-lg px-5 py-4">
+            <span className="text-xs text-marke-700 block">Aktuelles Ausmaß</span>
+            <span className="text-2xl font-semibold text-marke-900">
               {daten.aktuellerStand
                 ? `${daten.aktuellerStand.ausmassProzent.toLocaleString(
                     "de-DE"
@@ -474,7 +476,7 @@ export default function MitarbeiterDetailSeite() {
           {darfBearbeiten && (
             <button
               onClick={() => setZeigeFormular((v) => !v)}
-              className="bg-blue-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-blue-700"
+              className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
             >
               {zeigeFormular ? "Abbrechen" : "+ Änderung erfassen"}
             </button>
@@ -535,7 +537,7 @@ export default function MitarbeiterDetailSeite() {
               <button
                 type="submit"
                 disabled={speichert}
-                className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 {speichert ? "Speichern …" : "Änderung speichern"}
               </button>
@@ -574,12 +576,12 @@ export default function MitarbeiterDetailSeite() {
                     <span className="text-gray-500"> — {h.notiz}</span>
                   )}
                 </div>
-                <div className="text-xs text-gray-400">{h.quelle}</div>
+                <div className="text-xs text-slate-500">{h.quelle}</div>
               </div>
             );
           })}
           {daten.historie.length === 0 && (
-            <p className="text-gray-400 text-sm">
+            <p className="text-slate-500 text-sm">
               Noch keine Beschäftigungsdaten erfasst.
             </p>
           )}

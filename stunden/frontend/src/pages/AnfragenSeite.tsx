@@ -135,7 +135,7 @@ export default function AnfragenSeite() {
                 <button
                   onClick={einreichen}
                   disabled={sendet || rohtext.trim().length < 3}
-                  className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                  className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
                 >
                   {sendet ? "Wird ausgewertet …" : "Auswerten"}
                 </button>
@@ -147,7 +147,7 @@ export default function AnfragenSeite() {
           {laedt ? (
             <p className="text-gray-500">Lädt …</p>
           ) : eingang.length === 0 ? (
-            <p className="text-gray-400 text-sm">Keine offenen Anfragen.</p>
+            <p className="text-slate-500 text-sm">Keine offenen Anfragen.</p>
           ) : (
             <div className="space-y-4">
               {eingang.map((a) => (
@@ -167,14 +167,14 @@ export default function AnfragenSeite() {
       {/* --- Bereich: Verarbeitung --- */}
       {bereich === "verarbeitung" && (
         <>
-          <div className="bg-blue-50 rounded-lg px-4 py-3 mb-4 text-sm text-blue-800">
+          <div className="bg-marke-50 rounded-lg px-4 py-3 mb-4 text-sm text-marke-800">
             Bestätigte Änderungen, die noch in die externen Systeme
             (Buchhaltung, Lohnverrechnung) eingepflegt werden müssen.
           </div>
           {laedt ? (
             <p className="text-gray-500">Lädt …</p>
           ) : verarbeitung.length === 0 ? (
-            <p className="text-gray-400 text-sm">
+            <p className="text-slate-500 text-sm">
               Keine Änderungen zur Verarbeitung offen.
             </p>
           ) : (
@@ -277,7 +277,7 @@ function AnfrageKarte({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <p className="text-sm text-gray-700 italic">„{anfrage.rohtext}"</p>
-          <div className="flex gap-3 mt-2 text-xs text-gray-400">
+          <div className="flex gap-3 mt-2 text-xs text-slate-500">
             <span>{anfrage.quelle}</span>
             {konfidenzProzent !== null && (
               <span>Konfidenz: {konfidenzProzent} %</span>
@@ -439,7 +439,7 @@ function VerarbeitungKarte({
             )}
           </div>
           {anfrage.bearbeitetAm && (
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               bestätigt am {datumZeitstempelDe(anfrage.bearbeitetAm)}
             </p>
           )}
@@ -456,7 +456,7 @@ function VerarbeitungKarte({
               <button
                 onClick={verarbeiten}
                 disabled={arbeitet}
-                className="bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 Als verarbeitet markieren
               </button>

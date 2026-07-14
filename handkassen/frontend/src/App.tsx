@@ -17,8 +17,11 @@ function Layout({ children }: { children: React.ReactNode }) {
   const navLink = (pfad: string, text: string) => (
     <Link
       to={pfad}
-      className={`px-3 py-2 rounded text-sm font-medium ${
-        ort.pathname === pfad ? "bg-blue-700 text-white" : "text-blue-100 hover:bg-blue-800"
+      aria-current={ort.pathname === pfad ? "page" : undefined}
+      className={`px-3 py-2 rounded-md text-sm font-medium ${
+        ort.pathname === pfad
+          ? "bg-marke-700 text-white"
+          : "text-marke-100 hover:bg-marke-800"
       }`}
     >
       {text}
@@ -27,13 +30,21 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-blue-900 text-white">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-4">
-          <span className="font-bold">ÖHTB Handkassen</span>
-          <nav className="flex gap-1">
+      <header className="bg-marke-900 text-white">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold tracking-tight">ÖHTB</span>
+            <span className="text-marke-300" aria-hidden="true">
+              ·
+            </span>
+            <span className="text-base font-medium text-marke-100">
+              Handkassen
+            </span>
+          </div>
+          <nav className="flex items-center gap-1 flex-wrap">
             <a
               href="/"
-              className="px-3 py-2 rounded text-sm font-medium text-blue-100 hover:bg-blue-800"
+              className="px-3 py-2 rounded-md text-sm font-medium text-marke-100 hover:bg-marke-800"
             >
               ← Portal
             </a>
@@ -44,21 +55,27 @@ function Layout({ children }: { children: React.ReactNode }) {
             {navLink("/kontakt", "Kontakt")}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="text-blue-200">
-              {benutzer.name} ({benutzer.rolle})
+            <span className="text-marke-200">
+              {benutzer.name}{" "}
+              <span className="text-marke-300">({benutzer.rolle})</span>
             </span>
-            <button onClick={abmelden} className="underline hover:text-blue-200">
+            <button
+              onClick={abmelden}
+              className="rounded-md bg-marke-800 px-3 py-1.5 font-medium hover:bg-marke-700"
+            >
               Abmelden
             </button>
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
 
       {inaktivWarnung && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm mx-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Sitzung läuft bald ab</h3>
+            <h3 className="font-semibold text-marke-900 mb-2">
+              Sitzung läuft bald ab
+            </h3>
             <p className="text-sm text-slate-600 mb-4">
               Sie werden wegen Inaktivität in etwa einer Minute automatisch abgemeldet.
               Möchten Sie angemeldet bleiben?
@@ -66,13 +83,13 @@ function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex gap-2">
               <button
                 onClick={aktivitaetMelden}
-                className="flex-1 bg-blue-700 text-white rounded py-2 text-sm font-medium hover:bg-blue-800"
+                className="flex-1 bg-marke-600 text-white rounded-md py-2 text-sm font-medium hover:bg-marke-700"
               >
                 Angemeldet bleiben
               </button>
               <button
                 onClick={abmelden}
-                className="border rounded px-4 py-2 text-sm font-medium hover:bg-slate-50"
+                className="border border-slate-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-50"
               >
                 Abmelden
               </button>
@@ -89,14 +106,16 @@ function KeineSitzung() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="bg-white rounded-lg shadow p-8 w-full max-w-sm text-center">
-        <h1 className="text-lg font-semibold text-blue-900 mb-2">ÖHTB Handkassen</h1>
+        <h1 className="text-lg font-semibold text-marke-900 mb-2">
+          ÖHTB Handkassen
+        </h1>
         <p className="text-sm text-slate-600 mb-6">
           Keine gültige Sitzung oder kein Zugriff auf dieses Tool. Bitte über das
           Portal anmelden.
         </p>
         <a
           href="/"
-          className="inline-block bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800"
+          className="inline-block bg-marke-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-marke-700"
         >
           Zum Portal
         </a>

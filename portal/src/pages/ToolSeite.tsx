@@ -30,7 +30,7 @@ export default function ToolSeite() {
               {tool.beschreibung && (
                 <p className="text-sm text-gray-500 mt-1">{tool.beschreibung}</p>
               )}
-              <p className="text-xs text-blue-600 mt-3">
+              <p className="text-xs text-marke-600 mt-3">
                 Rolle: {benutzer.zugriff[tool.slug]}
               </p>
             </a>

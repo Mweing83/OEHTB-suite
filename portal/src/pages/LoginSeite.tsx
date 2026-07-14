@@ -75,7 +75,7 @@ export default function LoginSeite() {
                 type="password"
                 value={neuesPasswort}
                 onChange={(e) => setNeuesPasswort(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-marke-500"
                 minLength={8}
                 required
               />
@@ -88,7 +88,7 @@ export default function LoginSeite() {
                 type="password"
                 value={neuesPasswortWdh}
                 onChange={(e) => setNeuesPasswortWdh(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-marke-500"
                 minLength={8}
                 required
               />
@@ -101,7 +101,7 @@ export default function LoginSeite() {
             <button
               type="submit"
               disabled={laedt}
-              className="w-full bg-blue-600 text-white rounded py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
+              className="w-full bg-marke-600 text-white rounded py-2 font-medium hover:bg-marke-700 disabled:opacity-50"
             >
               {laedt ? "Speichern …" : "Passwort setzen & anmelden"}
             </button>
@@ -137,7 +137,7 @@ export default function LoginSeite() {
             <input
               value={benutzername}
               onChange={(e) => setBenutzername(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-marke-500"
               required
               autoFocus
             />
@@ -150,7 +150,7 @@ export default function LoginSeite() {
               type="password"
               value={passwort}
               onChange={(e) => setPasswort(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-marke-500"
               required
             />
           </div>
@@ -164,7 +164,7 @@ export default function LoginSeite() {
           <button
             type="submit"
             disabled={laedt}
-            className="w-full bg-blue-600 text-white rounded py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="w-full bg-marke-600 text-white rounded py-2 font-medium hover:bg-marke-700 disabled:opacity-50"
           >
             {laedt ? "Anmelden …" : "Anmelden"}
           </button>

@@ -173,7 +173,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
 
   return (
     <div className="bg-white rounded-lg shadow p-5">
-      <h2 className="font-semibold text-blue-900 mb-4">
+      <h2 className="font-semibold text-marke-900 mb-4">
         {istKorrektur ? `Buchung korrigieren (Original Nr. ${korrektur!.buchungsnummer})` : "Neue Buchung"}
       </h2>
 
@@ -234,7 +234,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
 
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-medium">Positionen (Split bei mehreren Steuersätzen)</span>
-        <button onClick={positionHinzufuegen} className="text-sm text-blue-700 hover:underline">
+        <button onClick={positionHinzufuegen} className="text-sm text-marke-700 hover:underline">
           + Position
         </button>
       </div>
@@ -295,7 +295,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
         <button
           onClick={speichern}
           disabled={speichert}
-          className="flex-1 bg-blue-700 text-white rounded py-2 font-medium hover:bg-blue-800 disabled:opacity-50"
+          className="flex-1 bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800 disabled:opacity-50"
         >
           {speichert
             ? "Speichert…"

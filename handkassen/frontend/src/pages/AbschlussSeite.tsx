@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 import { formatCent, euroStringZuCent } from "../lib/geld.js";
 import { useAuth } from "../lib/auth.js";
+import { hinweis } from "../components/dialog.js";
 
 interface Kostenstelle {
   id: number;
@@ -20,7 +21,7 @@ interface Abschluss {
 const statusFarbe: Record<string, string> = {
   offen: "bg-slate-100 text-slate-700",
   eingereicht: "bg-amber-100 text-amber-800",
-  geprueft: "bg-blue-100 text-blue-800",
+  geprueft: "bg-marke-100 text-marke-800",
   freigegeben: "bg-green-100 text-green-800",
 };
 
@@ -77,7 +78,9 @@ export default function AbschlussSeite() {
   }
 
   async function aktion(id: number, was: "pruefen" | "freigeben") {
-    await api.post(`/abschluss/${id}/${was}`).catch((e) => alert((e as Error).message));
+    await api
+      .post(`/abschluss/${id}/${was}`)
+      .catch((e) => hinweis((e as Error).message));
     laden();
   }
 
@@ -87,9 +90,9 @@ export default function AbschlussSeite() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="bg-white rounded-lg shadow p-5">
-        <h2 className="font-semibold text-blue-900 mb-4">Monatsabschluss einreichen</h2>
+        <h2 className="font-semibold text-marke-900 mb-4">Monatsabschluss einreichen</h2>
         {meldung && (
-          <div className="mb-4 text-sm bg-blue-50 border border-blue-200 rounded px-3 py-2">{meldung}</div>
+          <div className="mb-4 text-sm bg-marke-50 border border-marke-200 rounded px-3 py-2">{meldung}</div>
         )}
         <label className="block text-sm font-medium mb-1">Kostenstelle</label>
         <select className="w-full border rounded px-3 py-2 mb-4" value={ksId ?? ""} onChange={(e) => setKsId(Number(e.target.value))}>
@@ -109,13 +112,13 @@ export default function AbschlussSeite() {
         </div>
         <label className="block text-sm font-medium mb-1">Gezählter Kassenstand (Zählliste)</label>
         <input className="w-full border rounded px-3 py-2 mb-4 text-right" placeholder="0,00" value={zaehlliste} onChange={(e) => setZaehlliste(e.target.value)} />
-        <button onClick={einreichen} className="w-full bg-blue-700 text-white rounded py-2 font-medium hover:bg-blue-800">
+        <button onClick={einreichen} className="w-full bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">
           Abschluss einreichen
         </button>
       </div>
 
       <div className="bg-white rounded-lg shadow p-5">
-        <h2 className="font-semibold text-blue-900 mb-4">Abschlüsse</h2>
+        <h2 className="font-semibold text-marke-900 mb-4">Abschlüsse</h2>
         {abschluesse.length === 0 ? (
           <p className="text-sm text-slate-500">Keine Abschlüsse.</p>
         ) : (
@@ -138,7 +141,7 @@ export default function AbschlussSeite() {
                   </td>
                   <td className="text-right space-x-2">
                     {istLeitung && a.status === "eingereicht" && (
-                      <button onClick={() => aktion(a.id, "pruefen")} className="text-xs text-blue-700 hover:underline">prüfen</button>
+                      <button onClick={() => aktion(a.id, "pruefen")} className="text-xs text-marke-700 hover:underline">prüfen</button>
                     )}
                     {istFinanzen && a.status === "geprueft" && (
                       <button onClick={() => aktion(a.id, "freigeben")} className="text-xs text-green-700 hover:underline">freigeben</button>

@@ -26,7 +26,7 @@ export default function KontaktSeite() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="text-xl font-bold text-blue-900 mb-1">Kontakt</h1>
+      <h1 className="text-xl font-bold text-marke-900 mb-1">Kontakt</h1>
       <p className="text-sm text-slate-500 mb-4">Ansprechpartner bei Fragen zum Handkassen-System.</p>
 
       <div className="bg-white rounded-lg shadow p-6">
@@ -46,7 +46,7 @@ export default function KontaktSeite() {
               <div>
                 <dt className="text-slate-500">E-Mail</dt>
                 <dd>
-                  <a href={`mailto:${k.email}`} className="text-blue-700 hover:underline">
+                  <a href={`mailto:${k.email}`} className="text-marke-700 hover:underline">
                     {k.email}
                   </a>
                 </dd>
@@ -56,7 +56,7 @@ export default function KontaktSeite() {
               <div>
                 <dt className="text-slate-500">Telefon</dt>
                 <dd>
-                  <a href={`tel:${k.telefon.replace(/\s+/g, "")}`} className="text-blue-700 hover:underline">
+                  <a href={`tel:${k.telefon.replace(/\s+/g, "")}`} className="text-marke-700 hover:underline">
                     {k.telefon}
                   </a>
                 </dd>

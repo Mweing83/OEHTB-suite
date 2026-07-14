@@ -233,7 +233,7 @@ export default function BelegScanner({ quelle, onFertig, onAbbrechen }: Props) {
           )}
           <div className="flex gap-2">
             <button type="button" onClick={originalVerwenden}
-              className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800">
+              className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
               Original verwenden
             </button>
             <button type="button" onClick={onAbbrechen}
@@ -281,7 +281,7 @@ export default function BelegScanner({ quelle, onFertig, onAbbrechen }: Props) {
               type="button"
               onClick={uebernehmen}
               disabled={status === "verarbeite"}
-              className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800 disabled:opacity-60"
+              className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800 disabled:opacity-60"
             >
               {status === "verarbeite" ? "Wird zugeschnitten…" : "Übernehmen"}
             </button>

@@ -63,7 +63,7 @@ export default function Berichte({ kostenstelleId }: Props) {
 
   return (
     <div className="bg-white rounded-lg shadow p-5">
-      <h2 className="font-semibold text-blue-900 mb-4">Berichte</h2>
+      <h2 className="font-semibold text-marke-900 mb-4">Berichte</h2>
 
       {/* Modus-Umschaltung */}
       <div className="flex gap-4 mb-4 text-sm">
@@ -105,15 +105,15 @@ export default function Berichte({ kostenstelleId }: Props) {
 
       <div className="flex flex-wrap gap-3">
         <button onClick={() => oeffnen("kassabericht")}
-          className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800">
+          className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
           Kassabericht
         </button>
         <button onClick={() => oeffnen("detailbericht")}
-          className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800">
+          className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
           Detailbericht
         </button>
         <button onClick={() => oeffnen("zaehlliste")}
-          className="bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-blue-800">
+          className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
           Zählliste
         </button>
         <button onClick={csvHerunterladen}
@@ -130,7 +130,7 @@ export default function Berichte({ kostenstelleId }: Props) {
       {/* BMD-Export (Buchhaltung) – nur für Finanzen/Admin sichtbar */}
       {darfBmd && (
         <div className="mt-6 pt-4 border-t">
-          <h3 className="font-semibold text-blue-900 mb-1">Export über alle Kassen (Buchhaltung)</h3>
+          <h3 className="font-semibold text-marke-900 mb-1">Export über alle Kassen (Buchhaltung)</h3>
           <p className="text-xs text-slate-500 mb-3">
             Für den gewählten Monat über <strong>alle</strong> Kostenstellen:
             die Buchungssatz-Datei (.txt) für den BMD-Import oder eine CSV-Tabelle (Excel).
