@@ -18,7 +18,8 @@ export const SUITE_URL = process.env.SUITE_URL || "http://localhost:3000";
 const PRUEF_INTERVALL_MS = 60 * 1000;
 
 const JWT_SECRET = process.env.JWT_SECRET || "bitte-aendern";
-const istPlatzhalter = /bitte|ersetzen|aendern|changeme|example/i.test(JWT_SECRET);
+// Platzhalter-Erkennung suiteweit identisch (siehe Portal & Stunden, drift-check).
+const istPlatzhalter = /bitte|ersetzen|aendern|changeme|example|platzhalter/i.test(JWT_SECRET);
 if (
   process.env.NODE_ENV === "production" &&
   (!process.env.JWT_SECRET || istPlatzhalter || JWT_SECRET.length < 32)

@@ -1,0 +1,18 @@
+{
+  "name": "oehtb-suite",
+  "private": true,
+  "type": "module",
+  "description": "OEHTB-Suite: Werkzeuge (Prettier/ESLint, Drift-Check) fuer die gesamte Suite. Die drei Anwendungen (backend, handkassen, stunden) bleiben eigenstaendige npm-Projekte.",
+  "scripts": {
+    "lint": "eslint \"backend/src/**/*.ts\" \"stunden/backend/src/**/*.ts\" \"handkassen/backend/src/**/*.ts\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "drift-check": "node scripts/drift-check.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.19.0"
+  }
+}

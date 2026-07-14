@@ -1,0 +1,10 @@
+# Nicht formatieren: generierte, gebaute oder fremde Artefakte.
+**/node_modules
+**/dist
+**/build
+**/static
+**/public
+**/coverage
+**/prisma/migrations
+**/*.min.js
+handkassen/backups*

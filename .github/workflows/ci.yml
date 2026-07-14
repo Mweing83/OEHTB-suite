@@ -1,0 +1,78 @@
+name: CI
+
+# Laeuft bei Push auf main und bei Pull Requests. Prueft die Suite als Ganzes:
+# konsistente Sicherheits-Guards, Linting, Typpruefung und die Integrationstests
+# jedes Backends gegen eine echte PostgreSQL-Instanz.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Qualitaet ueber die ganze Suite (kein DB-Zugriff noetig).
+  # ---------------------------------------------------------------------------
+  qualitaet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Drift-Check (duplizierte Sicherheits-Guards konsistent)
+        run: npm run drift-check
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier (informativ, nicht blockierend)
+        run: npm run format:check || true
+
+  # ---------------------------------------------------------------------------
+  # Pro Backend: Typpruefung + Integrationstests gegen echtes PostgreSQL.
+  # ---------------------------------------------------------------------------
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: portal
+            dir: backend
+          - name: stunden
+            dir: stunden/backend
+          - name: handkassen
+            dir: handkassen/backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      TEST_DATABASE_URL: postgresql://test:test@localhost:5432/test
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Prisma-Client erzeugen
+        run: npx prisma generate
+      - name: Testschema anlegen
+        run: npx prisma db push --skip-generate
+      - name: Typpruefung
+        run: npx tsc --noEmit
+      - name: Integrationstests
+        run: npx vitest run

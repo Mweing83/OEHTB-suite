@@ -67,7 +67,7 @@ async function belegDateiBenennen(belegId: number, belegnummer: string) {
     // Endung vom bereits sicher gespeicherten Dateinamen übernehmen (nicht vom
     // Originalnamen – der ist nicht vertrauenswürdig).
     const ext = path.extname(beleg.dateipfad);
-    const sicher = belegnummer.replace(/[^\w.\-]/g, "_");
+    const sicher = belegnummer.replace(/[^\w.-]/g, "_");
     const neuerName = `${sicher}${ext}`;
     if (neuerName === beleg.dateipfad) return;
     const altPfad = path.join(UPLOAD_DIR, path.basename(beleg.dateipfad));

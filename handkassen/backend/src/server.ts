@@ -1,5 +1,6 @@
 import "express-async-errors";
 import express from "express";
+import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "node:path";
@@ -45,13 +46,30 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
-// Grundlegende Sicherheits-Header für alle Antworten.
-app.use((_req, res, next) => {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Referrer-Policy", "no-referrer");
-  next();
-});
+// Sicherheits-Header via helmet. CSP bewusst SPA-tauglich gehalten (Single-
+// Origin: gebaute Assets + API + Belegfotos unter 'self'). "upgrade-insecure-
+// requests" ist AUS, damit die App auch ueber reines HTTP im LAN erreichbar bleibt.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "data:", "blob:"],
+        "font-src": ["'self'", "data:"],
+        "connect-src": ["'self'"],
+        "object-src": ["'none'"],
+        "frame-ancestors": ["'none'"],
+        "upgrade-insecure-requests": null,
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: "no-referrer" },
+    frameguard: { action: "deny" },
+  })
+);
 
 // Routen
 app.use("/api/auth", authRouter);

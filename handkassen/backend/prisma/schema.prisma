@@ -10,8 +10,11 @@ generator client {
   // ARM64). Wichtig: `prisma generate` muss auf jeder Zielmaschine laufen
   // (lokal wie im Server-/Docker-Build) – dann wird automatisch die richtige
   // Engine geholt.
+  // debian-openssl-3.0.x zusaetzlich explizit: reproduzierbarer Produktions-
+  // Container (node:20-slim) – konsistent mit Portal & Stunden. "native" deckt
+  // weiterhin die Entwicklungsmaschine (u. a. Windows ARM64) ab.
   engineType    = "binary"
-  binaryTargets = ["native"]
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {

@@ -47,7 +47,7 @@ async function lokalenBenutzerSichern(
   token: SuiteToken,
   rolle: HkRolle
 ): Promise<number> {
-  let b = await prisma.benutzer.findUnique({ where: { suiteUserId: token.sub } });
+  const b = await prisma.benutzer.findUnique({ where: { suiteUserId: token.sub } });
   if (b) {
     if (b.name !== token.name || b.rolle !== rolle) {
       await prisma.benutzer.update({
