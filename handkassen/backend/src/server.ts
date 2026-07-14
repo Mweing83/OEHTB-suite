@@ -12,7 +12,16 @@ import { exportRouter } from "./routes/export.js";
 import { adminRouter } from "./routes/admin.js";
 import { berichtRouter } from "./routes/berichte.js";
 import { provisionRouter } from "./routes/provision.js";
-import { reconcileVonSuite } from "./lib/provision.js";
+import { reconcileVonSuite, provisionSecret } from "./lib/provision.js";
+
+// Fail-fast: Pflicht-Secret beim Start pruefen (nicht erst beim ersten
+// Provisionierungs-Push). JWT_SECRET wird bereits in suiteAuth eager geprueft.
+provisionSecret();
+if (process.env.NODE_ENV === "production" && process.env.COOKIE_INSECURE === "1") {
+  console.warn(
+    "WARNUNG: COOKIE_INSECURE=1 – Session-Cookies werden ohne 'secure'-Flag gesetzt (nur hinter TLS/Tailscale vertretbar)."
+  );
+}
 
 export const app = express();
 const PORT = Number(process.env.PORT) || 3001;

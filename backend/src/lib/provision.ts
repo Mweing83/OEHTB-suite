@@ -13,8 +13,9 @@ import { prisma } from "./prisma";
 // In Produktion Pflicht (wie JWT_SECRET); in Entwicklung Fallback.
 export function provisionSecret(): string {
   const s = process.env.PROVISION_SECRET ?? "";
+  const istPlatzhalter = /bitte|ersetzen|aendern|changeme|example|platzhalter/i.test(s);
   if (process.env.NODE_ENV === "production") {
-    if (!s || s.length < 16) {
+    if (!s || s.length < 16 || istPlatzhalter) {
       throw new Error(
         "PROVISION_SECRET fehlt oder ist zu kurz (min. 16 Zeichen, identisch in allen Tools)."
       );

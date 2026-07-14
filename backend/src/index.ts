@@ -11,9 +11,14 @@ import { jwtSecret } from "./lib/auth";
 import { provisionSecret } from "./lib/provision";
 import { starteProvisionWorker } from "./lib/provisionWorker";
 
-// Beim Start pruefen (wirft in Produktion bei fehlendem/zu kurzem Secret).
+// Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret).
 jwtSecret();
 provisionSecret();
+if (process.env.NODE_ENV === "production" && process.env.COOKIE_INSECURE === "1") {
+  console.warn(
+    "WARNUNG: COOKIE_INSECURE=1 – Session-Cookies werden ohne 'secure'-Flag gesetzt (nur hinter TLS/Tailscale vertretbar)."
+  );
+}
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3000);

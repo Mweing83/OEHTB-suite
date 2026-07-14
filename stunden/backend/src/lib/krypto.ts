@@ -8,11 +8,18 @@ const ALGORITHMUS = "aes-256-gcm";
 
 function getSchluessel(): Buffer {
   const key = process.env.ENCRYPTION_KEY ?? "";
+  const istPlatzhalter =
+    /bitte|ersetzen|aendern|changeme|example|platzhalter|schluessel/i.test(key);
   if (key.length !== 32) {
     throw new Error(
       "ENCRYPTION_KEY muss genau 32 Zeichen lang sein (aktuell: " +
         key.length +
         ")."
+    );
+  }
+  if (process.env.NODE_ENV === "production" && istPlatzhalter) {
+    throw new Error(
+      "ENCRYPTION_KEY ist noch ein Platzhalter — echten 32-Zeichen-Zufallswert setzen."
     );
   }
   return Buffer.from(key, "utf-8");

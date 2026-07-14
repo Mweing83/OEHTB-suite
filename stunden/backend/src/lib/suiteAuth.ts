@@ -32,10 +32,11 @@ export interface SuiteToken {
 
 export function jwtSecret(): string {
   const secret = process.env.JWT_SECRET ?? "";
+  const istPlatzhalter = /bitte|ersetzen|aendern|changeme|example|platzhalter/i.test(secret);
   if (process.env.NODE_ENV === "production") {
-    if (!secret || secret === "bitte-aendern" || secret.length < 32) {
+    if (!secret || istPlatzhalter || secret.length < 32) {
       throw new Error(
-        "JWT_SECRET fehlt oder ist zu kurz (min. 32 Zeichen). In .env setzen."
+        "JWT_SECRET fehlt, ist zu kurz (min. 32 Zeichen) oder noch ein Platzhalter. In .env setzen."
       );
     }
   }

@@ -27,7 +27,8 @@ services:
     volumes:
       - suite_db_data:/var/lib/postgresql/data
     ports:
-      - "5434:5432"
+      # Nur lokal am Server erreichbar (Admin-Tooling), nicht im LAN/Internet.
+      - "127.0.0.1:5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${SUITE_DB_USER:-suite}"]
       interval: 5s

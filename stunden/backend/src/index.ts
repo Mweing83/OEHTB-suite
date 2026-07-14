@@ -9,12 +9,19 @@ import { mitarbeiterRouter } from "./routes/mitarbeiter";
 import { anfragenRouter } from "./routes/anfragen";
 import { adminRouter } from "./routes/admin";
 import { provisionRouter } from "./routes/provision";
-import { reconcileVonSuite } from "./lib/provision";
+import { reconcileVonSuite, provisionSecret } from "./lib/provision";
 import { starteImapPolling } from "./services/imap";
 import { jwtSecret, TOOL_SLUG } from "./lib/suiteAuth";
 
-// Beim Start pruefen (wirft in Produktion bei fehlendem/zu kurzem Secret).
+// Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret) –
+// fail-fast statt erst beim ersten Request bzw. beim ersten Provisionierungs-Push.
 jwtSecret();
+provisionSecret();
+if (process.env.NODE_ENV === "production" && process.env.COOKIE_INSECURE === "1") {
+  console.warn(
+    "WARNUNG: COOKIE_INSECURE=1 – Session-Cookies werden ohne 'secure'-Flag gesetzt (nur hinter TLS/Tailscale vertretbar)."
+  );
+}
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3002);
