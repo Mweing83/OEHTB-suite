@@ -42,4 +42,8 @@ COPY --from=portal /fe/dist ./static
 EXPOSE 3000
 # Beim Start: Schema migrieren, Tool-Registry + Admin sicherstellen (idempotent),
 # dann Server starten. STATIC_DIR liefert die Portal-SPA aus.
-CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && node dist/index.js"]
+# - Migration mit Backoff (bis 6 Versuche, 10s Pause): faengt kurze DB-Aussetzer
+#   ab, statt in eine enge Crash-Loop zu laufen.
+# - "exec node": node ersetzt die Shell und wird PID 1, damit Dockers SIGTERM
+#   den Prozess erreicht (sauberes Herunterfahren).
+CMD ["sh", "-c", "n=0; until npx prisma migrate deploy; do n=$((n+1)); if [ $n -ge 6 ]; then echo 'Migration nach 6 Versuchen fehlgeschlagen - Abbruch'; exit 1; fi; echo \"Migration fehlgeschlagen (Versuch $n/6) - erneuter Versuch in 10s...\"; sleep 10; done && npx tsx prisma/seed.ts && exec node dist/index.js"]

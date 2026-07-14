@@ -12,6 +12,7 @@ import { provisionRouter } from "./routes/provision";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision";
 import { starteImapPolling } from "./services/imap";
 import { jwtSecret, TOOL_SLUG } from "./lib/suiteAuth";
+import { prisma } from "./lib/prisma";
 
 // Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret) –
 // fail-fast statt erst beim ersten Request bzw. beim ersten Provisionierungs-Push.
@@ -73,7 +74,7 @@ if (STATIC_DIR && fs.existsSync(STATIC_DIR)) {
   });
 }
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(
     `Stunden-Backend laeuft auf http://localhost:${PORT} (Tool-Slug: ${TOOL_SLUG})`
   );
@@ -82,3 +83,25 @@ app.listen(PORT, () => {
   // Benutzer-Spiegel beim Start mit dem Portal abgleichen (Self-Heal).
   void reconcileVonSuite();
 });
+
+// Sauberes Herunterfahren: Docker sendet beim Stop SIGTERM. Laufende Anfragen
+// zu Ende bedienen, HTTP-Server schliessen, DB-Verbindung trennen. Ein Timeout
+// erzwingt den Ausstieg, falls sich der Server nicht schliessen laesst.
+let faehrtHerunter = false;
+async function herunterfahren(signal: string) {
+  if (faehrtHerunter) return;
+  faehrtHerunter = true;
+  console.log(`${signal} empfangen – Stunden-Backend faehrt herunter...`);
+  const notausstieg = setTimeout(() => process.exit(1), 10_000).unref();
+  server.close(async () => {
+    try {
+      await prisma.$disconnect();
+    } catch {
+      /* egal */
+    }
+    clearTimeout(notausstieg);
+    process.exit(0);
+  });
+}
+process.on("SIGTERM", () => void herunterfahren("SIGTERM"));
+process.on("SIGINT", () => void herunterfahren("SIGINT"));

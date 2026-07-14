@@ -139,8 +139,35 @@ Hinweise:
 - Liegt die gewünschte Sicherung auf NAS/USB statt lokal, den Pfad in der
   `-v ...:/backups/lokal`-Zeile entsprechend auf den NAS-/USB-Ordner setzen.
 
+## Probe-Wiederherstellung (Feuerprobe)
+
+Damit man nicht erst im Ernstfall merkt, ob eine Sicherung taugt, gibt es eine
+**gefahrlose Probe-Wiederherstellung**: Sie spielt die neueste Sicherung in eine
+**Wegwerf-Datenbank** ein, prüft, ob Tabellen und Buchungen ankommen, und löscht
+die Wegwerf-Datenbank danach wieder. Die echte Datenbank und die Belegfotos
+werden dabei **nicht angefasst** – der Test ist jederzeit im laufenden Betrieb
+möglich.
+
+Am Server, im Projektordner der Suite:
+
+```
+# Neueste tägliche Sicherung testen:
+docker compose --profile produktion exec handkassen-backup \
+  /bin/sh /backup/restore-test.sh
+
+# Oder eine bestimmte Sicherung testen:
+docker compose --profile produktion exec handkassen-backup \
+  /bin/sh /backup/restore-test.sh \
+  /backups/lokal/taeglich/handkassen_JJJJMMTT_HHMMSS.tar.gz
+```
+
+Erwartete letzte Zeile: `PROBE-WIEDERHERSTELLUNG ERFOLGREICH – die Sicherung ist
+brauchbar.` Erscheint stattdessen `FEHLGESCHLAGEN`, ist die Sicherung defekt –
+dann Ursache prüfen (Ablageort voll? Archiv unvollständig?).
+
 ## Empfehlung
 
-Den Rückspiel-Vorgang einmal echt durchspielen und danach etwa monatlich kurz
-prüfen, dass aktuelle Sicherungen vorhanden sind. Eine Sicherung, die nie
-zurückgespielt wurde, ist nur eine Hoffnung.
+Den Rückspiel-Vorgang einmal echt durchspielen und danach etwa monatlich die
+Probe-Wiederherstellung (oben) laufen lassen sowie kurz prüfen, dass aktuelle
+Sicherungen vorhanden sind. Eine Sicherung, die nie zurückgespielt wurde, ist
+nur eine Hoffnung.

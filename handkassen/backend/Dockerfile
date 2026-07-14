@@ -59,7 +59,10 @@ ENV STATIC_DIR=/app/public
 
 EXPOSE 3001
 
-# Beim Start: Migrationen anwenden (muss klappen), Startdaten sicherstellen
-# (seed ist idempotent - alles upsert; darf "weich" scheitern, ohne den Start zu
-# blockieren), dann Server starten.
-CMD npx prisma migrate deploy && (npm run seed || echo "Seed uebersprungen") && node dist/server.js
+# Beim Start: Migrationen anwenden, Startdaten sicherstellen (seed ist idempotent
+# - alles upsert; darf "weich" scheitern), dann Server starten.
+# - Migration mit Backoff (bis 6 Versuche, 10s Pause): faengt kurze DB-Aussetzer
+#   ab, statt in eine enge Crash-Loop zu laufen.
+# - "exec node": node wird PID 1, damit Dockers SIGTERM den Prozess erreicht
+#   (sauberes Herunterfahren).
+CMD ["sh", "-c", "n=0; until npx prisma migrate deploy; do n=$((n+1)); if [ $n -ge 6 ]; then echo 'Migration nach 6 Versuchen fehlgeschlagen - Abbruch'; exit 1; fi; echo \"Migration fehlgeschlagen (Versuch $n/6) - erneuter Versuch in 10s...\"; sleep 10; done && (npm run seed || echo 'Seed uebersprungen') && exec node dist/server.js"]

@@ -10,6 +10,7 @@ import { provisionRouter } from "./routes/provision";
 import { jwtSecret } from "./lib/auth";
 import { provisionSecret } from "./lib/provision";
 import { starteProvisionWorker } from "./lib/provisionWorker";
+import { prisma } from "./lib/prisma";
 
 // Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret).
 jwtSecret();
@@ -59,8 +60,30 @@ if (STATIC_DIR && fs.existsSync(STATIC_DIR)) {
   });
 }
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Suite-Backend laeuft auf http://localhost:${PORT}`);
   // Provisionierungs-Outbox zustellen (Benutzer-Sync an die Tools).
   starteProvisionWorker();
 });
+
+// Sauberes Herunterfahren: Docker sendet beim Stop SIGTERM. Laufende Anfragen
+// zu Ende bedienen, HTTP-Server schliessen, DB-Verbindung trennen. Ein Timeout
+// erzwingt den Ausstieg, falls sich der Server nicht schliessen laesst.
+let faehrtHerunter = false;
+async function herunterfahren(signal: string) {
+  if (faehrtHerunter) return;
+  faehrtHerunter = true;
+  console.log(`${signal} empfangen – Suite-Backend faehrt herunter...`);
+  const notausstieg = setTimeout(() => process.exit(1), 10_000).unref();
+  server.close(async () => {
+    try {
+      await prisma.$disconnect();
+    } catch {
+      /* egal */
+    }
+    clearTimeout(notausstieg);
+    process.exit(0);
+  });
+}
+process.on("SIGTERM", () => void herunterfahren("SIGTERM"));
+process.on("SIGINT", () => void herunterfahren("SIGINT"));

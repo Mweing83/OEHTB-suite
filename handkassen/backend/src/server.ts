@@ -13,6 +13,7 @@ import { adminRouter } from "./routes/admin.js";
 import { berichtRouter } from "./routes/berichte.js";
 import { provisionRouter } from "./routes/provision.js";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision.js";
+import { prisma } from "./lib/db.js";
 
 // Fail-fast: Pflicht-Secret beim Start pruefen (nicht erst beim ersten
 // Provisionierungs-Push). JWT_SECRET wird bereits in suiteAuth eager geprueft.
@@ -97,9 +98,31 @@ process.on("uncaughtException", (fehler) => {
 // Im Testbetrieb (Integrationstests mit supertest) wird die App nur importiert,
 // nicht gestartet – supertest spricht sie direkt an, ohne offenen Port.
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Handkassen-API läuft auf Port ${PORT}`);
     // Benutzer-Spiegel beim Start mit dem Portal abgleichen (Self-Heal).
     void reconcileVonSuite();
   });
+
+  // Sauberes Herunterfahren: Docker sendet beim Stop SIGTERM. Laufende Anfragen
+  // zu Ende bedienen, HTTP-Server schließen, DB-Verbindung trennen. Ein Timeout
+  // erzwingt den Ausstieg, falls sich der Server nicht schließen lässt.
+  let faehrtHerunter = false;
+  const herunterfahren = async (signal: string) => {
+    if (faehrtHerunter) return;
+    faehrtHerunter = true;
+    console.log(`${signal} empfangen – Handkassen-API fährt herunter...`);
+    const notausstieg = setTimeout(() => process.exit(1), 10_000).unref();
+    server.close(async () => {
+      try {
+        await prisma.$disconnect();
+      } catch {
+        /* egal */
+      }
+      clearTimeout(notausstieg);
+      process.exit(0);
+    });
+  };
+  process.on("SIGTERM", () => void herunterfahren("SIGTERM"));
+  process.on("SIGINT", () => void herunterfahren("SIGINT"));
 }

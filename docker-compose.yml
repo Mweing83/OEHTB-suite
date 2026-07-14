@@ -12,6 +12,14 @@
 # weiterverwendet (handkassen_db_data, handkassen_belege_data). Dadurch
 # uebernimmt die Suite die vorhandenen Produktivdaten.
 
+# Gemeinsame Log-Rotation: pro Container max. 3 Dateien à 10 MB (=30 MB Deckel),
+# damit die Container-Logs die Serverplatte nicht unbegrenzt vollschreiben.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # ---------------------------------------------------------------------------
   # Suite-Datenbank (laeuft auch in der Entwicklung)
@@ -20,6 +28,7 @@ services:
     image: postgres:16-alpine
     container_name: suite-db
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${SUITE_DB_USER:-suite}
       POSTGRES_PASSWORD: ${SUITE_DB_PASSWORD:-suite_dev_passwort}
@@ -34,6 +43,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ---------------------------------------------------------------------------
   # Reverse-Proxy: einziger veroeffentlichter Port der Suite
@@ -42,14 +55,30 @@ services:
     profiles: ["produktion"]
     image: nginx:1.27-alpine
     restart: unless-stopped
+    logging: *logging
+    # Erst starten, wenn alle Apps ihren Healthcheck bestehen – sonst liefert der
+    # Proxy beim Hochfahren 502, bis die Backends bereit sind.
     depends_on:
-      - portal-app
-      - handkassen-app
-      - stunden-app
+      portal-app:
+        condition: service_healthy
+      handkassen-app:
+        condition: service_healthy
+      stunden-app:
+        condition: service_healthy
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "80:80"
+    healthcheck:
+      # Proxy-eigener Endpunkt (siehe nginx.conf) – prueft nur, ob nginx laeuft.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   # ---------------------------------------------------------------------------
   # Portal (Suite-Backend + Portal-SPA)
@@ -60,6 +89,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    logging: *logging
     depends_on:
       suite-db:
         condition: service_healthy
@@ -74,6 +104,17 @@ services:
       COOKIE_INSECURE: ${COOKIE_INSECURE:-}
       SESSION_TIMEOUT_MINUTEN: ${SESSION_TIMEOUT_MINUTEN:-15}
       STATIC_DIR: /app/static
+    healthcheck:
+      # Node hat ab v18 globales fetch – kein curl/wget im Slim-Image noetig.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/suite/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
   # ---------------------------------------------------------------------------
   # Handkassen (bestehendes Projekt, Build-Kontext ./handkassen)
@@ -82,6 +123,7 @@ services:
     profiles: ["produktion"]
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${HK_DB_USER:-handkassen}
       POSTGRES_PASSWORD: ${HK_DB_PASSWORD:-handkassen}
@@ -93,6 +135,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   handkassen-app:
     profiles: ["produktion"]
@@ -100,6 +146,7 @@ services:
       context: ./handkassen
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    logging: *logging
     depends_on:
       handkassen-db:
         condition: service_healthy
@@ -118,11 +165,22 @@ services:
     volumes:
       - handkassen_belege_data:/app/uploads
       - ${BACKUP_LOKAL:-./handkassen/backups}:/backups/lokal:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
   handkassen-backup:
     profiles: ["produktion"]
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *logging
     depends_on:
       handkassen-db:
         condition: service_healthy
@@ -138,6 +196,10 @@ services:
       - ${BACKUP_LOKAL:-./handkassen/backups}:/backups/lokal
       - ${BACKUP_NAS:-./handkassen/backups-nas}:/backups/nas
       - ${BACKUP_USB:-./handkassen/backups-usb}:/backups/usb
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   # ---------------------------------------------------------------------------
   # Stunden (bestehendes Projekt, Build-Kontext ./stunden)
@@ -146,6 +208,7 @@ services:
     profiles: ["produktion"]
     image: postgres:16
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${STUNDEN_DB_USER:-stunden}
       POSTGRES_PASSWORD: ${STUNDEN_DB_PASSWORD:-stunden_dev_passwort}
@@ -157,6 +220,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   stunden-app:
     profiles: ["produktion"]
@@ -164,6 +231,7 @@ services:
       context: ./stunden
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    logging: *logging
     depends_on:
       stunden-db:
         condition: service_healthy
@@ -179,6 +247,16 @@ services:
       TOOL_SLUG: stunden
       SUITE_URL: http://portal-app:3000
       STATIC_DIR: /app/static
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
 volumes:
   suite_db_data:
