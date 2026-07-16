@@ -14,18 +14,18 @@
 
 - **Deutsch überall:** Bezeichner, Kommentare, UI-Texte, Commit-Botschaften (ASCII-Umlaute in Commits: `ae/oe/ue`, wie bestehende Historie).
 - **Suite-Konventionen:** Muster-Quelle ist IMMER das `stunden`-Tool. Kein Cross-Ordner-Import – gemeinsame Dateien werden bewusst **dupliziert** (krypto, suiteAuth, api.ts, tailwind.config.js …).
-- **Tool-Slug:** `foerderungen`, Backend-Port **3003**, Vite-Dev-Port **5176**, Dev-DB-Hostport **5434**, eine Rolle: `nutzer`.
+- **Tool-Slug:** `foerderungen`, Backend-Port **3003**, Vite-Dev-Port **5176**, Dev-DB-Hostport **5435**, eine Rolle: `nutzer`.
 - **Design-Tokens:** `tailwind.config.js` byte-identisch aus `portal/tailwind.config.js` übernehmen (marke-Navy, erfolg/warnung/gefahr).
 - **Fehler-JSON:** immer `{ fehler: "…" }` (deutsch), Erfolg bei Mutationen `{ ok: true }` oder das Objekt.
 - **API-Key nie im Klartext zurückgeben** – nur `apiKeyGesetzt: boolean`.
 - **Tests:** vitest, Integrationstests nur bei gesetzter `TEST_DATABASE_URL` (Muster `stunden/backend/src/test/setup.ts`); seriell (`fileParallelism: false`).
-- Testkommandos laufen aus `foerderungen/backend/` mit PowerShell: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run <datei>` (cross-env ist devDependency; Test-DB `foerderungen_test` wird in Task 1 angelegt).
+- Testkommandos laufen aus `foerderungen/backend/` mit PowerShell: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run <datei>` (cross-env ist devDependency; Test-DB `foerderungen_test` wird in Task 1 angelegt).
 
 ## Datei-Struktur (Ziel)
 
 ```
 foerderungen/
-├── docker-compose.yml            # Dev-DB (Port 5434)
+├── docker-compose.yml            # Dev-DB (Port 5435)
 ├── backend/
 │   ├── Dockerfile                # Mehrstufig, Muster stunden/backend/Dockerfile
 │   ├── package.json / tsconfig.json / vitest.config.ts / .env.example
@@ -84,7 +84,7 @@ services:
       POSTGRES_PASSWORD: foerderungen_dev_passwort
       POSTGRES_DB: foerderungen
     ports:
-      - "5434:5432"
+      - "5435:5432"
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
 ```
@@ -184,7 +184,7 @@ export default defineConfig({
 
 ```
 # ==== Datenbank ====
-DATABASE_URL="postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen"
+DATABASE_URL="postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen"
 
 # ==== Server ====
 PORT=3003
@@ -771,11 +771,11 @@ laufend("Provisionierung & SSO", () => {
 });
 ```
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run src/routes/provision.integration.test.ts`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run src/routes/provision.integration.test.ts`
 Expected: FAIL (Module ./routes/sitzung etc. fehlen noch, falls Steps in anderer Reihenfolge; nach Implementierung aller Steps 1–5: PASS)
 
 WICHTIG: Vor dem ersten Testlauf das Schema in die Test-DB migrieren:
-`npx cross-env DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test prisma migrate deploy`
+`npx cross-env DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test prisma migrate deploy`
 
 - [ ] **Step 7: Tests grün laufen lassen**
 
@@ -888,7 +888,7 @@ laufend("Foerderquellen-Routen", () => {
 
 - [ ] **Step 2: Test rot laufen lassen**
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run src/routes/quellen.integration.test.ts`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run src/routes/quellen.integration.test.ts`
 Expected: FAIL (404 statt 200/201 – Router existiert nicht)
 
 - [ ] **Step 3: Router implementieren**
@@ -1067,7 +1067,7 @@ laufend("markiereAbgelaufene", () => {
 });
 ```
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run src/services/fristen.integration.test.ts`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run src/services/fristen.integration.test.ts`
 Expected: FAIL (Modul ./fristen fehlt)
 
 - [ ] **Step 2: fristen.ts implementieren**
@@ -1205,7 +1205,7 @@ laufend("Ausschreibungs-Routen", () => {
 });
 ```
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run src/routes/ausschreibungen.integration.test.ts`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run src/routes/ausschreibungen.integration.test.ts`
 Expected: FAIL (404 – Router fehlt)
 
 - [ ] **Step 5: Router implementieren**
@@ -1388,7 +1388,7 @@ In `src/index.ts` einhängen: `app.use("/api/ausschreibungen", ausschreibungenRo
 
 - [ ] **Step 6: Tests grün laufen lassen**
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run src/routes/ausschreibungen.integration.test.ts src/services/fristen.integration.test.ts`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run src/routes/ausschreibungen.integration.test.ts src/services/fristen.integration.test.ts`
 Expected: PASS (5 Tests)
 
 - [ ] **Step 7: Commit**
@@ -1487,7 +1487,7 @@ laufend("Einstellungs-Routen", () => {
 });
 ```
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run src/routes/einstellungen.integration.test.ts`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run src/routes/einstellungen.integration.test.ts`
 Expected: FAIL (404)
 
 - [ ] **Step 2: Konstanten + Router implementieren**
@@ -2438,7 +2438,7 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
 });
 ```
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run src/services/scanner.integration.test.ts`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run src/services/scanner.integration.test.ts`
 Expected: PASS direkt, falls Step 2 vollständig war – rot nur bei Implementierungsfehlern. (Reihenfolge hier bewusst Implementierung → Integrationstest, weil der Testgegenstand die Gesamtorchestrierung ist.)
 
 - [ ] **Step 5: zeitplan.ts implementieren (Platzhalter ersetzen)**
@@ -2534,7 +2534,7 @@ In `src/index.ts`: `import { scansRouter } from "./routes/scans";`, `import { st
 
 - [ ] **Step 7: Gesamte Test-Suite laufen lassen**
 
-Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run`
+Run: `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run`
 Expected: PASS (alle bisherigen Tests)
 
 - [ ] **Step 8: Commit**
@@ -4391,7 +4391,7 @@ FOERDERUNGEN_ENCRYPTION_KEY=bitte-32-zeichen-schluessel-hier
 In `README.md`:
 1. Tool-Liste ergänzen: `- **Förderungen** (Unterordner \`foerderungen/\`)`
 2. Architektur-Diagramm um die Zeile `├── /foerderungen/ → Förderungen :3003 (Präfix wird gestrippt)` ergänzen.
-3. Im Entwicklungs-Abschnitt den Hinweis auf das vierte Tool ergänzen (Dev-DB auf 5434, Backend 3003, Frontend 5176).
+3. Im Entwicklungs-Abschnitt den Hinweis auf das vierte Tool ergänzen (Dev-DB auf 5435, Backend 3003, Frontend 5176).
 
 - [ ] **Step 7: Verifikation Registry + Build**
 
@@ -4424,7 +4424,7 @@ git commit -m "Foerderungen: Suite-Integration (Registry, nginx, docker-compose,
 
 - [ ] **Step 1: Alle Backend-Tests laufen lassen**
 
-Run (aus `foerderungen/backend/`): `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5434/foerderungen_test vitest run`
+Run (aus `foerderungen/backend/`): `npx cross-env TEST_DATABASE_URL=postgresql://foerderungen:foerderungen_dev_passwort@localhost:5435/foerderungen_test vitest run`
 Expected: PASS (alle Tests aus Tasks 1–7)
 
 - [ ] **Step 2: Dev-Stack starten**
