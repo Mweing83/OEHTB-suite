@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16
+    container_name: foerderungen-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: foerderungen
+      POSTGRES_PASSWORD: foerderungen_dev_passwort
+      POSTGRES_DB: foerderungen
+    ports:
+      - "5435:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data

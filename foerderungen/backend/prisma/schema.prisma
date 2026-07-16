@@ -1,0 +1,168 @@
+// Prisma-Schema fuer das Foerderungen-Tool OEHTB
+// Datenmodell siehe docs/superpowers/specs/2026-07-16-foerderungen-design.md
+
+generator client {
+  provider = "prisma-client-js"
+  // Windows ARM64 + Produktions-Container: Muster stunden/backend/prisma/schema.prisma
+  engineType    = "binary"
+  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Die Foerderlandschaft (stabil): Foerdergeber/Programme
+// ---------------------------------------------------------------------------
+model Foerderquelle {
+  id           String        @id @default(cuid())
+  name         String
+  traeger      String
+  ebene        Ebene
+  kategorie    Kategorie
+  themen       String[]      @default([])
+  beschreibung String        @default("")
+  webseite     String?
+  kontakt      String?
+  status       QuelleStatus  @default(AKTIV)
+  quelleTyp    Herkunft      @default(MANUELL)
+  erstelltAm   DateTime      @default(now())
+  geaendertAm  DateTime      @default(now()) @updatedAt
+
+  ausschreibungen Ausschreibung[]
+
+  @@index([status])
+}
+
+enum Ebene {
+  BUND
+  LAND
+  GEMEINDE
+  EU
+  PRIVAT
+}
+
+enum Kategorie {
+  PROJEKT
+  KERNGESCHAEFT
+  BEIDES
+}
+
+// ARCHIVIERT dient auch als Tombstone fuer abgelehnte Scanner-Vorschlaege,
+// damit der naechste Scan denselben Fund nicht erneut vorschlaegt.
+enum QuelleStatus {
+  AKTIV
+  VORGESCHLAGEN
+  ARCHIVIERT
+}
+
+enum Herkunft {
+  MANUELL
+  SCAN
+}
+
+// ---------------------------------------------------------------------------
+// Zeitkritisch: konkrete Ausschreibungen/Calls mit Fristen
+// ---------------------------------------------------------------------------
+model Ausschreibung {
+  id                 String              @id @default(cuid())
+  foerderquelle      Foerderquelle       @relation(fields: [foerderquelleId], references: [id], onDelete: Cascade)
+  foerderquelleId    String
+  titel              String
+  beschreibung       String              @default("")
+  link               String?
+  // Normalisierte Fassung des Links (Kleinschreibung, ohne Protokoll/Tracking)
+  // fuer den Dedup-Abgleich des Scanners.
+  linkNormalisiert   String?
+  frist              DateTime?           @db.Date
+  laufendEinreichbar Boolean             @default(false)
+  foerderhoehe       String?
+  status             AusschreibungStatus @default(OFFEN)
+  quelleTyp          Herkunft            @default(MANUELL)
+  erstelltAm         DateTime            @default(now())
+  geaendertAm        DateTime            @default(now()) @updatedAt
+
+  // Aktualisierungsvorschlag des Scanners: verweist auf die Bestandszeile,
+  // deren Felder (z. B. Frist) sich geaendert haben. "Uebernehmen" uebertraegt
+  // die Felder auf die Bestandszeile und loescht den Vorschlag.
+  aktualisiertAusschreibungId String?
+  aktualisiertAusschreibung   Ausschreibung?  @relation("Aktualisierung", fields: [aktualisiertAusschreibungId], references: [id], onDelete: Cascade)
+  aktualisierungsVorschlaege  Ausschreibung[] @relation("Aktualisierung")
+
+  @@index([status, frist])
+  @@index([linkNormalisiert])
+  @@index([foerderquelleId])
+}
+
+// ABGELEHNT bleibt gespeichert (Tombstone), damit der Scanner denselben Fund
+// nicht erneut vorschlaegt.
+enum AusschreibungStatus {
+  OFFEN
+  VORGESCHLAGEN
+  ABGELAUFEN
+  ABGELEHNT
+}
+
+// ---------------------------------------------------------------------------
+// Protokoll der Scan-Laeufe
+// ---------------------------------------------------------------------------
+model ScanLauf {
+  id        String        @id @default(cuid())
+  gestartet DateTime      @default(now())
+  beendet   DateTime?
+  ausloeser ScanAusloeser
+  statistik Json?
+  fehler    String?
+
+  @@index([gestartet])
+}
+
+enum ScanAusloeser {
+  ZEITPLAN
+  MANUELL
+}
+
+// ---------------------------------------------------------------------------
+// Tool-Benutzer (Spiegel der Suite, Auto-Provisioning) – Muster: stunden
+// ---------------------------------------------------------------------------
+model User {
+  id           String    @id @default(cuid())
+  email        String?   @unique
+  suiteUserId  String?   @unique
+  name         String?
+  rolle        Rolle     @default(NUTZER)
+  aktiv        Boolean   @default(true)
+  geloescht    Boolean   @default(false)
+  letzterLogin DateTime?
+  erstelltAm   DateTime  @default(now())
+}
+
+enum Rolle {
+  NUTZER
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog – Tabelle heisst suiteweit einheitlich "audit_log"
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  aktion    String
+  zeitpunkt DateTime @default(now())
+  details   Json?
+
+  @@index([zeitpunkt])
+  @@map("audit_log")
+}
+
+// ---------------------------------------------------------------------------
+// Konfiguration (Key-Value): llm_konfig, scan_konfig
+// ---------------------------------------------------------------------------
+model Einstellung {
+  id          String   @id @default(cuid())
+  schluessel  String   @unique
+  wert        Json
+  geaendertAm DateTime @default(now()) @updatedAt
+}
