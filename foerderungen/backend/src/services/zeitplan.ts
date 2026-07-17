@@ -30,18 +30,30 @@ export async function aktualisiereZeitplan(): Promise<void> {
   const konfig = await ladeScanKonfig();
   if (!konfig.aktiv) return;
   // "0 6 * * 1" = jeden Montag 06:00.
-  scanJob = cron.schedule(`0 ${konfig.stunde} * * ${konfig.wochentag}`, () => {
-    void fuehreScanAus("ZEITPLAN");
-  });
+  // timezone erzwingen: der Container laeuft in UTC, aber die UI zeigt/verspricht
+  // Wiener Uhrzeit an - ohne Angabe wuerde node-cron in Systemzeit (UTC) feuern.
+  scanJob = cron.schedule(
+    `0 ${konfig.stunde} * * ${konfig.wochentag}`,
+    () => {
+      void fuehreScanAus("ZEITPLAN");
+    },
+    { timezone: "Europe/Vienna" }
+  );
 }
 
 export async function starteZeitplan(): Promise<void> {
   if (!fristenJob) {
-    fristenJob = cron.schedule("15 0 * * *", () => {
-      void markiereAbgelaufene().then((n) => {
-        if (n > 0) console.log(`Fristablauf: ${n} Ausschreibung(en) auf ABGELAUFEN gesetzt.`);
-      });
-    });
+    // Ebenfalls Wiener Zeit, damit "00:15 Nacht" tatsaechlich Wiener Mitternacht
+    // (bzw. kurz danach) ist und nicht UTC-Mitternacht (Container-Zeitzone).
+    fristenJob = cron.schedule(
+      "15 0 * * *",
+      () => {
+        void markiereAbgelaufene().then((n) => {
+          if (n > 0) console.log(`Fristablauf: ${n} Ausschreibung(en) auf ABGELAUFEN gesetzt.`);
+        });
+      },
+      { timezone: "Europe/Vienna" }
+    );
   }
   await aktualisiereZeitplan();
 }
