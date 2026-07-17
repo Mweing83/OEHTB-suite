@@ -62,13 +62,60 @@ export function heuteIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Zieht das erste vollstaendige JSON-Array aus einer Modellantwort
-// (Modelle umgeben JSON gern mit Text oder ```-Zaeunen).
+// Zieht ein JSON-Array aus einer Modellantwort. Modelle umgeben JSON gern
+// mit Text oder ```-Zaeunen und produzieren gelegentlich formale Fehler
+// (angehaengte Kommas). Reihenfolge der Versuche:
+// 1. Inhalt des LETZTEN ```json-/```-Zauns (dort steht die finale Antwort),
+// 2. Ausschnitt vom ersten "[" bis zum letzten "]",
+// jeweils roh und mit entfernten haengenden Kommas. Schlaegt alles fehl,
+// wird ein Ausschnitt geloggt (Diagnose in den Container-Logs) und ein
+// deutscher Fehler geworfen.
 export function extrahiereJsonArray<T>(text: string): T[] {
+  const kandidaten: string[] = [];
+
+  const zaeune = [...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)];
+  if (zaeune.length > 0) kandidaten.push(zaeune[zaeune.length - 1][1]);
+
   const start = text.indexOf("[");
   const ende = text.lastIndexOf("]");
-  if (start === -1 || ende === -1 || ende <= start) {
-    throw new Error("Antwort enthaelt kein JSON-Array.");
+  if (start !== -1 && ende > start) kandidaten.push(text.slice(start, ende + 1));
+
+  let letzterFehler: unknown = new Error("Antwort enthaelt kein JSON-Array.");
+  for (const roh of kandidaten) {
+    // Haengende Kommas vor } oder ] sind der haeufigste formale Fehler.
+    for (const variante of [roh, roh.replace(/,\s*([}\]])/g, "$1")]) {
+      try {
+        const wert = JSON.parse(variante) as unknown;
+        if (Array.isArray(wert)) return wert as T[];
+        letzterFehler = new Error("JSON ist kein Array.");
+      } catch (err) {
+        letzterFehler = err;
+      }
+    }
   }
-  return JSON.parse(text.slice(start, ende + 1)) as T[];
+
+  console.error(
+    "extrahiereJsonArray: Antwort nicht parsebar. Ausschnitt:",
+    text.slice(0, 600).replace(/\s+/g, " ")
+  );
+  throw new Error(
+    "Modellantwort enthaelt kein gueltiges JSON-Array (" +
+      String(letzterFehler instanceof Error ? letzterFehler.message : letzterFehler) +
+      ")."
+  );
+}
+
+// Fuehrt einen Provider-Aufruf mit EINEM Wiederholungsversuch aus. Faengt
+// sowohl kurze API-Aussetzer als auch nichtdeterministische Formfehler der
+// Modellantwort ab (zweiter Versuch liefert meist gueltiges JSON).
+export async function mitWiederholung<T>(aufruf: () => Promise<T>): Promise<T> {
+  try {
+    return await aufruf();
+  } catch (err) {
+    console.warn(
+      "LLM-Aufruf fehlgeschlagen, ein Wiederholungsversuch:",
+      err instanceof Error ? err.message : err
+    );
+    return await aufruf();
+  }
 }

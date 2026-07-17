@@ -76,7 +76,9 @@ export class OpenAIProvider implements LLMProvider {
       `"laufendEinreichbar": boolean, "foerderhoehe": string|null, ` +
       `"beschreibung": string (1-3 Saetze, deutsch)}. ` +
       `Nur Ausschreibungen mit Frist heute oder spaeter bzw. laufender ` +
-      `Einreichung. Keine erfundenen Links. Leeres Array [] wenn nichts gefunden.`;
+      `Einreichung. Keine erfundenen Links. Leeres Array [] wenn nichts gefunden. ` +
+      `Das JSON muss STRIKT gueltig sein: doppelte Anfuehrungszeichen in ` +
+      `Texten mit Backslash escapen, keine haengenden Kommas, keine Kommentare.`;
     const text = await this.frage(system, `Pruefe diese Foerdergeber auf aktuell offene Ausschreibungen:\n${liste}`);
     return extrahiereJsonArray<ScanFund>(text);
   }
@@ -93,7 +95,9 @@ export class OpenAIProvider implements LLMProvider {
       `"kategorie": "PROJEKT"|"KERNGESCHAEFT"|"BEIDES", ` +
       `"themen": string[], "beschreibung": string (1-3 Saetze, deutsch), ` +
       `"webseite": string|null}. Maximal 5 Vorschlaege, nur seriös belegbare ` +
-      `Quellen. Leeres Array [] wenn nichts Neues.`;
+      `Quellen. Leeres Array [] wenn nichts Neues. ` +
+      `Das JSON muss STRIKT gueltig sein: doppelte Anfuehrungszeichen in ` +
+      `Texten mit Backslash escapen, keine haengenden Kommas, keine Kommentare.`;
     const text = await this.frage(
       system,
       `Bereits bekannte Foerderquellen (NICHT erneut vorschlagen):\n` +

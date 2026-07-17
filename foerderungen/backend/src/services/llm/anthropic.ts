@@ -50,7 +50,15 @@ export class AnthropicProvider implements LLMProvider {
     }
     const daten = (await res.json()) as {
       content: Array<{ type: string; text?: string }>;
+      stop_reason?: string;
     };
+    // Abgeschnittene Antworten ergeben unvollstaendiges JSON – klar benennen
+    // statt spaeter mit einem kryptischen Parse-Fehler zu scheitern.
+    if (daten.stop_reason === "max_tokens") {
+      throw new Error(
+        "Anthropic-Antwort wurde abgeschnitten (max_tokens erreicht) – Lauf wird wiederholt."
+      );
+    }
     // Letzter Textblock enthaelt die finale Antwort (davor Tool-Blocks).
     const textBloecke = daten.content.filter((b) => b.type === "text" && b.text);
     if (textBloecke.length === 0) throw new Error("Anthropic-Antwort ohne Text.");
@@ -70,7 +78,9 @@ export class AnthropicProvider implements LLMProvider {
       `"laufendEinreichbar": boolean, "foerderhoehe": string|null, ` +
       `"beschreibung": string (1-3 Saetze, deutsch)}. ` +
       `Nur Ausschreibungen mit Frist heute oder spaeter bzw. laufender ` +
-      `Einreichung. Keine erfundenen Links. Leeres Array [] wenn nichts gefunden.`;
+      `Einreichung. Keine erfundenen Links. Leeres Array [] wenn nichts gefunden. ` +
+      `Das JSON muss STRIKT gueltig sein: doppelte Anfuehrungszeichen in ` +
+      `Texten mit Backslash escapen, keine haengenden Kommas, keine Kommentare.`;
     const frage = `Pruefe diese Foerdergeber auf aktuell offene Ausschreibungen:\n${liste}`;
     const text = await this.frage(system, frage);
     return extrahiereJsonArray<ScanFund>(text);
@@ -88,7 +98,9 @@ export class AnthropicProvider implements LLMProvider {
       `"kategorie": "PROJEKT"|"KERNGESCHAEFT"|"BEIDES", ` +
       `"themen": string[], "beschreibung": string (1-3 Saetze, deutsch), ` +
       `"webseite": string|null}. Maximal 5 Vorschlaege, nur seriös belegbare ` +
-      `Quellen. Leeres Array [] wenn nichts Neues.`;
+      `Quellen. Leeres Array [] wenn nichts Neues. ` +
+      `Das JSON muss STRIKT gueltig sein: doppelte Anfuehrungszeichen in ` +
+      `Texten mit Backslash escapen, keine haengenden Kommas, keine Kommentare.`;
     const frage =
       `Bereits bekannte Foerderquellen (NICHT erneut vorschlagen):\n` +
       bekannteNamen.map((n) => `- ${n}`).join("\n");

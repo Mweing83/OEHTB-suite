@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { erzeugeProvider, ladeProviderKonfig } from "./llm/factory";
-import { QuellenInfo, ScanFund, QuellenFund } from "./llm/typen";
+import { QuellenInfo, ScanFund, QuellenFund, mitWiederholung } from "./llm/typen";
 import { markiereAbgelaufene } from "./fristen";
 
 // Link-Normalisierung fuer den Dedup-Abgleich (Kleinschreibung, ohne
@@ -81,6 +81,10 @@ export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<
       const provider = erzeugeProvider(await ladeProviderKonfig());
 
       // ---- Phase 1: Ueberwachung bekannter Quellen (gebuendelt) --------------
+      // Jeder Batch ist EIGENSTAENDIG abgesichert: ein fehlgeschlagener
+      // Batch (API-Aussetzer, unparsebare Modellantwort) ueberspringt nur
+      // seine Quellen; die uebrigen Batches laufen weiter. Jeder Provider-
+      // Aufruf bekommt zusaetzlich einen Wiederholungsversuch.
       try {
         const quellen = await prisma.foerderquelle.findMany({
           where: { status: "AKTIV" },
@@ -94,10 +98,18 @@ export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<
             themen: q.themen,
           }));
           statistik.ueberwachung.geprueft += batch.length;
-          const funde = await provider.sucheAusschreibungen(infos);
-          statistik.ueberwachung.funde += funde.length;
-          for (const fund of funde) {
-            await verarbeiteAusschreibungsFund(fund, batch, statistik);
+          try {
+            const funde = await mitWiederholung(() => provider.sucheAusschreibungen(infos));
+            statistik.ueberwachung.funde += funde.length;
+            for (const fund of funde) {
+              await verarbeiteAusschreibungsFund(fund, batch, statistik);
+            }
+          } catch (err) {
+            fehlerListe.push(
+              `Ueberwachung (Batch ${Math.floor(i / BATCH_GROESSE) + 1}, ` +
+                `${batch.map((q) => q.name).join(", ").slice(0, 120)}): ` +
+                String(err instanceof Error ? err.message : err)
+            );
           }
         }
       } catch (err) {
@@ -106,8 +118,8 @@ export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<
 
       // ---- Phase 2: Entdeckung neuer Quellen ---------------------------------
       try {
-        const alle = await prisma.foerderquelle.findMany({ select: { name: true, status: true } });
-        const funde = await provider.entdeckeQuellen(alle.map((q) => q.name));
+        const alle = await prisma.foerderquelle.findMany({ select: { name: true } });
+        const funde = await mitWiederholung(() => provider.entdeckeQuellen(alle.map((q) => q.name)));
         statistik.entdeckung.funde = funde.length;
         for (const fund of funde) {
           await verarbeiteQuellenFund(fund, alle.map((q) => q.name), statistik);
