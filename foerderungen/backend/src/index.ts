@@ -18,11 +18,13 @@ import { scansRouter } from "./routes/scans";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision";
 import { jwtSecret } from "./lib/suiteAuth";
 import { starteZeitplan } from "./services/zeitplan";
+import { pruefeVerschluesselungsKey } from "./lib/krypto";
 
 // Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret) –
 // fail-fast statt erst beim ersten Request bzw. beim ersten Provisionierungs-Push.
 jwtSecret();
 provisionSecret();
+pruefeVerschluesselungsKey();
 if (process.env.NODE_ENV === "production" && process.env.COOKIE_INSECURE === "1") {
   console.warn(
     "WARNUNG: COOKIE_INSECURE=1 – Session-Cookies werden ohne 'secure'-Flag gesetzt (nur hinter TLS/Tailscale vertretbar)."

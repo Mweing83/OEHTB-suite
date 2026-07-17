@@ -297,7 +297,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${FOERDERUNGEN_DB_USER:-foerderungen}:${FOERDERUNGEN_DB_PASSWORD:-foerderungen_dev_passwort}@foerderungen-db:5432/${FOERDERUNGEN_DB_NAME:-foerderungen}
       JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
-      ENCRYPTION_KEY: ${FOERDERUNGEN_ENCRYPTION_KEY:-bitte-32-zeichen-schluessel-setzen}
+      ENCRYPTION_KEY: ${FOERDERUNGEN_ENCRYPTION_KEY:-bitte-aendern-32-zeichen-genau!!}
       PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
       PORT: 3003
       NODE_ENV: production
