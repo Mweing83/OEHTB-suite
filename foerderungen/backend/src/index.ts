@@ -11,6 +11,7 @@ import path from "path";
 import { prisma } from "./lib/prisma";
 import { sitzungRouter } from "./routes/sitzung";
 import { provisionRouter } from "./routes/provision";
+import { quellenRouter } from "./routes/quellen";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision";
 import { jwtSecret } from "./lib/suiteAuth";
 
@@ -68,6 +69,7 @@ app.get("/api/health", (_req, res) => {
 // Routen (Login/Logout liegen seit der Suite-Integration im Portal, siehe
 // middleware/auth.ts – dieses Backend verifiziert nur noch das SSO-Token).
 app.use("/api/auth", sitzungRouter);
+app.use("/api/quellen", quellenRouter);
 app.use("/api/provision", provisionRouter);
 
 // Produktivbetrieb: gebaute SPA ausliefern (Muster stunden/handkassen).
