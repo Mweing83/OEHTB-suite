@@ -47,7 +47,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {navLink("/", "Dashboard")}
             {navLink("/anfragen", "Anfragen")}
             {navLink("/mitarbeiter", "Mitarbeiter")}
-            {benutzer?.rolle === "ADMIN" && navLink("/admin", "Verwaltung")}
+            {benutzer?.rolle === "admin" && navLink("/admin", "Verwaltung")}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <span className="text-marke-200">

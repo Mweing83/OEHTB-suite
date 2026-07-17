@@ -25,18 +25,18 @@ type Bereich = "eingang" | "verarbeitung";
 export default function AnfragenSeite() {
   const { benutzer } = useAuth();
   const istHr =
-    benutzer?.rolle === "ADMIN" || benutzer?.rolle === "SACHBEARBEITER";
+    benutzer?.rolle === "admin" || benutzer?.rolle === "sachbearbeiter";
   const istVerrechnung =
-    benutzer?.rolle === "ADMIN" || benutzer?.rolle === "PERSONALVERRECHNUNG";
-  // SACHBEARBEITER und PERSONALVERRECHNUNG duerfen im Eingang bestaetigen.
+    benutzer?.rolle === "admin" || benutzer?.rolle === "personalverrechnung";
+  // sachbearbeiter und personalverrechnung duerfen im Eingang bestaetigen.
   const darfBestaetigen =
-    benutzer?.rolle === "ADMIN" ||
-    benutzer?.rolle === "SACHBEARBEITER" ||
-    benutzer?.rolle === "PERSONALVERRECHNUNG";
+    benutzer?.rolle === "admin" ||
+    benutzer?.rolle === "sachbearbeiter" ||
+    benutzer?.rolle === "personalverrechnung";
 
   // Standard-Bereich je nach Rolle: Verrechnung startet bei "verarbeitung".
   const [bereich, setBereich] = useState<Bereich>(
-    benutzer?.rolle === "PERSONALVERRECHNUNG" ? "verarbeitung" : "eingang"
+    benutzer?.rolle === "personalverrechnung" ? "verarbeitung" : "eingang"
   );
 
   const [eingang, setEingang] = useState<Anfrage[]>([]);

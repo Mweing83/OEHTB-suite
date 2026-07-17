@@ -25,12 +25,12 @@ import {
 // req.benutzer?.userId und rollePflicht(...) unveraendert.
 // ---------------------------------------------------------------------------
 
-export type Rolle = "ADMIN" | "SACHBEARBEITER" | "PERSONALVERRECHNUNG" | "LESER";
+export type Rolle = "admin" | "sachbearbeiter" | "personalverrechnung" | "leser";
 const GUELTIGE_ROLLEN: Rolle[] = [
-  "ADMIN",
-  "SACHBEARBEITER",
-  "PERSONALVERRECHNUNG",
-  "LESER",
+  "admin",
+  "sachbearbeiter",
+  "personalverrechnung",
+  "leser",
 ];
 
 export interface TokenInhalt {
@@ -111,7 +111,9 @@ export async function authPflicht(
     if (frisch) inhalt = frisch;
   }
 
-  const rolleRoh = inhalt.zugriff[TOOL_SLUG];
+  // toLowerCase: aeltere Tokens koennen die Rolle noch grossgeschrieben tragen
+  // (Stand vor der suite-weiten Vereinheitlichung auf Kleinschreibung).
+  const rolleRoh = inhalt.zugriff[TOOL_SLUG]?.toLowerCase();
   if (!rolleRoh || !GUELTIGE_ROLLEN.includes(rolleRoh as Rolle)) {
     res.status(403).json({ fehler: "Kein Zugriff auf dieses Tool." });
     return;

@@ -35,7 +35,7 @@ async function main() {
       name: "Stunden",
       beschreibung: "Wochenstunden und Beschäftigungsausmaß verwalten",
       pfad: "/stunden/",
-      rollen: ["ADMIN", "SACHBEARBEITER", "PERSONALVERRECHNUNG", "LESER"],
+      rollen: ["admin", "sachbearbeiter", "personalverrechnung", "leser"],
       reihenfolge: 2,
       provisionUrl: process.env.STUNDEN_URL ?? "http://stunden-app:3002",
     },
@@ -83,7 +83,8 @@ async function main() {
   for (const t of tools) {
     const tool = await prisma.tool.findUnique({ where: { slug: t.slug } });
     if (!tool) continue;
-    const rolle = t.slug === "stunden" ? "ADMIN" : "admin";
+    // Rollen sind suite-weit einheitlich kleingeschrieben.
+    const rolle = "admin";
     await prisma.zugriff.upsert({
       where: { userId_toolId: { userId: admin.id, toolId: tool.id } },
       update: { rolle },

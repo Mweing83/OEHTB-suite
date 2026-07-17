@@ -16,8 +16,8 @@ function datumDe(iso: string): string {
 export default function MitarbeiterSeite() {
   const { benutzer } = useAuth();
   const darfBearbeiten =
-    benutzer?.rolle === "ADMIN" || benutzer?.rolle === "SACHBEARBEITER";
-  const istAdmin = benutzer?.rolle === "ADMIN";
+    benutzer?.rolle === "admin" || benutzer?.rolle === "sachbearbeiter";
+  const istAdmin = benutzer?.rolle === "admin";
   const heute = new Date().toISOString().slice(0, 10);
 
   const [liste, setListe] = useState<MitarbeiterListe[]>([]);

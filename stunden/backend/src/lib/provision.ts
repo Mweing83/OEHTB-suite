@@ -9,7 +9,7 @@ import { SUITE_URL, TOOL_SLUG } from "./suiteAuth";
 // kommt IMMER von der Suite.
 // ---------------------------------------------------------------------------
 
-const ST_ROLLEN = ["ADMIN", "SACHBEARBEITER", "PERSONALVERRECHNUNG", "LESER"] as const;
+const ST_ROLLEN = ["admin", "sachbearbeiter", "personalverrechnung", "leser"] as const;
 type StRolle = (typeof ST_ROLLEN)[number];
 
 export interface ProvisionUserPayload {
@@ -36,8 +36,11 @@ export function provisionSecret(): string {
 
 // Legt den lokalen Spiegel an bzw. aktualisiert ihn (idempotent, per suiteUserId).
 export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
-  const gueltig = ST_ROLLEN.includes((p.rolle ?? "") as StRolle);
-  const rolle = (gueltig ? (p.rolle as StRolle) : "LESER") as StRolle;
+  // toLowerCase: Payloads aus der Zeit vor der suite-weiten Vereinheitlichung
+  // koennen die Rolle noch grossgeschrieben tragen.
+  const rolleKlein = (p.rolle ?? "").toLowerCase();
+  const gueltig = ST_ROLLEN.includes(rolleKlein as StRolle);
+  const rolle = (gueltig ? rolleKlein : "leser") as StRolle;
   // Ohne gueltige Rolle (Zugriff entzogen) oder zentral inaktiv -> gesperrt.
   const aktiv = p.aktiv && gueltig;
 

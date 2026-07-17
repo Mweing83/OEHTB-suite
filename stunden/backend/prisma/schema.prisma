@@ -123,7 +123,7 @@ model User {
   // Verknuepfung zum zentralen Suite-Benutzer (Auto-Provisioning beim Login).
   suiteUserId  String?  @unique
   name         String?
-  rolle        Rolle    @default(LESER)
+  rolle        Rolle    @default(leser)
   aktiv        Boolean  @default(true)
   // Zentral geloescht (Tombstone): sperrt den Zugang, erhaelt aber die Historie.
   geloescht    Boolean  @default(false)
@@ -132,10 +132,10 @@ model User {
 }
 
 enum Rolle {
-  ADMIN
-  SACHBEARBEITER
-  PERSONALVERRECHNUNG
-  LESER
+  admin
+  sachbearbeiter
+  personalverrechnung
+  leser
 }
 
 // ---------------------------------------------------------------------------

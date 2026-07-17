@@ -7,7 +7,7 @@ import {
 } from "react";
 import { api } from "./api";
 
-export type Rolle = "NUTZER";
+export type Rolle = "nutzer";
 
 export interface Benutzer {
   id: string;

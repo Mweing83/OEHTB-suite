@@ -37,8 +37,8 @@ export function provisionSecret(): string {
 // Legt den lokalen Spiegel an bzw. aktualisiert ihn (idempotent, per suiteUserId).
 export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
   const gueltig = FQ_ROLLEN.includes((p.rolle ?? "") as FqRolle);
-  // Einzige Tool-Rolle ist NUTZER; ohne gueltige Rolle -> gesperrt.
-  const rolle = "NUTZER" as const;
+  // Einzige Tool-Rolle ist nutzer; ohne gueltige Rolle -> gesperrt.
+  const rolle = "nutzer" as const;
   const aktiv = p.aktiv && gueltig;
 
   const vorhanden = await prisma.user.findUnique({

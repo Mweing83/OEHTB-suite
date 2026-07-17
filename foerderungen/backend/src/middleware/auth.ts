@@ -19,11 +19,11 @@ import {
 // das gemeinsame Suite-Token und prueft, ob der Zugriff fuer DIESES Tool
 // (aus token.zugriff["foerderungen"]) freigeschaltet ist.
 //
-// Das Foerderungen-Tool kennt nur EINE Rolle (NUTZER) – es gibt daher keine
+// Das Foerderungen-Tool kennt nur EINE Rolle (nutzer) – es gibt daher keine
 // Rollenpruefung mehr (kein rollePflicht wie bei stunden).
 // ---------------------------------------------------------------------------
 
-export type Rolle = "NUTZER";
+export type Rolle = "nutzer";
 const GUELTIGE_ROLLEN = ["nutzer"]; // Wert im Suite-Token (Registry-Schreibweise)
 
 export interface TokenInhalt {
@@ -126,7 +126,7 @@ export async function authPflicht(
 
   req.benutzer = {
     userId: lokaleId,
-    rolle: "NUTZER",
+    rolle: "nutzer",
     letzteAktivitaet: Date.now(),
   };
   next();

@@ -21,7 +21,7 @@ laufend("Provisionierung & SSO", () => {
     const me = await request(app).get("/api/auth/me").set("Cookie", cookie);
     expect(me.status).toBe(200);
     expect(me.body.name).toBe("Test Nutzer");
-    expect(me.body.rolle).toBe("NUTZER");
+    expect(me.body.rolle).toBe("nutzer");
   });
 
   it("sperrt Nutzer ohne Tool-Rolle", async () => {

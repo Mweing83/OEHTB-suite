@@ -17,8 +17,8 @@ export default function MitarbeiterDetailSeite() {
   const { id } = useParams<{ id: string }>();
   const { benutzer } = useAuth();
   const darfBearbeiten =
-    benutzer?.rolle === "ADMIN" || benutzer?.rolle === "SACHBEARBEITER";
-  const istAdmin = benutzer?.rolle === "ADMIN";
+    benutzer?.rolle === "admin" || benutzer?.rolle === "sachbearbeiter";
+  const istAdmin = benutzer?.rolle === "admin";
 
   const [daten, setDaten] = useState<MitarbeiterDetail | null>(null);
   const [laedt, setLaedt] = useState(true);

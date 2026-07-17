@@ -10,9 +10,9 @@ import { ollamaStatus, installStarten } from "../services/ollamaInstall";
 
 export const adminRouter = Router();
 
-// Alle Admin-Routen erfordern Anmeldung UND die Rolle ADMIN.
+// Alle Admin-Routen erfordern Anmeldung UND die Rolle admin.
 adminRouter.use(authPflicht);
-adminRouter.use(rollePflicht("ADMIN"));
+adminRouter.use(rollePflicht("admin"));
 
 const LLM_SCHLUESSEL = "llm_konfig";
 const WORKFLOW_SCHLUESSEL = "workflow_konfig";
@@ -177,7 +177,7 @@ adminRouter.put("/vollzeit", async (req: AuthRequest, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// Ollama-Installation auf dem Server (nur ADMIN – der Router erzwingt das).
+// Ollama-Installation auf dem Server (nur admin – der Router erzwingt das).
 // ---------------------------------------------------------------------------
 
 // GET /api/admin/ollama/status  – ist Ollama installiert/gestartet?

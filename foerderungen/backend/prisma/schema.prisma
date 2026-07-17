@@ -141,7 +141,7 @@ model User {
   email        String?   @unique
   suiteUserId  String?   @unique
   name         String?
-  rolle        Rolle     @default(NUTZER)
+  rolle        Rolle     @default(nutzer)
   aktiv        Boolean   @default(true)
   geloescht    Boolean   @default(false)
   letzterLogin DateTime?
@@ -149,7 +149,7 @@ model User {
 }
 
 enum Rolle {
-  NUTZER
+  nutzer
 }
 
 // ---------------------------------------------------------------------------

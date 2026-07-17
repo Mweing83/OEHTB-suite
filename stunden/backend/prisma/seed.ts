@@ -16,7 +16,7 @@ async function main() {
       email: adminEmail,
       passwortHash: hash,
       name: "Administrator",
-      rolle: "ADMIN",
+      rolle: "admin",
     },
   });
   console.log(`Admin angelegt: ${adminEmail} / ${adminPasswort}`);

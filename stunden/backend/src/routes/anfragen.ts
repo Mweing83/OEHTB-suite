@@ -25,7 +25,7 @@ const einreichenSchema = z.object({
 
 anfragenRouter.post(
   "/",
-  rollePflicht("ADMIN", "SACHBEARBEITER"),
+  rollePflicht("admin", "sachbearbeiter"),
   async (req: AuthRequest, res: Response) => {
     const parse = einreichenSchema.safeParse(req.body);
     if (!parse.success) {
@@ -173,7 +173,7 @@ const bestaetigenSchema = z.object({
 
 anfragenRouter.post(
   "/:id/bestaetigen",
-  rollePflicht("ADMIN", "SACHBEARBEITER", "PERSONALVERRECHNUNG"),
+  rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const parse = bestaetigenSchema.safeParse(req.body);
     if (!parse.success) {
@@ -232,7 +232,7 @@ anfragenRouter.post(
 // ---------------------------------------------------------------------------
 anfragenRouter.post(
   "/:id/ablehnen",
-  rollePflicht("ADMIN", "SACHBEARBEITER", "PERSONALVERRECHNUNG"),
+  rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const grund =
       typeof req.body?.grund === "string" ? req.body.grund : null;
@@ -261,11 +261,11 @@ anfragenRouter.post(
 // POST /api/anfragen/:id/verarbeiten  – als verarbeitet markieren
 // Zweite Stufe: Die Personalverrechnung hat die bestaetigte Aenderung in die
 // externen Systeme (Buchhaltung, Lohnverrechnung) eingepflegt.
-// Nur ADMIN und PERSONALVERRECHNUNG.
+// Nur admin und personalverrechnung.
 // ---------------------------------------------------------------------------
 anfragenRouter.post(
   "/:id/verarbeiten",
-  rollePflicht("ADMIN", "PERSONALVERRECHNUNG"),
+  rollePflicht("admin", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const notiz =
       typeof req.body?.notiz === "string" ? req.body.notiz : null;
@@ -309,11 +309,11 @@ anfragenRouter.post(
 // Die Personalverrechnung gibt eine bereits bestaetigte Anfrage zur erneuten
 // Pruefung zurueck. Die zugehoerige Beschaeftigungsaenderung wird rueckgaengig
 // gemacht (geloescht), damit nichts Falsches im Dashboard steht.
-// Nur ADMIN und PERSONALVERRECHNUNG.
+// Nur admin und personalverrechnung.
 // ---------------------------------------------------------------------------
 anfragenRouter.post(
   "/:id/zurueck",
-  rollePflicht("ADMIN", "PERSONALVERRECHNUNG"),
+  rollePflicht("admin", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const grund =
       typeof req.body?.grund === "string" ? req.body.grund : null;

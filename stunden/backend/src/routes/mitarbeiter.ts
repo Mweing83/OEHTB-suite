@@ -199,7 +199,7 @@ mitarbeiterRouter.get("/:id", async (req: AuthRequest, res: Response) => {
 
 // ---------------------------------------------------------------------------
 // POST /api/mitarbeiter  – neuen Mitarbeiter anlegen (Stammdaten)
-// Nur ADMIN und SACHBEARBEITER.
+// Nur admin und sachbearbeiter.
 // ---------------------------------------------------------------------------
 const mitarbeiterSchema = z.object({
   vorname: z.string().min(1),
@@ -217,7 +217,7 @@ const mitarbeiterSchema = z.object({
 
 mitarbeiterRouter.post(
   "/",
-  rollePflicht("ADMIN", "SACHBEARBEITER"),
+  rollePflicht("admin", "sachbearbeiter"),
   async (req: AuthRequest, res: Response) => {
     const parse = mitarbeiterSchema.safeParse(req.body);
     if (!parse.success) {
@@ -256,11 +256,11 @@ mitarbeiterRouter.post(
 
 // ---------------------------------------------------------------------------
 // PUT /api/mitarbeiter/:id  – Stammdaten bearbeiten
-// Nur ADMIN und SACHBEARBEITER.
+// Nur admin und sachbearbeiter.
 // ---------------------------------------------------------------------------
 mitarbeiterRouter.put(
   "/:id",
-  rollePflicht("ADMIN", "SACHBEARBEITER"),
+  rollePflicht("admin", "sachbearbeiter"),
   async (req: AuthRequest, res: Response) => {
     const parse = mitarbeiterSchema.partial().safeParse(req.body);
     if (!parse.success) {
@@ -314,7 +314,7 @@ mitarbeiterRouter.put(
 // ---------------------------------------------------------------------------
 // POST /api/mitarbeiter/:id/beschaeftigung  – manuelle Aenderung erfassen
 // Legt einen NEUEN Beschaeftigung-Datensatz an (Historie, nie ueberschreiben).
-// Nur ADMIN und SACHBEARBEITER.
+// Nur admin und sachbearbeiter.
 // ---------------------------------------------------------------------------
 const beschaeftigungSchema = z.object({
   wochenstunden: z.number().positive().max(168),
@@ -325,7 +325,7 @@ const beschaeftigungSchema = z.object({
 
 mitarbeiterRouter.post(
   "/:id/beschaeftigung",
-  rollePflicht("ADMIN", "SACHBEARBEITER"),
+  rollePflicht("admin", "sachbearbeiter"),
   async (req: AuthRequest, res: Response) => {
     const parse = beschaeftigungSchema.safeParse(req.body);
     if (!parse.success) {
@@ -479,14 +479,14 @@ mitarbeiterRouter.get(
 
 // ---------------------------------------------------------------------------
 // DELETE /api/mitarbeiter/:id  – DSGVO-Loeschung (Art. 17)
-// Nur ADMIN. Zwei Modi:
+// Nur admin. Zwei Modi:
 //   - Standard: anonymisieren/deaktivieren (Aufbewahrungsfristen wahren)
 //   - ?hart=1: vollstaendig loeschen (inkl. Historie) – nur wenn keine
 //     gesetzliche Aufbewahrungspflicht mehr besteht.
 // ---------------------------------------------------------------------------
 mitarbeiterRouter.delete(
   "/:id",
-  rollePflicht("ADMIN"),
+  rollePflicht("admin"),
   async (req: AuthRequest, res: Response) => {
     const hart = req.query.hart === "1";
     const m = await prisma.mitarbeiter.findUnique({

@@ -13,7 +13,7 @@ const nutzlast = {
   name: "Test User",
   email: "test@example.org",
   aktiv: true,
-  rolle: "SACHBEARBEITER",
+  rolle: "sachbearbeiter",
 };
 
 run("Provision-Empfang (Stunden, Integration)", () => {
@@ -44,7 +44,7 @@ run("Provision-Empfang (Stunden, Integration)", () => {
       where: { suiteUserId: "suite-user-1" },
     });
     expect(u).not.toBeNull();
-    expect(u?.rolle).toBe("SACHBEARBEITER");
+    expect(u?.rolle).toBe("sachbearbeiter");
   });
 
   it("lehnt eine unvollstaendige Nutzlast mit 400 ab", async () => {

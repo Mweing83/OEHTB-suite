@@ -7,7 +7,7 @@ import {
 } from "react";
 import { api } from "./api";
 
-export type Rolle = "ADMIN" | "SACHBEARBEITER" | "PERSONALVERRECHNUNG" | "LESER";
+export type Rolle = "admin" | "sachbearbeiter" | "personalverrechnung" | "leser";
 
 export interface Benutzer {
   id: string;

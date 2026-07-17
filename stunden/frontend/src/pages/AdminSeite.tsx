@@ -22,7 +22,7 @@ interface Einstellungen {
 export default function AdminSeite() {
   const { benutzer } = useAuth();
 
-  if (benutzer?.rolle !== "ADMIN") {
+  if (benutzer?.rolle !== "admin") {
     return (
       <Layout>
         <p className="text-gray-600">
@@ -259,7 +259,7 @@ function LlmEinstellungen() {
 }
 
 // ---------------------------------------------------------------------------
-// Abschnitt: Ollama-Installation auf dem Server (nur ADMIN)
+// Abschnitt: Ollama-Installation auf dem Server (nur admin)
 // ---------------------------------------------------------------------------
 interface OllamaStatusDaten {
   installiert: boolean;
