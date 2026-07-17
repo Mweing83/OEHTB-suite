@@ -79,15 +79,18 @@ async function main() {
     },
   });
 
-  // Admin bekommt Zugriff auf alles.
+  // Admin bekommt beim ERSTSTART Zugriff auf alles. Bestehende Zugriffe
+  // bleiben unangetastet (update: {}), sonst wuerde jeder Container-Start
+  // manuell vergebene Rollen ueberschreiben.
   for (const t of tools) {
     const tool = await prisma.tool.findUnique({ where: { slug: t.slug } });
     if (!tool) continue;
-    // Rollen sind suite-weit einheitlich kleingeschrieben.
-    const rolle = "admin";
+    // Hoechste Rolle des Tools: "admin", wo es sie gibt, sonst die erste
+    // Tool-Rolle (Foerderungen kennt z. B. nur "nutzer").
+    const rolle = t.rollen.includes("admin") ? "admin" : t.rollen[0];
     await prisma.zugriff.upsert({
       where: { userId_toolId: { userId: admin.id, toolId: tool.id } },
-      update: { rolle },
+      update: {},
       create: { userId: admin.id, toolId: tool.id, rolle },
     });
   }
