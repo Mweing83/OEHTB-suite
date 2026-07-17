@@ -83,6 +83,6 @@ export function fristKlasse(a: Ausschreibung): string {
   const tage = fristTage(a);
   if (tage === null) return "text-gray-600";
   if (tage < 7) return "text-gefahr-700 font-semibold";
-  if (tage < 30) return "text-warnung-700 font-semibold";
+  if (tage <= 30) return "text-warnung-700 font-semibold";
   return "text-gray-700";
 }

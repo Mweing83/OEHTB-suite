@@ -13,7 +13,7 @@ import {
 } from "../lib/typen";
 
 // Startseite: offene Ausschreibungen nach Frist sortiert, Dringlichkeit
-// hervorgehoben (< 30 Tage warnung, < 7 Tage gefahr), Filter nach Ebene,
+// hervorgehoben (<= 30 Tage warnung, < 7 Tage gefahr), Filter nach Ebene,
 // Kategorie und Thema. "Laufend einreichbar" als eigener Abschnitt.
 export default function AusschreibungenSeite() {
   const [liste, setListe] = useState<Ausschreibung[]>([]);
