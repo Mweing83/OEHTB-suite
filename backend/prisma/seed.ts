@@ -39,6 +39,15 @@ async function main() {
       reihenfolge: 2,
       provisionUrl: process.env.STUNDEN_URL ?? "http://stunden-app:3002",
     },
+    {
+      slug: "foerderungen",
+      name: "Förderungen",
+      beschreibung: "Österreichische Förderlandschaft und Ausschreibungsfristen im Blick",
+      pfad: "/foerderungen/",
+      rollen: ["nutzer"],
+      reihenfolge: 3,
+      provisionUrl: process.env.FOERDERUNGEN_URL ?? "http://foerderungen-app:3003",
+    },
   ];
 
   for (const t of tools) {

@@ -258,6 +258,63 @@ services:
         limits:
           memory: 768M
 
+  # ---------------------------------------------------------------------------
+  # Foerderungen (Build-Kontext ./foerderungen)
+  # ---------------------------------------------------------------------------
+  foerderungen-db:
+    profiles: ["produktion"]
+    image: postgres:16
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${FOERDERUNGEN_DB_USER:-foerderungen}
+      POSTGRES_PASSWORD: ${FOERDERUNGEN_DB_PASSWORD:-foerderungen_dev_passwort}
+      POSTGRES_DB: ${FOERDERUNGEN_DB_NAME:-foerderungen}
+    volumes:
+      - foerderungen_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FOERDERUNGEN_DB_USER:-foerderungen}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  foerderungen-app:
+    profiles: ["produktion"]
+    build:
+      context: ./foerderungen
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      foerderungen-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${FOERDERUNGEN_DB_USER:-foerderungen}:${FOERDERUNGEN_DB_PASSWORD:-foerderungen_dev_passwort}@foerderungen-db:5432/${FOERDERUNGEN_DB_NAME:-foerderungen}
+      JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      ENCRYPTION_KEY: ${FOERDERUNGEN_ENCRYPTION_KEY:-bitte-32-zeichen-schluessel-setzen}
+      PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
+      PORT: 3003
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      COOKIE_INSECURE: ${COOKIE_INSECURE:-}
+      TOOL_SLUG: foerderungen
+      SUITE_URL: http://portal-app:3000
+      STATIC_DIR: /app/static
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
 volumes:
   suite_db_data:
   # Bestehende Handkassen-Produktivdaten weiterverwenden (siehe Kopfkommentar).
@@ -267,3 +324,5 @@ volumes:
     name: handkassen_belege_data
   stunden_db_data:
     name: stunden_db_data
+  foerderungen_db_data:
+    name: foerderungen_db_data

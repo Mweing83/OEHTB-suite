@@ -8,6 +8,7 @@ Enthaltene Tools:
 - **Verwaltung** (Portal-eigen): Benutzer + Zugriffsmatrix + Protokoll
 - **Handkassen** (Unterordner `handkassen/`)
 - **Stunden** (Unterordner `stunden/`)
+- **Förderungen** (Unterordner `foerderungen/`)
 
 Alles liegt in **diesem einen Ordner** – die Tools sind als Unterordner
 enthalten, die Build-Kontexte in `docker-compose.yml` zeigen nach innen
@@ -20,7 +21,8 @@ enthalten, die Build-Kontexte in `docker-compose.yml` zeigen nach innen
                 nginx (Port 80, einziger veröffentlichter Port)
                 ├── /            → Portal (Suite-Backend :3000, liefert SPA + /api/suite)
                 ├── /handkassen/ → Handkassen :3001   (Präfix wird gestrippt)
-                └── /stunden/    → Stunden    :3002   (Präfix wird gestrippt)
+                ├── /stunden/    → Stunden    :3002   (Präfix wird gestrippt)
+                └── /foerderungen/ → Förderungen :3003 (Präfix wird gestrippt)
 ```
 
 - **Ein Cookie `suite_token`** (Path=/) für Portal und alle Tools; ein
@@ -49,8 +51,10 @@ npx prisma migrate deploy && npm run seed && npm run dev      # http://localhost
 # 3. Portal-Frontend (zweites Terminal)
 cd portal && npm install && npm run dev                       # http://localhost:5175
 
-# 4. Tools wie gewohnt starten (handkassen, stunden) – WICHTIG: in deren
-#    backend/.env dasselbe JWT_SECRET wie im Portal setzen (dev: "dev-secret").
+# 4. Tools wie gewohnt starten (handkassen, stunden, foerderungen) – WICHTIG: in
+#    deren backend/.env dasselbe JWT_SECRET wie im Portal setzen (dev: "dev-secret").
+#    Foerderungen (viertes Tool): Dev-DB auf Port 5435, Backend auf :3003,
+#    Frontend (Vite) auf :5176.
 ```
 
 Anmeldung im Portal: `admin` / `admin123` (Seed – vor Produktivbetrieb ändern).
