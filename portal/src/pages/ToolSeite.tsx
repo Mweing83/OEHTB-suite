@@ -7,6 +7,9 @@ import Layout from "../components/Layout";
 // Handkassen = Kassette mit Muenze, Stunden = Uhr, Foerderungen = Euro mit
 // Wachstumspfeil, Verwaltung = Regler. Unbekannte kuenftige Tools bekommen
 // ein neutrales Raster. Farbwelt bleibt das Suite-Navy (marke-Tokens).
+// Die Verwaltung ist kein Fach-Tool, sondern der Systembereich der Suite –
+// ihre Kachel ist deshalb invertiert (dunkles Navy statt Weiss), ohne eine
+// suite-fremde Farbe einzufuehren.
 
 const SYMBOL_KLASSE = "h-7 w-7";
 
@@ -81,43 +84,64 @@ export default function ToolSeite() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {benutzer?.tools.map((tool) => (
-            <a
-              key={tool.slug}
-              href={tool.pfad}
-              className="group relative bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col
-                         transition-all hover:border-marke-400 hover:shadow-md hover:-translate-y-0.5
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marke-500 focus-visible:ring-offset-2
-                         motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <span
-                  className="inline-flex items-center justify-center h-12 w-12 rounded-lg
-                             bg-marke-50 text-marke-700 transition-colors
-                             group-hover:bg-marke-600 group-hover:text-white"
-                >
-                  {toolSymbol(tool.slug)}
-                </span>
-                <span
-                  className="text-marke-300 transition-all group-hover:text-marke-600 group-hover:translate-x-0.5 motion-reduce:group-hover:translate-x-0"
-                  aria-hidden="true"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </span>
-              </div>
-              <h3 className="text-base font-semibold text-gray-800">{tool.name}</h3>
-              {tool.beschreibung && (
-                <p className="text-sm text-gray-500 mt-1 leading-relaxed">{tool.beschreibung}</p>
-              )}
-              <p className="mt-auto pt-4">
-                <span className="inline-block rounded-full bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-1">
-                  Rolle: {benutzer.zugriff[tool.slug]}
-                </span>
-              </p>
-            </a>
-          ))}
+          {benutzer?.tools.map((tool) => {
+            const istVerwaltung = tool.slug === "verwaltung";
+            return (
+              <a
+                key={tool.slug}
+                href={tool.pfad}
+                className={`group relative rounded-xl border shadow-sm p-5 flex flex-col
+                           transition-all hover:shadow-md hover:-translate-y-0.5
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marke-500 focus-visible:ring-offset-2
+                           motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${
+                             istVerwaltung
+                               ? "bg-marke-900 border-marke-900 hover:border-marke-500"
+                               : "bg-white border-gray-200 hover:border-marke-400"
+                           }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <span
+                    className={`inline-flex items-center justify-center h-12 w-12 rounded-lg transition-colors ${
+                      istVerwaltung
+                        ? "bg-white/10 text-marke-100 group-hover:bg-white group-hover:text-marke-900"
+                        : "bg-marke-50 text-marke-700 group-hover:bg-marke-600 group-hover:text-white"
+                    }`}
+                  >
+                    {toolSymbol(tool.slug)}
+                  </span>
+                  <span
+                    className={`transition-all group-hover:translate-x-0.5 motion-reduce:group-hover:translate-x-0 ${
+                      istVerwaltung
+                        ? "text-marke-400 group-hover:text-white"
+                        : "text-marke-300 group-hover:text-marke-600"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                      <path d="M5 12h14M13 6l6 6-6 6" />
+                    </svg>
+                  </span>
+                </div>
+                <h3 className={`text-base font-semibold ${istVerwaltung ? "text-white" : "text-gray-800"}`}>
+                  {tool.name}
+                </h3>
+                {tool.beschreibung && (
+                  <p className={`text-sm mt-1 leading-relaxed ${istVerwaltung ? "text-marke-200" : "text-gray-500"}`}>
+                    {tool.beschreibung}
+                  </p>
+                )}
+                <p className="mt-auto pt-4">
+                  <span
+                    className={`inline-block rounded-full text-xs font-medium px-2.5 py-1 ${
+                      istVerwaltung ? "bg-white/10 text-marke-100" : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    Rolle: {benutzer.zugriff[tool.slug]}
+                  </span>
+                </p>
+              </a>
+            );
+          })}
         </div>
       )}
     </Layout>
