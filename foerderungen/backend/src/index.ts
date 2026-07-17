@@ -9,6 +9,20 @@ import cookieParser from "cookie-parser";
 import fs from "fs";
 import path from "path";
 import { prisma } from "./lib/prisma";
+import { sitzungRouter } from "./routes/sitzung";
+import { provisionRouter } from "./routes/provision";
+import { reconcileVonSuite, provisionSecret } from "./lib/provision";
+import { jwtSecret } from "./lib/suiteAuth";
+
+// Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret) –
+// fail-fast statt erst beim ersten Request bzw. beim ersten Provisionierungs-Push.
+jwtSecret();
+provisionSecret();
+if (process.env.NODE_ENV === "production" && process.env.COOKIE_INSECURE === "1") {
+  console.warn(
+    "WARNUNG: COOKIE_INSECURE=1 – Session-Cookies werden ohne 'secure'-Flag gesetzt (nur hinter TLS/Tailscale vertretbar)."
+  );
+}
 
 export const app = express();
 const PORT = Number(process.env.PORT ?? 3003);
@@ -51,6 +65,11 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", zeit: new Date().toISOString() });
 });
 
+// Routen (Login/Logout liegen seit der Suite-Integration im Portal, siehe
+// middleware/auth.ts – dieses Backend verifiziert nur noch das SSO-Token).
+app.use("/api/auth", sitzungRouter);
+app.use("/api/provision", provisionRouter);
+
 // Produktivbetrieb: gebaute SPA ausliefern (Muster stunden/handkassen).
 const STATIC_DIR = process.env.STATIC_DIR;
 if (STATIC_DIR && fs.existsSync(STATIC_DIR)) {
@@ -78,6 +97,8 @@ app.use(
 if (process.env.NODE_ENV !== "test") {
   const server = app.listen(PORT, () => {
     console.log(`Foerderungen-Backend laeuft auf http://localhost:${PORT}`);
+    // Benutzer-Spiegel beim Start mit dem Portal abgleichen (Self-Heal).
+    void reconcileVonSuite();
   });
 
   let faehrtHerunter = false;
