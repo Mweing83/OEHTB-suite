@@ -11,7 +11,7 @@ export async function markiereAbgelaufene(): Promise<number> {
     where: {
       status: "OFFEN",
       laufendEinreichbar: false,
-      frist: { lt: heute },
+      frist: { not: null, lt: heute },
     },
     data: { status: "ABGELAUFEN" },
   });
