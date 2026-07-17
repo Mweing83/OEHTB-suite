@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import { api } from "../lib/api";
-import { ScanLauf } from "../lib/typen";
+import { ScanLauf, SCAN_ART_LABEL } from "../lib/typen";
 
-// Scan-Verlauf + manueller Start. Ein fehlgeschlagener letzter Lauf wird als
-// Warnbanner angezeigt (Spec: "Letzter Scan fehlgeschlagen am ...").
+// Scan-Verlauf + manueller Start, getrennt nach Ueberwachung (bekannte
+// Quellen auf neue Ausschreibungen pruefen) und Entdeckung (neue Quellen
+// suchen). Ein fehlgeschlagener letzter Lauf wird als Warnbanner angezeigt.
 export default function ScansSeite() {
   const [laeufe, setLaeufe] = useState<ScanLauf[]>([]);
   const [laeuft, setLaeuft] = useState(false);
@@ -28,10 +29,10 @@ export default function ScansSeite() {
     return () => clearInterval(t);
   }, []);
 
-  async function starten() {
+  async function starten(art: "UEBERWACHUNG" | "ENTDECKUNG") {
     setFehler(null);
     try {
-      await api.post("/api/scans");
+      await api.post("/api/scans", { art });
       laden();
     } catch (err) {
       setFehler((err as Error).message);
@@ -42,24 +43,41 @@ export default function ScansSeite() {
   const zeit = (iso: string) =>
     new Date(iso).toLocaleString("de-AT", { dateStyle: "medium", timeStyle: "short" });
 
-  function statistikText(s: ScanLauf["statistik"]): string {
+  function statistikText(l: ScanLauf): string {
+    const s = l.statistik;
     if (!s) return "–";
     const u = s.ueberwachung ?? {};
     const e = s.entdeckung ?? {};
-    return `Überwachung: ${u.neu ?? 0} neu, ${u.aktualisierungen ?? 0} Aktualisierungen · Entdeckung: ${e.neu ?? 0} neue Quellen`;
+    const teile: string[] = [];
+    if (l.art !== "ENTDECKUNG") {
+      teile.push(`Überwachung: ${u.neu ?? 0} neu, ${u.aktualisierungen ?? 0} Aktualisierungen`);
+    }
+    if (l.art !== "UEBERWACHUNG") {
+      teile.push(`Entdeckung: ${e.neu ?? 0} neue Quellen`);
+    }
+    return teile.join(" · ") || "–";
   }
 
   return (
     <Layout>
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h1 className="text-xl font-semibold text-gray-800">Scans</h1>
-        <button
-          onClick={starten}
-          disabled={laeuft}
-          className="ml-auto rounded-md bg-marke-600 text-white px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
-        >
-          {laeuft ? "Scan läuft …" : "Scan jetzt starten"}
-        </button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            onClick={() => starten("UEBERWACHUNG")}
+            disabled={laeuft}
+            className="rounded-md bg-marke-600 text-white px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+          >
+            {laeuft ? "Scan läuft …" : "Überwachung starten"}
+          </button>
+          <button
+            onClick={() => starten("ENTDECKUNG")}
+            disabled={laeuft}
+            className="rounded-md border border-marke-600 text-marke-700 px-4 py-2 text-sm font-medium hover:bg-marke-50 disabled:opacity-50"
+          >
+            Entdeckung starten
+          </button>
+        </div>
       </div>
 
       {fehler && <p className="text-gefahr-700 mb-4">{fehler}</p>}
@@ -79,6 +97,7 @@ export default function ScansSeite() {
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-200">
                 <th className="px-4 py-2 font-medium">Gestartet</th>
+                <th className="px-4 py-2 font-medium">Art</th>
                 <th className="px-4 py-2 font-medium">Auslöser</th>
                 <th className="px-4 py-2 font-medium">Ergebnis</th>
                 <th className="px-4 py-2 font-medium">Status</th>
@@ -88,8 +107,9 @@ export default function ScansSeite() {
               {laeufe.map((l) => (
                 <tr key={l.id} className="border-b border-gray-100 last:border-0">
                   <td className="px-4 py-2 whitespace-nowrap">{zeit(l.gestartet)}</td>
+                  <td className="px-4 py-2 whitespace-nowrap">{SCAN_ART_LABEL[l.art]}</td>
                   <td className="px-4 py-2">{l.ausloeser === "ZEITPLAN" ? "Zeitplan" : "Manuell"}</td>
-                  <td className="px-4 py-2">{statistikText(l.statistik)}</td>
+                  <td className="px-4 py-2">{statistikText(l)}</td>
                   <td className="px-4 py-2">
                     {!l.beendet ? (
                       <span className="text-marke-600">läuft …</span>

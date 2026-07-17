@@ -7,7 +7,10 @@ import { api } from "../lib/api";
 // der Scan-Zeitplan (Wochentag + Stunde, an/aus).
 interface Einstellungen {
   llm: { provider: "anthropic" | "openai" | "dummy"; modell: string; apiKeyGesetzt: boolean };
-  scan: { aktiv: boolean; wochentag: number; stunde: number };
+  scan: {
+    ueberwachung: { aktiv: boolean; wochentag: number; stunde: number };
+    entdeckung: { aktiv: boolean; tag: number; stunde: number };
+  };
 }
 
 const WOCHENTAGE = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -44,9 +47,14 @@ export default function EinstellungenSeite() {
   const [apiKey, setApiKey] = useState("");
   const [apiKeyGesetzt, setApiKeyGesetzt] = useState(false);
 
-  const [scanAktiv, setScanAktiv] = useState(false);
-  const [wochentag, setWochentag] = useState(1);
-  const [stunde, setStunde] = useState(6);
+  // Ueberwachung: woechentlich; Entdeckung: monatlich (getrennte Zeitplaene,
+  // weil die Entdeckung deutlich seltener laufen muss und Kosten verursacht).
+  const [ueAktiv, setUeAktiv] = useState(false);
+  const [ueWochentag, setUeWochentag] = useState(1);
+  const [ueStunde, setUeStunde] = useState(6);
+  const [enAktiv, setEnAktiv] = useState(false);
+  const [enTag, setEnTag] = useState(1);
+  const [enStunde, setEnStunde] = useState(7);
 
   useEffect(() => {
     api
@@ -61,9 +69,12 @@ export default function EinstellungenSeite() {
             !MODELLE[d.llm.provider].some((m) => m.wert === d.llm.modell)
         );
         setApiKeyGesetzt(d.llm.apiKeyGesetzt);
-        setScanAktiv(d.scan.aktiv);
-        setWochentag(d.scan.wochentag);
-        setStunde(d.scan.stunde);
+        setUeAktiv(d.scan.ueberwachung.aktiv);
+        setUeWochentag(d.scan.ueberwachung.wochentag);
+        setUeStunde(d.scan.ueberwachung.stunde);
+        setEnAktiv(d.scan.entdeckung.aktiv);
+        setEnTag(d.scan.entdeckung.tag);
+        setEnStunde(d.scan.entdeckung.stunde);
       })
       .catch((e) => setFehler(e.message))
       .finally(() => setLaedt(false));
@@ -92,7 +103,10 @@ export default function EinstellungenSeite() {
     setFehler(null);
     setMeldung(null);
     try {
-      await api.put("/api/einstellungen/scan", { aktiv: scanAktiv, wochentag, stunde });
+      await api.put("/api/einstellungen/scan", {
+        ueberwachung: { aktiv: ueAktiv, wochentag: ueWochentag, stunde: ueStunde },
+        entdeckung: { aktiv: enAktiv, tag: enTag, stunde: enStunde },
+      });
       setMeldung("Scan-Zeitplan gespeichert.");
     } catch (err) {
       setFehler((err as Error).message);
@@ -187,19 +201,24 @@ export default function EinstellungenSeite() {
       </form>
 
       <form onSubmit={scanSpeichern} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 max-w-xl">
-        <h2 className="text-base font-semibold text-gray-800 mb-1">Automatischer Scan</h2>
+        <h2 className="text-base font-semibold text-gray-800 mb-1">Automatische Scans</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Durchsucht die Förderlandschaft regelmäßig nach neuen Ausschreibungen
-          und Quellen. Funde landen zur Prüfung in der Warteschlange.
+          Getrennte Zeitpläne: Die <strong>Überwachung</strong> prüft bekannte
+          Quellen wöchentlich auf neue Ausschreibungen; die{" "}
+          <strong>Entdeckung</strong> sucht monatlich nach neuen Förderquellen
+          (seltener, weil jeder Lauf Kosten verursacht). Funde landen zur
+          Prüfung in der Warteschlange.
         </p>
+
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Überwachung (wöchentlich)</h3>
         <label className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-          <input type="checkbox" checked={scanAktiv} onChange={(e) => setScanAktiv(e.target.checked)} />
-          Automatischen Scan aktivieren
+          <input type="checkbox" checked={ueAktiv} onChange={(e) => setUeAktiv(e.target.checked)} />
+          Überwachungs-Scan aktivieren
         </label>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 mb-5">
           <label className="text-sm text-gray-700">
             Wochentag
-            <select value={wochentag} onChange={(e) => setWochentag(Number(e.target.value))} className={eingabeKlasse + " mt-1"} disabled={!scanAktiv}>
+            <select value={ueWochentag} onChange={(e) => setUeWochentag(Number(e.target.value))} className={eingabeKlasse + " mt-1"} disabled={!ueAktiv}>
               {WOCHENTAGE.map((w, i) => (
                 <option key={i} value={i}>{w}</option>
               ))}
@@ -207,7 +226,31 @@ export default function EinstellungenSeite() {
           </label>
           <label className="text-sm text-gray-700">
             Uhrzeit
-            <select value={stunde} onChange={(e) => setStunde(Number(e.target.value))} className={eingabeKlasse + " mt-1"} disabled={!scanAktiv}>
+            <select value={ueStunde} onChange={(e) => setUeStunde(Number(e.target.value))} className={eingabeKlasse + " mt-1"} disabled={!ueAktiv}>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Entdeckung (monatlich)</h3>
+        <label className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+          <input type="checkbox" checked={enAktiv} onChange={(e) => setEnAktiv(e.target.checked)} />
+          Entdeckungs-Scan aktivieren
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm text-gray-700">
+            Tag des Monats
+            <select value={enTag} onChange={(e) => setEnTag(Number(e.target.value))} className={eingabeKlasse + " mt-1"} disabled={!enAktiv}>
+              {Array.from({ length: 28 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>{i + 1}.</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-gray-700">
+            Uhrzeit
+            <select value={enStunde} onChange={(e) => setEnStunde(Number(e.target.value))} className={eingabeKlasse + " mt-1"} disabled={!enAktiv}>
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
               ))}

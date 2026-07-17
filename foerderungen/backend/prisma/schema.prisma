@@ -113,6 +113,9 @@ model ScanLauf {
   gestartet DateTime      @default(now())
   beendet   DateTime?
   ausloeser ScanAusloeser
+  // Was dieser Lauf gemacht hat. BEIDE nur fuer Altlaeufe aus der Zeit vor
+  // der Trennung von Ueberwachung und Entdeckung.
+  art       ScanArt       @default(BEIDE)
   statistik Json?
   fehler    String?
 
@@ -122,6 +125,12 @@ model ScanLauf {
 enum ScanAusloeser {
   ZEITPLAN
   MANUELL
+}
+
+enum ScanArt {
+  UEBERWACHUNG
+  ENTDECKUNG
+  BEIDE
 }
 
 // ---------------------------------------------------------------------------

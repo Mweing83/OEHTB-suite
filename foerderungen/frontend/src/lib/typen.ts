@@ -42,9 +42,17 @@ export interface ScanLauf {
   gestartet: string;
   beendet: string | null;
   ausloeser: "ZEITPLAN" | "MANUELL";
+  // BEIDE = Altlauf aus der Zeit vor der Trennung der Scan-Arten.
+  art: "UEBERWACHUNG" | "ENTDECKUNG" | "BEIDE";
   statistik: Record<string, Record<string, number>> | null;
   fehler: string | null;
 }
+
+export const SCAN_ART_LABEL: Record<ScanLauf["art"], string> = {
+  UEBERWACHUNG: "Überwachung",
+  ENTDECKUNG: "Entdeckung",
+  BEIDE: "Beide (Altlauf)",
+};
 
 export const EBENE_LABEL: Record<Ebene, string> = {
   BUND: "Bund",

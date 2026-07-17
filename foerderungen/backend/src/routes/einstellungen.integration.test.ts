@@ -20,7 +20,19 @@ laufend("Einstellungs-Routen", () => {
     expect(res.status).toBe(200);
     expect(res.body.llm.provider).toBe("dummy");
     expect(res.body.llm.apiKeyGesetzt).toBe(false);
-    expect(res.body.scan).toEqual({ aktiv: false, wochentag: 1, stunde: 6 });
+    expect(res.body.scan).toEqual({
+      ueberwachung: { aktiv: false, wochentag: 1, stunde: 6 },
+      entdeckung: { aktiv: false, tag: 1, stunde: 7 },
+    });
+  });
+
+  it("versteht das alte flache Scan-Format (Migration)", async () => {
+    await prisma.einstellung.create({
+      data: { schluessel: "scan_konfig", wert: { aktiv: true, wochentag: 3, stunde: 5 } },
+    });
+    const res = await request(app).get("/api/einstellungen").set("Cookie", cookie);
+    expect(res.body.scan.ueberwachung).toEqual({ aktiv: true, wochentag: 3, stunde: 5 });
+    expect(res.body.scan.entdeckung.aktiv).toBe(false);
   });
 
   it("speichert LLM-Konfiguration, Key verschluesselt und nie im Klartext zurueck", async () => {
@@ -55,14 +67,26 @@ laufend("Einstellungs-Routen", () => {
     expect(wert.modell).toBe("claude-opus-4-8");
   });
 
-  it("speichert Scan-Zeitplan und validiert Grenzen", async () => {
+  it("speichert Scan-Zeitplan (beide Arten) und validiert Grenzen", async () => {
     const ok = await request(app).put("/api/einstellungen/scan").set("Cookie", cookie).send({
-      aktiv: true, wochentag: 1, stunde: 6,
+      ueberwachung: { aktiv: true, wochentag: 1, stunde: 6 },
+      entdeckung: { aktiv: true, tag: 15, stunde: 7 },
     });
     expect(ok.status).toBe(200);
-    const schlecht = await request(app).put("/api/einstellungen/scan").set("Cookie", cookie).send({
-      aktiv: true, wochentag: 9, stunde: 6,
+
+    const res = await request(app).get("/api/einstellungen").set("Cookie", cookie);
+    expect(res.body.scan.entdeckung).toEqual({ aktiv: true, tag: 15, stunde: 7 });
+
+    const schlechterWochentag = await request(app).put("/api/einstellungen/scan").set("Cookie", cookie).send({
+      ueberwachung: { aktiv: true, wochentag: 9, stunde: 6 },
+      entdeckung: { aktiv: false, tag: 1, stunde: 7 },
     });
-    expect(schlecht.status).toBe(400);
+    expect(schlechterWochentag.status).toBe(400);
+
+    const schlechterTag = await request(app).put("/api/einstellungen/scan").set("Cookie", cookie).send({
+      ueberwachung: { aktiv: false, wochentag: 1, stunde: 6 },
+      entdeckung: { aktiv: true, tag: 31, stunde: 7 },
+    });
+    expect(schlechterTag.status).toBe(400);
   });
 });

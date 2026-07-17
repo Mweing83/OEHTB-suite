@@ -3,9 +3,9 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { verschluesseln } from "../lib/krypto";
 import { auditLog } from "../lib/audit";
-import { LLM_SCHLUESSEL, SCAN_SCHLUESSEL, SCAN_STANDARD } from "../lib/konstanten";
+import { LLM_SCHLUESSEL, SCAN_SCHLUESSEL } from "../lib/konstanten";
 import { AuthRequest, authPflicht } from "../middleware/auth";
-import { aktualisiereZeitplan } from "../services/zeitplan";
+import { aktualisiereZeitplan, ladeScanKonfig } from "../services/zeitplan";
 
 // Konfiguration nach dem Muster des Stunden-Admin-Tabs: Key-Value-Zeilen in
 // der Einstellung-Tabelle, API-Key AES-verschluesselt at rest, nie im
@@ -14,23 +14,18 @@ export const einstellungenRouter = Router();
 einstellungenRouter.use(authPflicht);
 
 einstellungenRouter.get("/", async (_req: AuthRequest, res: Response) => {
-  const [llm, scan] = await Promise.all([
-    prisma.einstellung.findUnique({ where: { schluessel: LLM_SCHLUESSEL } }),
-    prisma.einstellung.findUnique({ where: { schluessel: SCAN_SCHLUESSEL } }),
-  ]);
+  const llm = await prisma.einstellung.findUnique({
+    where: { schluessel: LLM_SCHLUESSEL },
+  });
   const llmWert = (llm?.wert as Record<string, unknown>) ?? {};
-  const scanWert = (scan?.wert as Record<string, unknown>) ?? {};
   res.json({
     llm: {
       provider: llmWert.provider ?? "dummy",
       modell: llmWert.modell ?? "",
       apiKeyGesetzt: Boolean(llmWert.apiKeyVerschluesselt),
     },
-    scan: {
-      aktiv: typeof scanWert.aktiv === "boolean" ? scanWert.aktiv : SCAN_STANDARD.aktiv,
-      wochentag: typeof scanWert.wochentag === "number" ? scanWert.wochentag : SCAN_STANDARD.wochentag,
-      stunde: typeof scanWert.stunde === "number" ? scanWert.stunde : SCAN_STANDARD.stunde,
-    },
+    // ladeScanKonfig versteht auch das alte flache Format (Migration).
+    scan: await ladeScanKonfig(),
   });
 });
 
@@ -72,9 +67,17 @@ einstellungenRouter.put("/llm", async (req: AuthRequest, res: Response) => {
 });
 
 const scanSchema = z.object({
-  aktiv: z.boolean(),
-  wochentag: z.number().int().min(0).max(6),
-  stunde: z.number().int().min(0).max(23),
+  ueberwachung: z.object({
+    aktiv: z.boolean(),
+    wochentag: z.number().int().min(0).max(6),
+    stunde: z.number().int().min(0).max(23),
+  }),
+  entdeckung: z.object({
+    aktiv: z.boolean(),
+    // Tag des Monats; auf 1-28 begrenzt, damit der Lauf in jedem Monat feuert.
+    tag: z.number().int().min(1).max(28),
+    stunde: z.number().int().min(0).max(23),
+  }),
 });
 
 einstellungenRouter.put("/scan", async (req: AuthRequest, res: Response) => {

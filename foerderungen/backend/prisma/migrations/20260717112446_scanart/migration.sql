@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "ScanArt" AS ENUM ('UEBERWACHUNG', 'ENTDECKUNG', 'BEIDE');
+
+-- AlterTable
+ALTER TABLE "ScanLauf" ADD COLUMN     "art" "ScanArt" NOT NULL DEFAULT 'BEIDE';

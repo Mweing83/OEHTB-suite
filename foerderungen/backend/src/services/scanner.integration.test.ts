@@ -13,43 +13,59 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
     });
   });
 
-  it("legt Funde als VORGESCHLAGEN an und protokolliert den Lauf", async () => {
-    await fuehreScanAus("MANUELL");
+  it("Ueberwachung legt Ausschreibungs-Funde als VORGESCHLAGEN an und protokolliert den Lauf", async () => {
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
 
     const vorschlaege = await prisma.ausschreibung.findMany({ where: { status: "VORGESCHLAGEN" } });
     expect(vorschlaege).toHaveLength(1);
     expect(vorschlaege[0].quelleTyp).toBe("SCAN");
 
+    // Ueberwachung schlaegt KEINE neuen Quellen vor (getrennte Scan-Art).
     const quellenVorschlaege = await prisma.foerderquelle.findMany({ where: { status: "VORGESCHLAGEN" } });
-    expect(quellenVorschlaege).toHaveLength(1);
-    expect(quellenVorschlaege[0].name).toBe("Beispiel-Stiftung (Dummy)");
+    expect(quellenVorschlaege).toHaveLength(0);
 
     const laeufe = await prisma.scanLauf.findMany();
     expect(laeufe).toHaveLength(1);
+    expect(laeufe[0].art).toBe("UEBERWACHUNG");
     expect(laeufe[0].beendet).not.toBeNull();
     expect(laeufe[0].fehler).toBeNull();
   });
 
+  it("Entdeckung legt Quellen-Funde als VORGESCHLAGEN an, aber keine Ausschreibungen", async () => {
+    await fuehreScanAus("MANUELL", "ENTDECKUNG");
+
+    const quellenVorschlaege = await prisma.foerderquelle.findMany({ where: { status: "VORGESCHLAGEN" } });
+    expect(quellenVorschlaege).toHaveLength(1);
+    expect(quellenVorschlaege[0].name).toBe("Beispiel-Stiftung (Dummy)");
+
+    const ausschreibungen = await prisma.ausschreibung.findMany();
+    expect(ausschreibungen).toHaveLength(0);
+
+    const laeufe = await prisma.scanLauf.findMany();
+    expect(laeufe).toHaveLength(1);
+    expect(laeufe[0].art).toBe("ENTDECKUNG");
+  });
+
   it("schlaegt denselben Fund beim zweiten Lauf nicht erneut vor", async () => {
-    await fuehreScanAus("MANUELL");
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
     const vorschlaege = await prisma.ausschreibung.findMany({ where: { status: "VORGESCHLAGEN" } });
     expect(vorschlaege).toHaveLength(1);
   });
 
   it("schlaegt Abgelehntes nicht erneut vor", async () => {
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
     await prisma.ausschreibung.updateMany({
       where: { status: "VORGESCHLAGEN" },
       data: { status: "ABGELEHNT" },
     });
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
     const vorschlaege = await prisma.ausschreibung.findMany({ where: { status: "VORGESCHLAGEN" } });
     expect(vorschlaege).toHaveLength(0);
   });
 
   it("erzeugt einen Aktualisierungsvorschlag, wenn sich die Frist einer offenen Ausschreibung aendert", async () => {
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
     const erster = await prisma.ausschreibung.findFirstOrThrow({ where: { status: "VORGESCHLAGEN" } });
 
     const inZehnTagen = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -58,7 +74,7 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
       data: { status: "OFFEN", frist: new Date(inZehnTagen + "T00:00:00.000Z") },
     });
 
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
 
     const vorschlaege = await prisma.ausschreibung.findMany({ where: { status: "VORGESCHLAGEN" } });
     expect(vorschlaege).toHaveLength(1);
@@ -67,7 +83,7 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
   });
 
   it("legt bei bereits wartendem Aktualisierungsvorschlag keinen zweiten an", async () => {
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
     const erster = await prisma.ausschreibung.findFirstOrThrow({ where: { status: "VORGESCHLAGEN" } });
 
     const inZehnTagen = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -76,8 +92,8 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
       data: { status: "OFFEN", frist: new Date(inZehnTagen + "T00:00:00.000Z") },
     });
 
-    await fuehreScanAus("MANUELL");
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
 
     const wartend = await prisma.ausschreibung.findMany({
       where: { aktualisiertAusschreibungId: { not: null } },
@@ -103,7 +119,7 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
       },
     });
 
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
     const aktualisierung = await prisma.ausschreibung.findFirstOrThrow({
       where: { aktualisiertAusschreibungId: { not: null }, status: "VORGESCHLAGEN" },
     });
@@ -113,7 +129,7 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
       data: { status: "ABGELEHNT" },
     });
 
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
 
     const wartend = await prisma.ausschreibung.count({
       where: { aktualisiertAusschreibungId: { not: null }, status: "VORGESCHLAGEN" },
@@ -137,7 +153,7 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
       },
     });
 
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "UEBERWACHUNG");
 
     const aktualisierung = await prisma.ausschreibung.findFirst({
       where: { aktualisiertAusschreibungId: alt.id, status: "VORGESCHLAGEN" },
@@ -146,13 +162,13 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
   });
 
   it("schlaegt eine archivierte Quelle nicht erneut vor (Tombstone)", async () => {
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "ENTDECKUNG");
     await prisma.foerderquelle.updateMany({
       where: { name: "Beispiel-Stiftung (Dummy)" },
       data: { status: "ARCHIVIERT" },
     });
 
-    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL", "ENTDECKUNG");
 
     const quellen = await prisma.foerderquelle.findMany({ where: { name: "Beispiel-Stiftung (Dummy)" } });
     expect(quellen).toHaveLength(1);

@@ -56,9 +56,17 @@ interface Statistik {
   entdeckung: { funde: number; neu: number; uebersprungen: number };
 }
 
-// Fuehrt einen vollstaendigen Scan-Lauf aus. Wirft nie: Fehler landen im
-// ScanLauf-Eintrag ("fehler"), Bestandsdaten bleiben unberuehrt.
-export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<void> {
+export type ScanArt = "UEBERWACHUNG" | "ENTDECKUNG";
+
+// Fuehrt einen Scan-Lauf der gewaehlten Art aus (Ueberwachung bekannter
+// Quellen ODER Entdeckung neuer Quellen – getrennt, weil die Entdeckung
+// deutlich seltener laufen muss und jeder Lauf Kosten verursacht).
+// Wirft nie: Fehler landen im ScanLauf-Eintrag ("fehler"), Bestandsdaten
+// bleiben unberuehrt.
+export async function fuehreScanAus(
+  ausloeser: "ZEITPLAN" | "MANUELL",
+  art: ScanArt
+): Promise<void> {
   if (laeuft) return;
   laeuft = true;
   // Der aeussere try/finally muss WIRKLICH alles umschliessen (inkl. des
@@ -66,7 +74,7 @@ export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<
   // wuerde "laeuft" sonst nie wieder auf false gesetzt -> der Scan waere
   // dauerhaft verklemmt (409 bei jedem manuellen Scan, Cron no-opt).
   try {
-    const lauf = await prisma.scanLauf.create({ data: { ausloeser } });
+    const lauf = await prisma.scanLauf.create({ data: { ausloeser, art } });
     const statistik: Statistik = {
       ueberwachung: { geprueft: 0, funde: 0, neu: 0, aktualisierungen: 0, uebersprungen: 0 },
       entdeckung: { funde: 0, neu: 0, uebersprungen: 0 },
@@ -80,12 +88,12 @@ export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<
 
       const provider = erzeugeProvider(await ladeProviderKonfig());
 
-      // ---- Phase 1: Ueberwachung bekannter Quellen (gebuendelt) --------------
+      // ---- Ueberwachung bekannter Quellen (gebuendelt) -----------------------
       // Jeder Batch ist EIGENSTAENDIG abgesichert: ein fehlgeschlagener
       // Batch (API-Aussetzer, unparsebare Modellantwort) ueberspringt nur
       // seine Quellen; die uebrigen Batches laufen weiter. Jeder Provider-
       // Aufruf bekommt zusaetzlich einen Wiederholungsversuch.
-      try {
+      if (art === "UEBERWACHUNG") try {
         const quellen = await prisma.foerderquelle.findMany({
           where: { status: "AKTIV" },
           orderBy: { name: "asc" },
@@ -116,8 +124,8 @@ export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<
         fehlerListe.push(`Ueberwachung: ${String(err instanceof Error ? err.message : err)}`);
       }
 
-      // ---- Phase 2: Entdeckung neuer Quellen ---------------------------------
-      try {
+      // ---- Entdeckung neuer Quellen ------------------------------------------
+      if (art === "ENTDECKUNG") try {
         const alle = await prisma.foerderquelle.findMany({ select: { name: true } });
         const funde = await mitWiederholung(() => provider.entdeckeQuellen(alle.map((q) => q.name)));
         statistik.entdeckung.funde = funde.length;
