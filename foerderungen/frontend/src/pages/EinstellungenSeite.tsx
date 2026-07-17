@@ -12,6 +12,25 @@ interface Einstellungen {
 
 const WOCHENTAGE = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
+// Auswahlliste der gaengigen Modelle je Anbieter. Erster Eintrag = Standard
+// des Backends (leerer Wert). "Eigenes Modell" erlaubt weiterhin Freitext,
+// damit neue Modell-IDs ohne Code-Aenderung nutzbar bleiben.
+const MODELLE: Record<"anthropic" | "openai", { wert: string; label: string }[]> = {
+  anthropic: [
+    { wert: "", label: "claude-sonnet-4-6 (Standard)" },
+    { wert: "claude-opus-4-8", label: "claude-opus-4-8" },
+    { wert: "claude-haiku-4-5", label: "claude-haiku-4-5" },
+  ],
+  openai: [
+    { wert: "", label: "gpt-4.1 (Standard)" },
+    { wert: "gpt-5", label: "gpt-5" },
+    { wert: "gpt-5-mini", label: "gpt-5-mini" },
+    { wert: "gpt-4o", label: "gpt-4o" },
+  ],
+};
+
+const EIGENES = "__eigenes__";
+
 export default function EinstellungenSeite() {
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -19,6 +38,9 @@ export default function EinstellungenSeite() {
 
   const [provider, setProvider] = useState<Einstellungen["llm"]["provider"]>("dummy");
   const [modell, setModell] = useState("");
+  // Freitext-Modus, wenn ein gespeichertes Modell nicht in der Liste steht
+  // oder bewusst "Eigenes Modell" gewaehlt wurde.
+  const [eigenesModell, setEigenesModell] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [apiKeyGesetzt, setApiKeyGesetzt] = useState(false);
 
@@ -32,6 +54,12 @@ export default function EinstellungenSeite() {
       .then((d) => {
         setProvider(d.llm.provider);
         setModell(d.llm.modell);
+        // Gespeichertes Modell nicht in der Auswahlliste? -> Freitext anzeigen.
+        setEigenesModell(
+          d.llm.modell !== "" &&
+            d.llm.provider !== "dummy" &&
+            !MODELLE[d.llm.provider].some((m) => m.wert === d.llm.modell)
+        );
         setApiKeyGesetzt(d.llm.apiKeyGesetzt);
         setScanAktiv(d.scan.aktiv);
         setWochentag(d.scan.wochentag);
@@ -93,7 +121,13 @@ export default function EinstellungenSeite() {
             Anbieter
             <select
               value={provider}
-              onChange={(e) => setProvider(e.target.value as Einstellungen["llm"]["provider"])}
+              onChange={(e) => {
+                setProvider(e.target.value as Einstellungen["llm"]["provider"]);
+                // Beim Anbieterwechsel auf den Standard des neuen Anbieters
+                // zuruecksetzen (Modell-IDs sind nicht uebertragbar).
+                setModell("");
+                setEigenesModell(false);
+              }}
               className={eingabeKlasse + " mt-1"}
             >
               <option value="anthropic">Anthropic (Claude)</option>
@@ -101,15 +135,40 @@ export default function EinstellungenSeite() {
               <option value="dummy">Attrappe (ohne API-Key)</option>
             </select>
           </label>
-          <label className="text-sm text-gray-700">
-            Modell (leer = Standard)
-            <input
-              value={modell}
-              onChange={(e) => setModell(e.target.value)}
-              placeholder={provider === "openai" ? "gpt-4.1" : "claude-sonnet-4-6"}
-              className={eingabeKlasse + " mt-1"}
-            />
-          </label>
+          {provider !== "dummy" && (
+            <label className="text-sm text-gray-700">
+              Modell
+              <select
+                value={eigenesModell ? EIGENES : modell}
+                onChange={(e) => {
+                  if (e.target.value === EIGENES) {
+                    setEigenesModell(true);
+                    setModell("");
+                  } else {
+                    setEigenesModell(false);
+                    setModell(e.target.value);
+                  }
+                }}
+                className={eingabeKlasse + " mt-1"}
+              >
+                {MODELLE[provider].map((m) => (
+                  <option key={m.label} value={m.wert}>{m.label}</option>
+                ))}
+                <option value={EIGENES}>Eigenes Modell …</option>
+              </select>
+            </label>
+          )}
+          {provider !== "dummy" && eigenesModell && (
+            <label className="text-sm text-gray-700">
+              Eigene Modell-ID
+              <input
+                value={modell}
+                onChange={(e) => setModell(e.target.value)}
+                placeholder={provider === "openai" ? "z. B. gpt-5.2" : "z. B. claude-fable-5"}
+                className={eingabeKlasse + " mt-1"}
+              />
+            </label>
+          )}
           <label className="text-sm text-gray-700">
             API-Key {apiKeyGesetzt && <span className="text-erfolg-700">(gesetzt – leer lassen zum Behalten)</span>}
             <input
