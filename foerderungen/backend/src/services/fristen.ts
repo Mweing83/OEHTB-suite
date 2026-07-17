@@ -6,7 +6,7 @@ import { prisma } from "../lib/prisma";
 // Schritt entschieden.
 export async function markiereAbgelaufene(): Promise<number> {
   const heute = new Date();
-  heute.setUTCHours(0, 0, 0, 0);
+  heute.setHours(0, 0, 0, 0);
   const ergebnis = await prisma.ausschreibung.updateMany({
     where: {
       status: "OFFEN",
