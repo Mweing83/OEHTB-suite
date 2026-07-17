@@ -61,66 +61,76 @@ interface Statistik {
 export async function fuehreScanAus(ausloeser: "ZEITPLAN" | "MANUELL"): Promise<void> {
   if (laeuft) return;
   laeuft = true;
-  const lauf = await prisma.scanLauf.create({ data: { ausloeser } });
-  const statistik: Statistik = {
-    ueberwachung: { geprueft: 0, funde: 0, neu: 0, aktualisierungen: 0, uebersprungen: 0 },
-    entdeckung: { funde: 0, neu: 0, uebersprungen: 0 },
-  };
-  const fehlerListe: string[] = [];
-
+  // Der aeussere try/finally muss WIRKLICH alles umschliessen (inkl. des
+  // scanLauf.create): scheitert bereits das Anlegen des ScanLauf-Eintrags,
+  // wuerde "laeuft" sonst nie wieder auf false gesetzt -> der Scan waere
+  // dauerhaft verklemmt (409 bei jedem manuellen Scan, Cron no-opt).
   try {
-    // Vorab: abgelaufene Ausschreibungen markieren, damit der Abgleich
-    // gegen den aktuellen Stand laeuft.
-    await markiereAbgelaufene();
+    const lauf = await prisma.scanLauf.create({ data: { ausloeser } });
+    const statistik: Statistik = {
+      ueberwachung: { geprueft: 0, funde: 0, neu: 0, aktualisierungen: 0, uebersprungen: 0 },
+      entdeckung: { funde: 0, neu: 0, uebersprungen: 0 },
+    };
+    const fehlerListe: string[] = [];
 
-    const provider = erzeugeProvider(await ladeProviderKonfig());
-
-    // ---- Phase 1: Ueberwachung bekannter Quellen (gebuendelt) --------------
     try {
-      const quellen = await prisma.foerderquelle.findMany({
-        where: { status: "AKTIV" },
-        orderBy: { name: "asc" },
-      });
-      for (let i = 0; i < quellen.length; i += BATCH_GROESSE) {
-        const batch = quellen.slice(i, i + BATCH_GROESSE);
-        const infos: QuellenInfo[] = batch.map((q) => ({
-          name: q.name,
-          webseite: q.webseite,
-          themen: q.themen,
-        }));
-        statistik.ueberwachung.geprueft += batch.length;
-        const funde = await provider.sucheAusschreibungen(infos);
-        statistik.ueberwachung.funde += funde.length;
-        for (const fund of funde) {
-          await verarbeiteAusschreibungsFund(fund, batch, statistik);
+      // Vorab: abgelaufene Ausschreibungen markieren, damit der Abgleich
+      // gegen den aktuellen Stand laeuft.
+      await markiereAbgelaufene();
+
+      const provider = erzeugeProvider(await ladeProviderKonfig());
+
+      // ---- Phase 1: Ueberwachung bekannter Quellen (gebuendelt) --------------
+      try {
+        const quellen = await prisma.foerderquelle.findMany({
+          where: { status: "AKTIV" },
+          orderBy: { name: "asc" },
+        });
+        for (let i = 0; i < quellen.length; i += BATCH_GROESSE) {
+          const batch = quellen.slice(i, i + BATCH_GROESSE);
+          const infos: QuellenInfo[] = batch.map((q) => ({
+            name: q.name,
+            webseite: q.webseite,
+            themen: q.themen,
+          }));
+          statistik.ueberwachung.geprueft += batch.length;
+          const funde = await provider.sucheAusschreibungen(infos);
+          statistik.ueberwachung.funde += funde.length;
+          for (const fund of funde) {
+            await verarbeiteAusschreibungsFund(fund, batch, statistik);
+          }
         }
+      } catch (err) {
+        fehlerListe.push(`Ueberwachung: ${String(err instanceof Error ? err.message : err)}`);
       }
-    } catch (err) {
-      fehlerListe.push(`Ueberwachung: ${String(err instanceof Error ? err.message : err)}`);
-    }
 
-    // ---- Phase 2: Entdeckung neuer Quellen ---------------------------------
-    try {
-      const alle = await prisma.foerderquelle.findMany({ select: { name: true, status: true } });
-      const funde = await provider.entdeckeQuellen(alle.map((q) => q.name));
-      statistik.entdeckung.funde = funde.length;
-      for (const fund of funde) {
-        await verarbeiteQuellenFund(fund, alle.map((q) => q.name), statistik);
+      // ---- Phase 2: Entdeckung neuer Quellen ---------------------------------
+      try {
+        const alle = await prisma.foerderquelle.findMany({ select: { name: true, status: true } });
+        const funde = await provider.entdeckeQuellen(alle.map((q) => q.name));
+        statistik.entdeckung.funde = funde.length;
+        for (const fund of funde) {
+          await verarbeiteQuellenFund(fund, alle.map((q) => q.name), statistik);
+        }
+      } catch (err) {
+        fehlerListe.push(`Entdeckung: ${String(err instanceof Error ? err.message : err)}`);
       }
     } catch (err) {
-      fehlerListe.push(`Entdeckung: ${String(err instanceof Error ? err.message : err)}`);
+      fehlerListe.push(String(err instanceof Error ? err.message : err));
+    } finally {
+      // Nur erreichbar, wenn "lauf" tatsaechlich angelegt wurde.
+      await prisma.scanLauf.update({
+        where: { id: lauf.id },
+        data: {
+          beendet: new Date(),
+          statistik: statistik as unknown as object,
+          fehler: fehlerListe.length > 0 ? fehlerListe.join(" | ") : null,
+        },
+      }).catch((e) => console.error("ScanLauf konnte nicht abgeschlossen werden:", e));
     }
   } catch (err) {
-    fehlerListe.push(String(err instanceof Error ? err.message : err));
+    console.error("Scan-Lauf unerwartet fehlgeschlagen:", err);
   } finally {
-    await prisma.scanLauf.update({
-      where: { id: lauf.id },
-      data: {
-        beendet: new Date(),
-        statistik: statistik as unknown as object,
-        fehler: fehlerListe.length > 0 ? fehlerListe.join(" | ") : null,
-      },
-    }).catch((e) => console.error("ScanLauf konnte nicht abgeschlossen werden:", e));
     laeuft = false;
   }
 }
@@ -144,6 +154,9 @@ async function verarbeiteAusschreibungsFund(
     where: linkNorm
       ? { OR: [{ linkNormalisiert: linkNorm }, { foerderquelleId: quelle.id }] }
       : { foerderquelleId: quelle.id },
+    // Deterministische Reihenfolge, damit .find() bei mehreren Treffern
+    // (z. B. Alt- und Aktualisierungszeile) immer denselben Kandidaten waehlt.
+    orderBy: { erstelltAm: "asc" },
   });
   const vorhanden = kandidaten.find(
     (k) =>
@@ -189,14 +202,29 @@ async function verarbeiteAusschreibungsFund(
     return;
   }
 
-  // Bestandszeile mit geaenderter Frist -> Aktualisierungsvorschlag,
-  // sofern nicht schon einer wartet.
+  // Bestandszeile mit geaenderter Frist -> Aktualisierungsvorschlag, sofern
+  // nicht schon einer wartet oder derselbe Vorschlag (gleiche Frist) schon
+  // einmal abgelehnt wurde. OFFEN und ABGELAUFEN sind beide zulaessig, damit
+  // jaehrlich wiederkehrende Ausschreibungen mit gleicher URL nach Fristablauf
+  // wieder aufgegriffen werden (uebernehmen() setzt die Bestandszeile ohnehin
+  // per PATCH zurueck auf OFFEN).
   const fristAlt = vorhanden.frist ? vorhanden.frist.toISOString().slice(0, 10) : null;
-  if (vorhanden.status === "OFFEN" && fristAlt !== (fund.frist ?? null)) {
-    const wartetSchon = await prisma.ausschreibung.findFirst({
-      where: { aktualisiertAusschreibungId: vorhanden.id, status: "VORGESCHLAGEN" },
+  if (
+    (vorhanden.status === "OFFEN" || vorhanden.status === "ABGELAUFEN") &&
+    fristAlt !== (fund.frist ?? null)
+  ) {
+    // Tombstone: ein bereits vorgeschlagener ODER mit derselben Frist bereits
+    // abgelehnter Aktualisierungsvorschlag verhindert eine erneute Anlage.
+    const bereitsBehandelt = await prisma.ausschreibung.findFirst({
+      where: {
+        aktualisiertAusschreibungId: vorhanden.id,
+        OR: [
+          { status: "VORGESCHLAGEN" },
+          { status: "ABGELEHNT", frist: fristNeu },
+        ],
+      },
     });
-    if (wartetSchon) {
+    if (bereitsBehandelt) {
       statistik.ueberwachung.uebersprungen++;
       return;
     }

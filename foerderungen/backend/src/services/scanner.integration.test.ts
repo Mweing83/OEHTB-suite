@@ -85,6 +85,66 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
     expect(wartend).toHaveLength(1);
   });
 
+  it("schlaegt einen abgelehnten Aktualisierungsvorschlag nicht erneut vor", async () => {
+    const quelle = await prisma.foerderquelle.findFirstOrThrow({ where: { name: "FSW" } });
+    // Frist bewusst ungleich dem Dummy-Fund (heute+30 Tage), damit der erste
+    // Scan einen Aktualisierungsvorschlag erzeugt.
+    const inZehnTagen = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await prisma.ausschreibung.create({
+      data: {
+        foerderquelleId: quelle.id,
+        titel: "Bestehende FSW-Ausschreibung",
+        beschreibung: "",
+        link: "https://beispiel.at/dummy-call",
+        linkNormalisiert: "beispiel.at/dummy-call",
+        frist: new Date(inZehnTagen + "T00:00:00.000Z"),
+        status: "OFFEN",
+        quelleTyp: "SCAN",
+      },
+    });
+
+    await fuehreScanAus("MANUELL");
+    const aktualisierung = await prisma.ausschreibung.findFirstOrThrow({
+      where: { aktualisiertAusschreibungId: { not: null }, status: "VORGESCHLAGEN" },
+    });
+
+    await prisma.ausschreibung.update({
+      where: { id: aktualisierung.id },
+      data: { status: "ABGELEHNT" },
+    });
+
+    await fuehreScanAus("MANUELL");
+
+    const wartend = await prisma.ausschreibung.count({
+      where: { aktualisiertAusschreibungId: { not: null }, status: "VORGESCHLAGEN" },
+    });
+    expect(wartend).toBe(0);
+  });
+
+  it("eine ABGELAUFENE Ausschreibung mit neuer Frist bekommt einen Aktualisierungsvorschlag", async () => {
+    const quelle = await prisma.foerderquelle.findFirstOrThrow({ where: { name: "FSW" } });
+    const gestern = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const alt = await prisma.ausschreibung.create({
+      data: {
+        foerderquelleId: quelle.id,
+        titel: "Abgelaufene FSW-Ausschreibung",
+        beschreibung: "",
+        link: "https://beispiel.at/dummy-call",
+        linkNormalisiert: "beispiel.at/dummy-call",
+        frist: new Date(gestern + "T00:00:00.000Z"),
+        status: "ABGELAUFEN",
+        quelleTyp: "SCAN",
+      },
+    });
+
+    await fuehreScanAus("MANUELL");
+
+    const aktualisierung = await prisma.ausschreibung.findFirst({
+      where: { aktualisiertAusschreibungId: alt.id, status: "VORGESCHLAGEN" },
+    });
+    expect(aktualisierung).not.toBeNull();
+  });
+
   it("schlaegt eine archivierte Quelle nicht erneut vor (Tombstone)", async () => {
     await fuehreScanAus("MANUELL");
     await prisma.foerderquelle.updateMany({
