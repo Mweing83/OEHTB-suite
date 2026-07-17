@@ -14,8 +14,10 @@ import { provisionRouter } from "./routes/provision";
 import { quellenRouter } from "./routes/quellen";
 import { ausschreibungenRouter } from "./routes/ausschreibungen";
 import { einstellungenRouter } from "./routes/einstellungen";
+import { scansRouter } from "./routes/scans";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision";
 import { jwtSecret } from "./lib/suiteAuth";
+import { starteZeitplan } from "./services/zeitplan";
 
 // Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret) –
 // fail-fast statt erst beim ersten Request bzw. beim ersten Provisionierungs-Push.
@@ -74,6 +76,7 @@ app.use("/api/auth", sitzungRouter);
 app.use("/api/quellen", quellenRouter);
 app.use("/api/ausschreibungen", ausschreibungenRouter);
 app.use("/api/einstellungen", einstellungenRouter);
+app.use("/api/scans", scansRouter);
 app.use("/api/provision", provisionRouter);
 
 // Produktivbetrieb: gebaute SPA ausliefern (Muster stunden/handkassen).
@@ -105,6 +108,8 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`Foerderungen-Backend laeuft auf http://localhost:${PORT}`);
     // Benutzer-Spiegel beim Start mit dem Portal abgleichen (Self-Heal).
     void reconcileVonSuite();
+    // Zeitplan (Fristen-Job + Scan-Job gemaess Einstellungen) starten.
+    void starteZeitplan();
   });
 
   let faehrtHerunter = false;
