@@ -13,6 +13,7 @@ import { sitzungRouter } from "./routes/sitzung";
 import { provisionRouter } from "./routes/provision";
 import { quellenRouter } from "./routes/quellen";
 import { ausschreibungenRouter } from "./routes/ausschreibungen";
+import { einstellungenRouter } from "./routes/einstellungen";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision";
 import { jwtSecret } from "./lib/suiteAuth";
 
@@ -72,6 +73,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", sitzungRouter);
 app.use("/api/quellen", quellenRouter);
 app.use("/api/ausschreibungen", ausschreibungenRouter);
+app.use("/api/einstellungen", einstellungenRouter);
 app.use("/api/provision", provisionRouter);
 
 // Produktivbetrieb: gebaute SPA ausliefern (Muster stunden/handkassen).
