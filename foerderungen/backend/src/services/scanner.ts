@@ -151,6 +151,17 @@ async function verarbeiteAusschreibungsFund(
       namenAehnlich(k.titel, fund.titel)
   );
 
+  // Gleicher Link, aber bei einer anderen Quelle gefunden: das ist das
+  // Duplikat einer Fremdquelle (z. B. eine Ausschreibung, die auch von einer
+  // anderen Foerderquelle beworben wird). Wird uebersprungen und NIE
+  // quellenuebergreifend verknuepft, damit kein Fund einer anderen Quelle
+  // stillschweigend verschluckt und kein Aktualisierungsvorschlag mit
+  // falscher foerderquelleId erzeugt wird.
+  if (vorhanden && vorhanden.foerderquelleId !== quelle.id) {
+    statistik.ueberwachung.uebersprungen++;
+    return;
+  }
+
   const fristNeu = fund.frist ? new Date(fund.frist + "T00:00:00.000Z") : null;
 
   if (!vorhanden) {

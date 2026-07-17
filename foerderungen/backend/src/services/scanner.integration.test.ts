@@ -47,4 +47,54 @@ laufend("fuehreScanAus (Dummy-Provider)", () => {
     const vorschlaege = await prisma.ausschreibung.findMany({ where: { status: "VORGESCHLAGEN" } });
     expect(vorschlaege).toHaveLength(0);
   });
+
+  it("erzeugt einen Aktualisierungsvorschlag, wenn sich die Frist einer offenen Ausschreibung aendert", async () => {
+    await fuehreScanAus("MANUELL");
+    const erster = await prisma.ausschreibung.findFirstOrThrow({ where: { status: "VORGESCHLAGEN" } });
+
+    const inZehnTagen = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await prisma.ausschreibung.update({
+      where: { id: erster.id },
+      data: { status: "OFFEN", frist: new Date(inZehnTagen + "T00:00:00.000Z") },
+    });
+
+    await fuehreScanAus("MANUELL");
+
+    const vorschlaege = await prisma.ausschreibung.findMany({ where: { status: "VORGESCHLAGEN" } });
+    expect(vorschlaege).toHaveLength(1);
+    expect(vorschlaege[0].aktualisiertAusschreibungId).toBe(erster.id);
+    expect(vorschlaege[0].foerderquelleId).toBe(erster.foerderquelleId);
+  });
+
+  it("legt bei bereits wartendem Aktualisierungsvorschlag keinen zweiten an", async () => {
+    await fuehreScanAus("MANUELL");
+    const erster = await prisma.ausschreibung.findFirstOrThrow({ where: { status: "VORGESCHLAGEN" } });
+
+    const inZehnTagen = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await prisma.ausschreibung.update({
+      where: { id: erster.id },
+      data: { status: "OFFEN", frist: new Date(inZehnTagen + "T00:00:00.000Z") },
+    });
+
+    await fuehreScanAus("MANUELL");
+    await fuehreScanAus("MANUELL");
+
+    const wartend = await prisma.ausschreibung.findMany({
+      where: { aktualisiertAusschreibungId: { not: null } },
+    });
+    expect(wartend).toHaveLength(1);
+  });
+
+  it("schlaegt eine archivierte Quelle nicht erneut vor (Tombstone)", async () => {
+    await fuehreScanAus("MANUELL");
+    await prisma.foerderquelle.updateMany({
+      where: { name: "Beispiel-Stiftung (Dummy)" },
+      data: { status: "ARCHIVIERT" },
+    });
+
+    await fuehreScanAus("MANUELL");
+
+    const quellen = await prisma.foerderquelle.findMany({ where: { name: "Beispiel-Stiftung (Dummy)" } });
+    expect(quellen).toHaveLength(1);
+  });
 });
