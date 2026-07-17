@@ -12,6 +12,7 @@ import { prisma } from "./lib/prisma";
 import { sitzungRouter } from "./routes/sitzung";
 import { provisionRouter } from "./routes/provision";
 import { quellenRouter } from "./routes/quellen";
+import { ausschreibungenRouter } from "./routes/ausschreibungen";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision";
 import { jwtSecret } from "./lib/suiteAuth";
 
@@ -70,6 +71,7 @@ app.get("/api/health", (_req, res) => {
 // middleware/auth.ts – dieses Backend verifiziert nur noch das SSO-Token).
 app.use("/api/auth", sitzungRouter);
 app.use("/api/quellen", quellenRouter);
+app.use("/api/ausschreibungen", ausschreibungenRouter);
 app.use("/api/provision", provisionRouter);
 
 // Produktivbetrieb: gebaute SPA ausliefern (Muster stunden/handkassen).
