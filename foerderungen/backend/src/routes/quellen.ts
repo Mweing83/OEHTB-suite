@@ -21,7 +21,14 @@ const anlegenSchema = z.object({
   kategorie: z.enum(KATEGORIEN),
   themen: z.array(z.string().min(1).max(100)).max(20).optional(),
   beschreibung: z.string().max(5000).optional(),
-  webseite: z.string().url().max(1000).optional().or(z.literal("").transform(() => undefined)),
+  // .url() allein liesse auch javascript:/data:-URLs durch - nur http(s) erlauben.
+  webseite: z
+    .string()
+    .url()
+    .max(1000)
+    .refine((u) => /^https?:\/\//i.test(u), "Nur http/https-Links erlaubt.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   kontakt: z.string().max(500).optional(),
 });
 

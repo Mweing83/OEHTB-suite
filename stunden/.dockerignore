@@ -1,0 +1,9 @@
+# Build-Kontext schlank und frei von Geheimnissen halten.
+node_modules
+**/node_modules
+**/dist
+postgres-data
+**/.env
+**/.env.*
+!**/.env.example
+**/*.bak

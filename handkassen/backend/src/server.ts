@@ -16,9 +16,22 @@ import { provisionRouter } from "./routes/provision.js";
 import { reconcileVonSuite, provisionSecret } from "./lib/provision.js";
 import { prisma } from "./lib/db.js";
 
+// Fail-fast: Produktionsstart mit einem der oeffentlich im Repo stehenden
+// Standard-/Entwicklungspasswoerter in der DATABASE_URL ablehnen.
+function pruefeDatenbankPasswort(): void {
+  const url = process.env.DATABASE_URL ?? "";
+  const schwach = /_dev_passwort|\/\/handkassen:handkassen@|bitte|changeme/i.test(url);
+  if (process.env.NODE_ENV === "production" && schwach) {
+    throw new Error(
+      "DATABASE_URL verwendet ein bekanntes Standard-Passwort - vor dem Produktivbetrieb ein starkes Passwort setzen (.env)."
+    );
+  }
+}
+
 // Fail-fast: Pflicht-Secret beim Start pruefen (nicht erst beim ersten
 // Provisionierungs-Push). JWT_SECRET wird bereits in suiteAuth eager geprueft.
 provisionSecret();
+pruefeDatenbankPasswort();
 if (process.env.NODE_ENV === "production" && process.env.COOKIE_INSECURE === "1") {
   console.warn(
     "WARNUNG: COOKIE_INSECURE=1 – Session-Cookies werden ohne 'secure'-Flag gesetzt (nur hinter TLS/Tailscale vertretbar)."

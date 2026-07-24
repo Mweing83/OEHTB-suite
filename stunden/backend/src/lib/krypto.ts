@@ -25,6 +25,23 @@ function getSchluessel(): Buffer {
   return Buffer.from(key, "utf-8");
 }
 
+// Beim Serverstart aufrufen (fail-fast statt erst bei der ersten Verschluesselung
+// eines API-Keys): in Produktion wirft getSchluessel() bei fehlender Laenge oder
+// Platzhalter-Wert sofort. Ausserhalb von Produktion (z. B. lokale Entwicklung
+// ohne gesetzten Key) wird der Fehler nur als Warnung geloggt, damit der Server
+// trotzdem hochfaehrt.
+export function pruefeVerschluesselungsKey(): void {
+  try {
+    getSchluessel();
+  } catch (err) {
+    if (process.env.NODE_ENV === "production") throw err;
+    console.warn(
+      "WARNUNG: ENCRYPTION_KEY ungueltig -",
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+
 export function verschluesseln(klartext: string): string {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ALGORITHMUS, getSchluessel(), iv);

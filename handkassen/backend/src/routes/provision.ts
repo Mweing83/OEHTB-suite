@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, Request, Response } from "express";
 import {
   applyDelete,
@@ -14,8 +15,16 @@ import {
 
 export const provisionRouter = Router();
 
+// Timing-sicherer Vergleich: beide Werte erst hashen (gleiche Laenge),
+// dann timingSafeEqual - ein einfaches !== waere ein Timing-Orakel.
+function secretGleich(geliefert: string | undefined): boolean {
+  const a = crypto.createHash("sha256").update(geliefert ?? "").digest();
+  const b = crypto.createHash("sha256").update(provisionSecret()).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
 provisionRouter.use((req: Request, res: Response, next) => {
-  if (req.header("X-Provision-Secret") !== provisionSecret()) {
+  if (!secretGleich(req.header("X-Provision-Secret"))) {
     res.status(401).json({ fehler: "Nicht autorisiert." });
     return;
   }

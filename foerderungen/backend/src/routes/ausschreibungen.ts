@@ -18,7 +18,14 @@ const anlegenSchema = z.object({
   foerderquelleId: z.string().min(1),
   titel: z.string().min(1).max(500),
   beschreibung: z.string().max(5000).optional(),
-  link: z.string().url().max(1000).optional().or(z.literal("").transform(() => undefined)),
+  // .url() allein liesse auch javascript:/data:-URLs durch - nur http(s) erlauben.
+  link: z
+    .string()
+    .url()
+    .max(1000)
+    .refine((u) => /^https?:\/\//i.test(u), "Nur http/https-Links erlaubt.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   frist: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   laufendEinreichbar: z.boolean().optional(),
   foerderhoehe: z.string().max(500).optional(),

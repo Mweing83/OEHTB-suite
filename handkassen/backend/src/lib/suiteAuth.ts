@@ -45,7 +45,7 @@ export function cookieOptionen(): CookieOptions {
 }
 
 export function tokenPruefen(token: string): SuiteToken {
-  const roh = jwt.verify(token, JWT_SECRET) as SuiteToken;
+  const roh = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as SuiteToken;
   return {
     sub: roh.sub,
     benutzername: roh.benutzername,

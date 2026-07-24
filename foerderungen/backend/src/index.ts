@@ -22,9 +22,22 @@ import { pruefeVerschluesselungsKey } from "./lib/krypto";
 
 // Beim Start pruefen (wirft in Produktion bei fehlendem/schwachem Secret) –
 // fail-fast statt erst beim ersten Request bzw. beim ersten Provisionierungs-Push.
+// Fail-fast: Produktionsstart mit einem der oeffentlich im Repo stehenden
+// Standard-/Entwicklungspasswoerter in der DATABASE_URL ablehnen.
+function pruefeDatenbankPasswort(): void {
+  const url = process.env.DATABASE_URL ?? "";
+  const schwach = /_dev_passwort|\/\/handkassen:handkassen@|bitte|changeme/i.test(url);
+  if (process.env.NODE_ENV === "production" && schwach) {
+    throw new Error(
+      "DATABASE_URL verwendet ein bekanntes Standard-Passwort - vor dem Produktivbetrieb ein starkes Passwort setzen (.env)."
+    );
+  }
+}
+
 jwtSecret();
 provisionSecret();
 pruefeVerschluesselungsKey();
+pruefeDatenbankPasswort();
 if (process.env.NODE_ENV === "production" && process.env.COOKIE_INSECURE === "1") {
   console.warn(
     "WARNUNG: COOKIE_INSECURE=1 – Session-Cookies werden ohne 'secure'-Flag gesetzt (nur hinter TLS/Tailscale vertretbar)."

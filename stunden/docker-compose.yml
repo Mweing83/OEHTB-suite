@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: stunden_dev_passwort
       POSTGRES_DB: stunden
     ports:
-      - "5433:5432"
+      # Nur lokal am Rechner erreichbar (Entwicklung), nicht im LAN.
+      - "127.0.0.1:5433:5432"
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
 

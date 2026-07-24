@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { provisionSecret, ProvisionUserPayload } from "../lib/provision";
@@ -13,8 +14,12 @@ import { provisionSecret, ProvisionUserPayload } from "../lib/provision";
 
 export const provisionRouter = Router();
 
+// Timing-sicherer Vergleich: beide Werte erst hashen (gleiche Laenge),
+// dann timingSafeEqual - ein einfaches === waere ein Timing-Orakel.
 function secretOk(req: Request): boolean {
-  return req.header("X-Provision-Secret") === provisionSecret();
+  const a = crypto.createHash("sha256").update(req.header("X-Provision-Secret") ?? "").digest();
+  const b = crypto.createHash("sha256").update(provisionSecret()).digest();
+  return crypto.timingSafeEqual(a, b);
 }
 
 provisionRouter.get("/snapshot", async (req: Request, res: Response) => {

@@ -58,6 +58,14 @@ const loginSchema = z.object({
   passwort: z.string().min(1),
 });
 
+// Timing-Ausgleich: auch bei unbekanntem/inaktivem Benutzer einen bcrypt-
+// Vergleich durchfuehren, damit die Antwortzeit keine Konto-Existenz verraet.
+let dummyHash: string | null = null;
+async function timingAusgleich(passwort: string): Promise<void> {
+  if (!dummyHash) dummyHash = await passwortHashen("timing-ausgleich");
+  await passwortPruefen(passwort, dummyHash);
+}
+
 authRouter.post("/login", loginLimit, async (req, res) => {
   const parse = loginSchema.safeParse(req.body);
   if (!parse.success) {
@@ -68,6 +76,7 @@ authRouter.post("/login", loginLimit, async (req, res) => {
 
   const user = await prisma.suiteUser.findUnique({ where: { benutzername } });
   if (!user || !user.aktiv) {
+    await timingAusgleich(passwort);
     res.status(401).json({ fehler: "Anmeldung fehlgeschlagen." });
     return;
   }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { MitarbeiterListe } from "../lib/typen";
 import Layout from "../components/Layout";
 import { hinweis } from "../components/dialog";
@@ -95,6 +96,9 @@ function StatKarte({
 }
 
 export default function DashboardSeite() {
+  const { benutzer } = useAuth();
+  // Massenexporte sind serverseitig fuer "leser" gesperrt - Buttons dann ausblenden.
+  const darfExportieren = benutzer != null && benutzer.rolle !== "leser";
   const [liste, setListe] = useState<MitarbeiterListe[]>([]);
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -229,6 +233,7 @@ export default function DashboardSeite() {
         </div>
       </div>
 
+      {darfExportieren && (
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <span className="text-sm text-gray-500">Export:</span>
         <button
@@ -269,6 +274,7 @@ export default function DashboardSeite() {
           Monats-Stand (CSV)
         </button>
       </div>
+      )}
 
       {laedt && <p className="text-gray-500">Lädt …</p>}
       {fehler && <p className="text-red-600">{fehler}</p>}

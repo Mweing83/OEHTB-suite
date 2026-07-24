@@ -3,6 +3,14 @@ import { erzeugeProvider, ladeProviderKonfig } from "./llm/factory";
 import { QuellenInfo, ScanFund, QuellenFund, mitWiederholung } from "./llm/typen";
 import { markiereAbgelaufene } from "./fristen";
 
+// Nur echte Web-Links speichern: LLM-Funde koennten javascript:/data:-URLs
+// enthalten (Prompt-Injection/Halluzination), die im Frontend als href landen.
+export function sichereUrl(roh: string | null | undefined): string | null {
+  if (!roh) return null;
+  const wert = roh.trim();
+  return /^https?:\/\//i.test(wert) ? wert : null;
+}
+
 // Link-Normalisierung fuer den Dedup-Abgleich (Kleinschreibung, ohne
 // Protokoll/www/Tracking-Parameter/abschliessenden Slash).
 export function normalisiereLink(roh: string): string {
@@ -203,7 +211,7 @@ async function verarbeiteAusschreibungsFund(
         foerderquelleId: quelle.id,
         titel: fund.titel,
         beschreibung: fund.beschreibung ?? "",
-        link: fund.link,
+        link: sichereUrl(fund.link),
         linkNormalisiert: linkNorm,
         frist: fristNeu,
         laufendEinreichbar: Boolean(fund.laufendEinreichbar),
@@ -253,7 +261,7 @@ async function verarbeiteAusschreibungsFund(
         foerderquelleId: quelle.id,
         titel: fund.titel,
         beschreibung: fund.beschreibung ?? vorhanden.beschreibung,
-        link: fund.link ?? vorhanden.link,
+        link: sichereUrl(fund.link) ?? vorhanden.link,
         linkNormalisiert: linkNorm ?? vorhanden.linkNormalisiert,
         frist: fristNeu,
         laufendEinreichbar: Boolean(fund.laufendEinreichbar),
@@ -296,7 +304,7 @@ async function verarbeiteQuellenFund(
       kategorie: fund.kategorie,
       themen: Array.isArray(fund.themen) ? fund.themen.slice(0, 20) : [],
       beschreibung: fund.beschreibung ?? "",
-      webseite: fund.webseite,
+      webseite: sichereUrl(fund.webseite),
       status: "VORGESCHLAGEN",
       quelleTyp: "SCAN",
     },

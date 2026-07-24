@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "bitte-aendern";
 // Sicherheitsnetz: Im Produktivbetrieb darf NICHT mit einem Platzhalter oder einem
 // zu kurzen Secret gestartet werden (sonst sind Tokens fälschbar). Lieber sofort
 // abbrechen als unsicher laufen.
-const istPlatzhalter = /bitte|ersetzen|aendern|changeme|example/i.test(JWT_SECRET);
+const istPlatzhalter = /bitte|ersetzen|aendern|changeme|example|platzhalter/i.test(JWT_SECRET);
 if (
   process.env.NODE_ENV === "production" &&
   (!process.env.JWT_SECRET || istPlatzhalter || process.env.JWT_SECRET.length < 32)
@@ -41,7 +41,7 @@ export function tokenErstellen(inhalt: TokenInhalt): string {
 }
 
 export function tokenPruefen(token: string): TokenInhalt {
-  return jwt.verify(token, JWT_SECRET) as TokenInhalt;
+  return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as TokenInhalt;
 }
 
 // Zentrale Cookie-Optionen für das Anmelde-Token (an EINER Stelle definiert,

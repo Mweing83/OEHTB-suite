@@ -85,6 +85,8 @@ function stichtagCsv(zeilen: StichtagZeile[], stichtagIso: string): string {
 // ---------------------------------------------------------------------------
 mitarbeiterRouter.get(
   "/export/aktuell",
+  // Massenexport personenbezogener Daten: nicht fuer die Rolle "leser".
+  rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const heute = heuteUtc();
     const stichtagIso = heute.toISOString().slice(0, 10);
@@ -112,6 +114,8 @@ mitarbeiterRouter.get(
 // ---------------------------------------------------------------------------
 mitarbeiterRouter.get(
   "/export/stichtag",
+  // Massenexport personenbezogener Daten: nicht fuer die Rolle "leser".
+  rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const monat = typeof req.query.monat === "string" ? req.query.monat : "";
     const treffer = /^(\d{4})-(\d{2})$/.exec(monat);
@@ -397,6 +401,8 @@ function datumZeitEu(d: Date): string {
 // ---------------------------------------------------------------------------
 mitarbeiterRouter.get(
   "/:id/export",
+  // DSGVO-Volldatenexport einer Person: nicht fuer die Rolle "leser".
+  rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const m = await prisma.mitarbeiter.findUnique({
       where: { id: req.params.id },

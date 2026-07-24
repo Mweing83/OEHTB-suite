@@ -243,13 +243,15 @@ export default function MitarbeiterDetailSeite() {
                 </svg>
               </button>
             )}
-            <button
-              onClick={exportieren}
-              className="text-sm border border-gray-300 rounded px-3 py-1.5 text-gray-700 hover:bg-gray-50"
-              title="DSGVO-Auskunft als JSON herunterladen"
-            >
-              Daten exportieren
-            </button>
+            {benutzer?.rolle !== "leser" && (
+              <button
+                onClick={exportieren}
+                className="text-sm border border-gray-300 rounded px-3 py-1.5 text-gray-700 hover:bg-gray-50"
+                title="DSGVO-Auskunft als JSON herunterladen"
+              >
+                Daten exportieren
+              </button>
+            )}
             {istAdmin && (
               <button
                 onClick={() => setZeigeLoeschen((v) => !v)}
