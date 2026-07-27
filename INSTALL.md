@@ -13,14 +13,27 @@ Umstieg von der bestehenden **einzelnen** Handkassen-Installation auf die Suite.
 ## 1. Vorbereitung
 
 1. Den kompletten Ordner `OEHTB-Suite` auf den Server kopieren/klonen. Die Tools
-   sind als Unterordner `handkassen/` und `stunden/` bereits enthalten – die
-   Build-Kontexte zeigen nach innen (`./handkassen`, `./stunden`). Es ist kein
-   weiterer Ordner nötig.
-2. `.env` anlegen: `cp .env.example .env` und Werte setzen – vor allem
-   **`JWT_SECRET`** (langer Zufallswert) und die DB-Passwörter. Für reinen
-   HTTP-Betrieb im LAN `COOKIE_INSECURE=1` lassen; hinter HTTPS entfernen.
-   - **Handkassen-DB-Zugang:** `HK_DB_USER`/`HK_DB_PASSWORD`/`HK_DB_NAME` müssen
-     zu den Werten passen, mit denen das bestehende Volume angelegt wurde.
+   sind als Unterordner `handkassen/`, `stunden/` und `foerderungen/` bereits
+   enthalten – die Build-Kontexte zeigen nach innen. Es ist kein weiterer Ordner
+   nötig.
+2. **`.env` erzeugen (empfohlen, automatisch):** Doppelklick auf
+   **`SERVER - Einrichten.bat`** (oder
+   `powershell -ExecutionPolicy Bypass -File .\einrichten.ps1`). Das Skript legt
+   eine `.env` mit **starken, zufälligen** Secrets an (JWT, Provisionierung, alle
+   DB-Passwörter, beide ENCRYPTION_KEYs). Eine bereits vorhandene `.env` wird nie
+   überschrieben.
+   - Zugriff läuft über **Tailscale-HTTPS** (siehe Abschnitt 5): `COOKIE_INSECURE`
+     bleibt leer. Nur für reinen HTTP-LAN-Betrieb im Skript-Ergebnis auf `1` setzen.
+   - **Handkassen-DB-Zugang (nur beim Cutover):** Übernimmst du das bestehende
+     Handkassen-Volume, müssen `HK_DB_USER`/`HK_DB_PASSWORD`/`HK_DB_NAME` in der
+     erzeugten `.env` auf die **ursprünglichen** Werte des Volumes geändert werden –
+     sonst kann die App die vorhandene Datenbank nicht öffnen.
+   - Die erzeugte `.env` sicher aufbewahren (Passwort-Manager): Ohne die
+     ENCRYPTION_KEYs sind gespeicherte API-Keys nicht mehr entschlüsselbar.
+
+> **Fail-fast:** Die Backends verweigern in Produktion den Start, wenn ein Secret
+> noch ein Platzhalter, zu kurz oder ein bekanntes Standard-DB-Passwort ist. Eine
+> per Skript erzeugte `.env` erfüllt alle Anforderungen automatisch.
 
 ## 2. Alte Handkassen-Installation stoppen
 
@@ -39,11 +52,16 @@ docker compose --profile produktion up -d --build
 ```
 
 Beim ersten Start passiert automatisch (in den jeweiligen Container-Startbefehlen):
-- Alle drei Backends wenden ihre Migrationen selbst an (`prisma migrate deploy`).
+- Alle Backends wenden ihre Migrationen selbst an (`prisma migrate deploy`).
 - Das Portal seedet die **Tool-Registry** und den Benutzer **`admin`**
   (idempotent, upsert) und startet dann.
 
-Kein manueller Seed-Schritt nötig. `admin`-Passwort danach im Portal ändern.
+Kein manueller Seed-Schritt nötig.
+
+**Erstes Login (Admin):** Der Benutzer `admin` wird **ohne Passwort** angelegt.
+Beim ersten Login im Portal (Benutzername `admin`) fordert die Oberfläche direkt
+zur Vergabe eines Passworts auf – es gibt bewusst **kein** Standard-Passwort.
+Danach als `admin` unter **Verwaltung** die weiteren Benutzer und Rechte pflegen.
 
 ## 4. Bestandsnutzer importieren
 
@@ -96,10 +114,14 @@ wurden nicht gelöscht). Für Stunden ggf. Admin-Passwort neu setzen.
 
 ## Sicherheits-Checkliste (vor Produktivbetrieb)
 
-- [ ] `JWT_SECRET` langer Zufallswert, in `.env` (nicht der Platzhalter).
-- [ ] DB-Passwörter gesetzt, `admin`-Passwort im Portal geändert.
-- [ ] `STUNDEN_ENCRYPTION_KEY` gesetzt (sonst sind gespeicherte API-Keys nicht
-      entschlüsselbar).
-- [ ] HTTPS davor (Tailscale/Proxy) ODER bewusst `COOKIE_INSECURE=1` im
-      abgeschotteten LAN.
+- [ ] `.env` per `SERVER - Einrichten.bat` erzeugt (starke Zufalls-Secrets) und
+      sicher gesichert (Passwort-Manager).
+- [ ] `admin`-Passwort beim ersten Login gesetzt (es gibt kein Standard-Passwort).
+- [ ] Beide `*_ENCRYPTION_KEY` gesetzt (sonst sind gespeicherte API-Keys nicht
+      entschlüsselbar) – vom Skript automatisch erledigt.
+- [ ] Zugriff über HTTPS (Tailscale/Proxy); `COOKIE_INSECURE` leer. Nur im
+      abgeschotteten LAN bewusst `COOKIE_INSECURE=1`.
 - [ ] Backup-Zielpfade (NAS/USB) in `.env` auf die echten Mounts gesetzt.
+- [ ] Nur Port 80 nach außen (übernimmt Tailscale/Proxy); die Datenbank-Ports
+      sind ausschließlich am Server selbst (127.0.0.1) bzw. gar nicht
+      veröffentlicht.

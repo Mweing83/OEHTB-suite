@@ -66,15 +66,22 @@ async function main() {
   }
 
   // ---- Admin-Benutzer ------------------------------------------------------
-  const hash = await bcrypt.hash("admin123", 10);
+  // Sicherheit: In Produktion existiert KEIN bekanntes Standard-Passwort. Der
+  // Admin wird ohne nutzbares Passwort angelegt (passwortSetzen: true) und MUSS
+  // beim ersten Login ein eigenes Passwort vergeben (siehe routes/auth.ts).
+  // Nur fuer die lokale Entwicklung kann ueber ADMIN_INITIAL_PASSWORT ein
+  // Startpasswort vorgegeben werden (das trotzdem beim ersten Login zu aendern
+  // ist). upsert/update {}: ein bereits gesetztes Passwort wird bei erneutem
+  // Seed (Redeploy) nie ueberschrieben.
+  const initialPasswort = process.env.ADMIN_INITIAL_PASSWORT;
   const admin = await prisma.suiteUser.upsert({
     where: { benutzername: "admin" },
     update: {},
     create: {
       benutzername: "admin",
       name: "Administrator",
-      passwortHash: hash,
-      passwortSetzen: false,
+      passwortHash: initialPasswort ? await bcrypt.hash(initialPasswort, 10) : null,
+      passwortSetzen: true,
       aktiv: true,
     },
   });

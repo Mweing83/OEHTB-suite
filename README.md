@@ -57,21 +57,30 @@ cd portal && npm install && npm run dev                       # http://localhost
 #    Frontend (Vite) auf :5176.
 ```
 
-Anmeldung im Portal: `admin` / `admin123` (Seed – vor Produktivbetrieb ändern).
-Da Cookies auf `localhost` portübergreifend gelten, funktioniert das SSO in der
-Entwicklung auch über die verschiedenen Vite-Ports.
+Anmeldung im Portal als `admin`: Der Seed legt den Admin **ohne Passwort** an –
+beim ersten Login wird eines vergeben (kein Standard-Passwort). Für die
+Entwicklung kann vorab ein Startpasswort gesetzt werden, indem beim Seed
+`ADMIN_INITIAL_PASSWORT=… npm run seed` gesetzt wird (auch dieses ist beim
+ersten Login zu ändern). Da Cookies auf `localhost` portübergreifend gelten,
+funktioniert das SSO in der Entwicklung auch über die verschiedenen Vite-Ports.
 
 ## Produktion
 
 Alles per Docker Compose (Muster wie Handkassen: Profil `produktion`):
 
 ```
-cp .env.example .env    # Werte setzen (JWT_SECRET, DB-Passwörter, …)
+# 1. .env mit starken Zufalls-Secrets erzeugen (einmalig):
+#    Doppelklick "SERVER - Einrichten.bat"  – oder:
+powershell -ExecutionPolicy Bypass -File .\einrichten.ps1
+# 2. Starten (baut alle Images):
 docker compose --profile produktion up -d --build
 ```
 
 Erreichbar auf **Port 80**. HTTPS über Tailscale/Reverse-Proxy davor:
 `tailscale serve --bg https / http://localhost:80`.
+
+Erststart-Details, Bestandsnutzer-Import und Sicherheits-Checkliste: siehe
+**INSTALL.md**.
 
 Cutover einer bestehenden Handkassen-Installation und Bestandsnutzer-Import:
 siehe **INSTALL.md**.
