@@ -6,6 +6,7 @@ import { hinweis } from "../components/dialog.js";
 
 interface Kostenstelle {
   id: number;
+  nummer: string;
   bezeichnung: string;
   bereich?: { id: number; bezeichnung: string };
 }
@@ -97,7 +98,7 @@ export default function AbschlussSeite() {
         <label className="block text-sm font-medium mb-1">Kostenstelle</label>
         <select className="w-full border rounded px-3 py-2 mb-4" value={ksId ?? ""} onChange={(e) => setKsId(Number(e.target.value))}>
           {kostenstellen.map((k) => (
-            <option key={k.id} value={k.id}>{k.bezeichnung}</option>
+            <option key={k.id} value={k.id}>{k.nummer} {k.bezeichnung}</option>
           ))}
         </select>
         <div className="grid grid-cols-2 gap-4 mb-4">

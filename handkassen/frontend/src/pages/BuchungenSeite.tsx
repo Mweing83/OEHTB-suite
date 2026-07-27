@@ -7,6 +7,7 @@ import { bestaetigen, hinweis } from "../components/dialog.js";
 
 interface Kostenstelle {
   id: number;
+  nummer: string;
   bezeichnung: string;
   bereich: { id: number; bezeichnung: string };
   saldoCent: number;
@@ -159,7 +160,7 @@ export default function BuchungenSeite() {
         >
           {kostenstellen.map((k) => (
             <option key={k.id} value={k.id}>
-              {k.bezeichnung} ({k.bereich.bezeichnung})
+              {k.nummer} {k.bezeichnung} ({k.bereich.bezeichnung})
             </option>
           ))}
         </select>

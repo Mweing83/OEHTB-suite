@@ -60,17 +60,21 @@ stammdatenRouter.get("/kassenarten", angemeldet, async (_req, res) => {
 // Nutzer sehen nur die ihnen zugewiesenen; admin/finanzen sehen alle.
 stammdatenRouter.get("/kostenstellen", angemeldet, async (req, res) => {
   const b = req.benutzer!;
+  // Nur AKTIVE Kostenstellen fuer die operative Auswahl (Buchen/Berichte/
+  // Abschluss). Deaktivierte werden ausschliesslich in der Verwaltung
+  // (/admin/kostenstellen) angezeigt und verwaltet.
   if (b.rolle === "admin" || b.rolle === "finanzen") {
     const alle = await prisma.kostenstelle.findMany({
+      where: { aktiv: true },
       include: { bereich: true, kassenart: true },
-      orderBy: { bezeichnung: "asc" },
+      orderBy: { nummer: "asc" },
     });
     return res.json(alle);
   }
   const eigene = await prisma.kostenstelle.findMany({
-    where: { benutzer: { some: { benutzerId: b.id } } },
+    where: { aktiv: true, benutzer: { some: { benutzerId: b.id } } },
     include: { bereich: true, kassenart: true },
-    orderBy: { bezeichnung: "asc" },
+    orderBy: { nummer: "asc" },
   });
   res.json(eigene);
 });
