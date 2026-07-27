@@ -2,6 +2,7 @@ import request from "supertest";
 import { prisma } from "../lib/db.js";
 import { passwortHashen } from "../lib/auth.js";
 import { app } from "../server.js";
+import { SUITE_COOKIE, TOOL_SLUG, tokenSignieren } from "../lib/suiteAuth.js";
 
 // supertest-Agent-Typ ohne fragilen Tiefenimport ableiten.
 export type Agent = ReturnType<typeof request.agent>;
@@ -110,15 +111,29 @@ export async function seedBasis(): Promise<Basis> {
   };
 }
 
-// Meldet einen Benutzer an und liefert einen supertest-Agent, der das
-// Session-Cookie über Folge-Anfragen hinweg behält (inkl. der gleitenden
-// Token-Erneuerung).
-export async function alsAgent(benutzername: string, passwort = TEST_PW): Promise<Agent> {
-  const agent = request.agent(app);
-  const r = await agent.post("/api/auth/login").send({ benutzername, passwort });
-  if (r.status !== 200) {
-    throw new Error(`Login fehlgeschlagen (${benutzername}): ${r.status} ${JSON.stringify(r.body)}`);
+// Liefert einen supertest-Agent, der ein gueltiges Suite-SSO-Cookie fuer den
+// genannten Benutzer traegt. Login liegt seit der Suite-Integration im Portal;
+// die Tests faelschen daher – wie die anderen Tools – direkt ein signiertes
+// suite_token (gleiches JWT_SECRET wie das Backend). Die SSO-Middleware
+// verknuepft den gleichnamigen Bestandsnutzer aus seedBasis() ueber den
+// Benutzernamen, sodass req.benutzer.id auf dessen lokale Int-ID zeigt
+// (Kostenstellen-Freischaltungen bleiben gueltig).
+export async function alsAgent(benutzername: string): Promise<Agent> {
+  const b = await prisma.benutzer.findUnique({ where: { benutzername } });
+  if (!b) {
+    throw new Error(`Testbenutzer '${benutzername}' nicht vorhanden – seedBasis() vergessen?`);
   }
+  const jetzt = Date.now();
+  const token = tokenSignieren({
+    sub: `suite-test-${b.id}`,
+    benutzername: b.benutzername,
+    name: b.name,
+    zugriff: { [TOOL_SLUG]: b.rolle },
+    letzteAktivitaet: jetzt,
+    geprueftAm: jetzt,
+  });
+  const agent = request.agent(app);
+  agent.jar.setCookie(`${SUITE_COOKIE}=${token}`);
   return agent;
 }
 
