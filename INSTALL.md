@@ -99,6 +99,23 @@ Tailscale-URL erreichbar; die Tools liegen unter `/handkassen` und `/stunden`.
 - `/stunden` öffnet sich ohne zweite Anmeldung.
 - Nächtliches Backup läuft (Dienst `handkassen-backup`).
 
+## Updates einspielen
+
+Eine neue Version wird per Doppelklick auf **`SERVER - Aktualisieren.bat`**
+eingespielt. Das Skript:
+
+1. holt den neuesten Stand aus Git (`git pull --ff-only` – nur vorwärts, keine
+   Konflikte),
+2. zeigt an, welche Commits neu sind,
+3. baut alle Container neu und startet sie (`docker compose --profile produktion
+   up -d --build`) – dabei laufen ausstehende Datenbank-Migrationen automatisch,
+4. wartet, bis die Suite wieder antwortet, und zeigt den Status.
+
+Daten/Volumes und die lokale `.env` bleiben unberührt. Voraussetzung: Die Suite
+wurde per `git clone` geholt (nicht als ZIP) und Git ist installiert. Bei einem
+privaten Repository müssen die Zugangsdaten hinterlegt sein (beim ersten
+`git clone` einmalig eingeben, danach merkt Windows sie sich).
+
 ## Rollback
 
 Die Suite ändert an den Tool-Datenbanken nur **additiv** (Spalte `suiteUserId`).
