@@ -17,7 +17,7 @@ export async function resetDb() {
     TRUNCATE TABLE
       audit_log, buchungsposition, buchung, beleg, abschluss,
       benutzer_kostenstelle, monats_sperre, kostenstelle,
-      bereich, kassenart, konto, steuersatz, benutzer,
+      bereich_konto, bereich, kassenart, konto, steuersatz, benutzer,
       backup_konfig, allgemein_konfig
     RESTART IDENTITY CASCADE;
   `);
@@ -53,6 +53,7 @@ export async function seedBasis(): Promise<Basis> {
   });
 
   const konto = await prisma.konto.create({ data: { nummer: "50000", bezeichnung: "Testkonto" } });
+  await prisma.bereichKonto.create({ data: { bereichId: bereich.id, kontoId: konto.id } });
 
   await prisma.steuersatz.createMany({
     data: [

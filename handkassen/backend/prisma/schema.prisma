@@ -105,6 +105,7 @@ model Bereich {
   aktiv       Boolean @default(true)
 
   kostenstellen Kostenstelle[]
+  konten        BereichKonto[]
 
   @@map("bereich")
 }
@@ -118,6 +119,19 @@ model Kassenart {
   kostenstellen Kostenstelle[]
 
   @@map("kassenart")
+}
+
+// n:m – welche Konten sind fuer welchen Bereich freigegeben.
+// Ein Eintrag = "dieses Konto ist fuer diesen Bereich buchbar".
+// Entfernen einer Freigabe loescht KEINE Buchungen (die haengen an kontoId).
+model BereichKonto {
+  bereichId Int
+  kontoId   Int
+  bereich   Bereich @relation(fields: [bereichId], references: [id])
+  konto     Konto   @relation(fields: [kontoId], references: [id])
+
+  @@id([bereichId, kontoId])
+  @@map("bereich_konto")
 }
 
 // n:m – welche:r Erfasser:in ist für welche Kostenstelle freigeschaltet (Anf. P-02)
@@ -140,6 +154,7 @@ model Konto {
   aktiv       Boolean @default(true)
 
   positionen  BuchungsPosition[]
+  bereiche    BereichKonto[]
 
   @@map("konto")
 }
