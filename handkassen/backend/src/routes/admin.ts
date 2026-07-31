@@ -153,8 +153,13 @@ adminRouter.post("/kostenstellen/:id/aktiv", async (req, res) => {
 // ============================================================
 
 adminRouter.get("/konten", async (_req, res) => {
-  const konten = await prisma.konto.findMany({ orderBy: { nummer: "asc" } });
-  res.json(konten);
+  const konten = await prisma.konto.findMany({
+    orderBy: { nummer: "asc" },
+    include: { bereiche: { select: { bereichId: true } } },
+  });
+  res.json(
+    konten.map(({ bereiche, ...k }) => ({ ...k, bereichIds: bereiche.map((b) => b.bereichId) }))
+  );
 });
 
 const kontoSchema = z.object({
@@ -162,27 +167,50 @@ const kontoSchema = z.object({
   bezeichnung: z.string().min(1),
   beschreibung: z.string().optional(),
   anmerkung: z.string().optional(),
+  bereichIds: z.array(z.number().int()).optional(),
 });
 
 adminRouter.post("/konten", async (req, res) => {
   const parse = kontoSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
-  const vorhanden = await prisma.konto.findUnique({ where: { nummer: parse.data.nummer } });
+  const { bereichIds, ...kontoDaten } = parse.data;
+  const vorhanden = await prisma.konto.findUnique({ where: { nummer: kontoDaten.nummer } });
   if (vorhanden) return res.status(409).json({ fehler: "Kontonummer bereits vorhanden." });
-  const konto = await prisma.konto.create({ data: parse.data });
-  await audit({ benutzerId: req.benutzer!.id, aktion: "konto.erstellt", entitaet: "konto", entitaetId: konto.id, neueWerte: konto });
-  res.status(201).json(konto);
+
+  const konto = await prisma.$transaction(async (tx) => {
+    const k = await tx.konto.create({ data: kontoDaten });
+    if (bereichIds?.length) {
+      await tx.bereichKonto.createMany({
+        data: bereichIds.map((bereichId) => ({ bereichId, kontoId: k.id })),
+      });
+    }
+    return k;
+  });
+  await audit({ benutzerId: req.benutzer!.id, aktion: "konto.erstellt", entitaet: "konto", entitaetId: konto.id, neueWerte: { ...konto, bereichIds: bereichIds ?? [] } });
+  res.status(201).json({ ...konto, bereichIds: bereichIds ?? [] });
 });
 
 adminRouter.put("/konten/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const { bezeichnung, beschreibung, anmerkung } = req.body ?? {};
-  const konto = await prisma.konto.update({
-    where: { id },
-    data: { bezeichnung, beschreibung, anmerkung },
+  const { bezeichnung, beschreibung, anmerkung, bereichIds } = req.body ?? {};
+  const konto = await prisma.$transaction(async (tx) => {
+    const k = await tx.konto.update({
+      where: { id },
+      data: { bezeichnung, beschreibung, anmerkung },
+    });
+    if (Array.isArray(bereichIds)) {
+      // Freigabemenge vollstaendig neu setzen.
+      await tx.bereichKonto.deleteMany({ where: { kontoId: id } });
+      if (bereichIds.length) {
+        await tx.bereichKonto.createMany({
+          data: bereichIds.map((bereichId: number) => ({ bereichId, kontoId: id })),
+        });
+      }
+    }
+    return k;
   });
-  await audit({ benutzerId: req.benutzer!.id, aktion: "konto.bearbeitet", entitaet: "konto", entitaetId: id, neueWerte: konto });
-  res.json(konto);
+  await audit({ benutzerId: req.benutzer!.id, aktion: "konto.bearbeitet", entitaet: "konto", entitaetId: id, neueWerte: { ...konto, bereichIds } });
+  res.json({ ...konto, bereichIds: Array.isArray(bereichIds) ? bereichIds : undefined });
 });
 
 adminRouter.post("/konten/:id/aktiv", async (req, res) => {
