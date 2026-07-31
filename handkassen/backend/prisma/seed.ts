@@ -62,6 +62,25 @@ async function main() {
   }
   console.log(`${bereiche.length} Bereiche angelegt/aktualisiert.`);
 
+  // Demo-Freigaben: die meisten Konten fuer alle Bereiche, mindestens eines
+  // bewusst nur fuer einen Bereich, damit der n:m-Fall abgedeckt ist.
+  const alleBereiche = await prisma.bereich.findMany({ select: { id: true, bezeichnung: true } });
+  const alleKonten = await prisma.konto.findMany({ select: { id: true, nummer: true } });
+  for (const k of alleKonten) {
+    const zielBereiche =
+      k.nummer === "28970"
+        ? alleBereiche.filter((b) => b.bezeichnung === "VBW") // Beispiel: nur VBW
+        : alleBereiche;
+    for (const b of zielBereiche) {
+      await prisma.bereichKonto.upsert({
+        where: { bereichId_kontoId: { bereichId: b.id, kontoId: k.id } },
+        update: {},
+        create: { bereichId: b.id, kontoId: k.id },
+      });
+    }
+  }
+  console.log(`Demo-Konto-Freigaben gesetzt.`);
+
   // Standard-Kassenarten (durch Admin später anpassbar)
   const kassenarten = ["einrichtung", "klientenkasse"];
   for (const bezeichnung of kassenarten) {
