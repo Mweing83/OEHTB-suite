@@ -21,10 +21,21 @@ stammdatenRouter.get("/kontakt", angemeldet, async (_req, res) => {
   });
 });
 
-// --- Kontenplan (Bestand, wird nicht im Tagesbetrieb geändert) ---
-stammdatenRouter.get("/konten", angemeldet, async (_req, res) => {
+// --- Kontenplan der gewaehlten Kostenstelle (nur deren Bereich freigegebene Konten) ---
+stammdatenRouter.get("/konten", angemeldet, async (req, res) => {
+  const kostenstelleId = Number(req.query.kostenstelle);
+  if (!kostenstelleId) return res.status(400).json({ fehler: "kostenstelle erforderlich." });
+  if (!(await darfKostenstelle(req.benutzer!, kostenstelleId))) {
+    return res.status(403).json({ fehler: "Kein Zugriff auf diese Kostenstelle." });
+  }
+  const ks = await prisma.kostenstelle.findUnique({
+    where: { id: kostenstelleId },
+    select: { bereichId: true },
+  });
+  if (!ks) return res.status(404).json({ fehler: "Kostenstelle nicht gefunden." });
+
   const konten = await prisma.konto.findMany({
-    where: { aktiv: true },
+    where: { aktiv: true, bereiche: { some: { bereichId: ks.bereichId } } },
     orderBy: { nummer: "asc" },
   });
   res.json(konten);
