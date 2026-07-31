@@ -8,6 +8,7 @@ import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
 import { buchungValidieren, saldoWirkung, belegnummerFormat, type BuchungEingabe } from "../lib/buchungslogik.js";
 import { monatGesperrt } from "../lib/sperre.js";
 import { belegPflichtAktiv } from "../lib/einstellungen.js";
+import { pruefeKontenFreigabe } from "../lib/kontoFreigabe.js";
 
 export const buchungRouter = Router();
 
@@ -173,6 +174,13 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
   const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
   if (!pruef.ok) return res.status(400).json({ fehler: pruef.fehler });
 
+  // 2c) Konten muessen dem Bereich der Kostenstelle freigegeben sein.
+  const freigabe = await pruefeKontenFreigabe(
+    eingabe.kostenstelleId,
+    eingabe.positionen.map((p) => p.kontoId)
+  );
+  if (!freigabe.ok) return res.status(400).json({ fehler: freigabe.fehler });
+
   // 2b) Beleg-Pflicht (falls vom Administrator aktiviert)
   if (!eingabe.belegId && (await belegPflichtAktiv())) {
     return res.status(400).json({ fehler: "Ein Beleg ist verpflichtend. Bitte einen Beleg anhängen." });
@@ -335,6 +343,13 @@ buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
   const erlaubt = aktiveSteuersaetze.map((s) => s.prozent);
   const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
   if (!pruef.ok) return res.status(400).json({ fehler: pruef.fehler });
+
+  // Konten muessen dem Bereich der (Ziel-)Kostenstelle freigegeben sein.
+  const freigabe = await pruefeKontenFreigabe(
+    eingabe.kostenstelleId,
+    eingabe.positionen.map((p) => p.kontoId)
+  );
+  if (!freigabe.ok) return res.status(400).json({ fehler: freigabe.fehler });
 
   // Beleg-Pflicht gilt auch für die Korrektur (neue Buchung).
   if (!eingabe.belegId && (await belegPflichtAktiv())) {
