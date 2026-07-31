@@ -73,7 +73,11 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
   }, [korrektur]);
 
   useEffect(() => {
-    api.get<Konto[]>("/konten").then(setKonten).catch(() => {});
+    if (!kostenstelleId) { setKonten([]); return; }
+    api.get<Konto[]>(`/konten?kostenstelle=${kostenstelleId}`).then(setKonten).catch(() => setKonten([]));
+  }, [kostenstelleId]);
+
+  useEffect(() => {
     api.get<Steuersatz[]>("/steuersaetze").then((s) => {
       setSteuersaetze(s);
       // Standard-Steuersatz auf den höchsten verfügbaren setzen (meist 20 %)
