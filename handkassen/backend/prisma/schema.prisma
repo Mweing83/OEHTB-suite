@@ -160,10 +160,10 @@ model Konto {
 }
 
 // Anpassbare Mehrwertsteuersätze (Stammdaten, durch Admin pflegbar).
-// prozent ist der Satz als Ganzzahl (z. B. 0, 10, 20).
+// prozent ist der Satz mit bis zu einer Nachkommastelle (z. B. 0, 10, 20, 4.9).
 model Steuersatz {
   id      Int     @id @default(autoincrement())
-  prozent Int     @unique
+  prozent Decimal @unique @db.Decimal(5, 1)
   bezeichnung String   // z. B. "Normalsatz 20 %"
   aktiv   Boolean @default(true)
 
@@ -220,7 +220,7 @@ model BuchungsPosition {
   buchungId   Int
   buchung     Buchung @relation(fields: [buchungId], references: [id], onDelete: Cascade)
   betragCent  Int     // Teilbetrag in Cent
-  steuersatz  Int     // 0, 10 oder 20 (Prozent)
+  steuersatz  Decimal @db.Decimal(5, 1) // Satz mit bis zu einer Nachkommastelle
   kontoId     Int
   konto       Konto   @relation(fields: [kontoId], references: [id])
 

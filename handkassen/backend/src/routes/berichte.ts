@@ -192,7 +192,7 @@ berichtRouter.get("/detailbericht", angemeldet, async (req, res) => {
 
   for (const b of buchungen) {
     seitenumbruchPruefen();
-    const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, p.steuersatz), 0);
+    const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, Number(p.steuersatz)), 0);
     const konten = b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ");
     const beschreibung = (b.beschreibung ? b.beschreibung + " — " : "") + konten;
     const vorzeichen = b.typ === "ausgang" ? "- " : "+ ";
@@ -327,7 +327,7 @@ berichtRouter.get("/csv", angemeldet, async (req, res) => {
   const zeilen: string[] = [kopf.join(TRENN)];
 
   for (const b of buchungen) {
-    const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, p.steuersatz), 0);
+    const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, Number(p.steuersatz)), 0);
     const konten = b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ");
     const signiert = b.typ === "ausgang" ? -b.betragCent : b.betragCent;
     zeilen.push(

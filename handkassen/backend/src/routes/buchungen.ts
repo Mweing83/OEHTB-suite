@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { prisma } from "../lib/db.js";
 import { audit } from "../lib/audit.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
-import { buchungValidieren, saldoWirkung, belegnummerFormat, type BuchungEingabe } from "../lib/buchungslogik.js";
+import { buchungValidieren, saldoWirkung, belegnummerFormat, buchungFuerAusgabe, type BuchungEingabe } from "../lib/buchungslogik.js";
 import { monatGesperrt } from "../lib/sperre.js";
 import { belegPflichtAktiv } from "../lib/einstellungen.js";
 import { pruefeKontenFreigabe } from "../lib/kontoFreigabe.js";
@@ -153,7 +153,7 @@ buchungRouter.get("/", angemeldet, async (req, res) => {
     },
     orderBy: { buchungsnummer: "desc" },
   });
-  res.json(buchungen);
+  res.json(buchungen.map(buchungFuerAusgabe));
 });
 
 // --- Buchung anlegen ---
@@ -170,7 +170,7 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
     where: { aktiv: true },
     select: { prozent: true },
   });
-  const erlaubt = aktiveSteuersaetze.map((s) => s.prozent);
+  const erlaubt = aktiveSteuersaetze.map((s) => s.prozent.toNumber());
   const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
   if (!pruef.ok) return res.status(400).json({ fehler: pruef.fehler });
 
@@ -276,7 +276,7 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
     neueWerte: ergebnis,
   });
 
-  res.status(201).json(ergebnis);
+  res.status(201).json(buchungFuerAusgabe(ergebnis));
 });
 
 // --- Storno (keine echte Löschung; Revisionssicherheit) ---
@@ -340,7 +340,7 @@ buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
     where: { aktiv: true },
     select: { prozent: true },
   });
-  const erlaubt = aktiveSteuersaetze.map((s) => s.prozent);
+  const erlaubt = aktiveSteuersaetze.map((s) => s.prozent.toNumber());
   const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
   if (!pruef.ok) return res.status(400).json({ fehler: pruef.fehler });
 
@@ -464,5 +464,5 @@ buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
     neueWerte: ergebnis,
   });
 
-  res.status(201).json(ergebnis);
+  res.status(201).json(buchungFuerAusgabe(ergebnis));
 });

@@ -47,7 +47,7 @@ stammdatenRouter.get("/steuersaetze", angemeldet, async (_req, res) => {
     where: { aktiv: true },
     orderBy: { prozent: "asc" },
   });
-  res.json(saetze);
+  res.json(saetze.map((s) => ({ ...s, prozent: s.prozent.toNumber() })));
 });
 
 // --- Aktive Bereiche / Kassenarten (für die Kostenstellen-Maske) ---

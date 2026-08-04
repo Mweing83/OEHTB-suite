@@ -111,7 +111,7 @@ exportRouter.get(
       const gkonto = b.kostenstelle.gegenkonto ?? "FEHLT";
 
       // Brutto (App) -> netto + steuer (BMD)
-      const { nettoCent, steuerCent } = nettoUndSteuer(p.betragCent, p.steuersatz);
+      const { nettoCent, steuerCent } = nettoUndSteuer(p.betragCent, Number(p.steuersatz));
       // Vorzeichen: Einlagen negativ darstellen (wie in der Musterdatei)
       const vz = istEinlage ? -1 : 1;
 
@@ -182,7 +182,7 @@ exportRouter.get(
 
     const zeilen = buchungen.map((b) => {
       const mwst = b.positionen.reduce(
-        (s, p) => s + nettoUndSteuer(p.betragCent, p.steuersatz).steuerCent,
+        (s, p) => s + nettoUndSteuer(p.betragCent, Number(p.steuersatz)).steuerCent,
         0
       );
       const konten = b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ");

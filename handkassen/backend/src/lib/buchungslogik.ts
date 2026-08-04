@@ -86,3 +86,12 @@ export function saldoWirkung(typ: "eingang" | "ausgang", betragCent: number): nu
 export function belegnummerFormat(jahr: number, kostenstelleNummer: string, laufnummer: number): string {
   return `${jahr}-${kostenstelleNummer}-${String(laufnummer).padStart(2, "0")}`;
 }
+
+// Wandelt die dezimalen Steuersaetze einer Buchung (Prisma-Decimal) in JS-Zahlen,
+// damit das Frontend wie gewohnt mit number arbeitet. Number(Decimal) nutzt valueOf.
+export function buchungFuerAusgabe<T extends { positionen: Array<{ steuersatz: unknown }> }>(b: T): T {
+  return {
+    ...b,
+    positionen: b.positionen.map((p) => ({ ...p, steuersatz: Number(p.steuersatz) })),
+  };
+}

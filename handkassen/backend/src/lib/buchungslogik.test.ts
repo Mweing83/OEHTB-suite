@@ -65,6 +65,17 @@ describe("buchungValidieren", () => {
   it("verlangt mindestens eine Position", () => {
     expect(buchungValidieren(basis({ positionen: [] })).ok).toBe(false);
   });
+
+  it("erlaubt einen dezimalen Steuersatz (4,9 %), wenn er freigegeben ist", () => {
+    const eingabe = {
+      betragCent: 1000,
+      belegdatum: "2026-05-15",
+      typ: "ausgang" as const,
+      kostenstelleId: 1,
+      positionen: [{ betragCent: 1000, steuersatz: 4.9, kontoId: 1 }],
+    };
+    expect(buchungValidieren(eingabe, [0, 4.9, 20]).ok).toBe(true);
+  });
 });
 
 describe("saldoWirkung", () => {

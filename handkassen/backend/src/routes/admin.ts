@@ -227,22 +227,24 @@ adminRouter.post("/konten/:id/aktiv", async (req, res) => {
 
 adminRouter.get("/steuersaetze", async (_req, res) => {
   const saetze = await prisma.steuersatz.findMany({ orderBy: { prozent: "asc" } });
-  res.json(saetze);
+  res.json(saetze.map((s) => ({ ...s, prozent: s.prozent.toNumber() })));
 });
 
 const steuerSchema = z.object({
-  prozent: z.number().int().min(0).max(100),
+  prozent: z.number().min(0).max(100),
   bezeichnung: z.string().min(1),
 });
 
 adminRouter.post("/steuersaetze", async (req, res) => {
   const parse = steuerSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
-  const vorhanden = await prisma.steuersatz.findUnique({ where: { prozent: parse.data.prozent } });
+  // Auf genau eine Nachkommastelle runden (Decimal(5,1)).
+  const prozent = Math.round(parse.data.prozent * 10) / 10;
+  const vorhanden = await prisma.steuersatz.findUnique({ where: { prozent } });
   if (vorhanden) return res.status(409).json({ fehler: "Dieser Satz existiert bereits." });
-  const satz = await prisma.steuersatz.create({ data: parse.data });
+  const satz = await prisma.steuersatz.create({ data: { prozent, bezeichnung: parse.data.bezeichnung } });
   await audit({ benutzerId: req.benutzer!.id, aktion: "steuersatz.erstellt", entitaet: "steuersatz", entitaetId: satz.id, neueWerte: satz });
-  res.status(201).json(satz);
+  res.status(201).json({ ...satz, prozent: satz.prozent.toNumber() });
 });
 
 adminRouter.post("/steuersaetze/:id/aktiv", async (req, res) => {
