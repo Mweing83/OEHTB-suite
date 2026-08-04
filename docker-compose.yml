@@ -20,6 +20,32 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+# Passwort-Selbstheilung fuer alle Postgres-Dienste.
+# Postgres uebernimmt POSTGRES_PASSWORD NUR bei der Erst-Initialisierung eines
+# leeren Volumes. Bei WIEDERVERWENDETEM Volume (Cutover vom alten Handkassen-
+# Server) oder nachtraeglich geaendertem .env-Passwort bliebe sonst das alte
+# Passwort im Volume -> Anmeldung schlaegt fehl (P1000).
+# Dieser Wrapper startet Postgres normal und gleicht im Hintergrund bei JEDEM
+# Start das Passwort lokal (Unix-Socket, trust-Authentifizierung des Superusers)
+# an POSTGRES_PASSWORD an. Er aendert ausschliesslich das Passwort, niemals Daten.
+x-db-pw-sync-entrypoint: &db-pw-sync-entrypoint
+  - /bin/sh
+  - -c
+  - |
+    (
+      until pg_isready -q -h /var/run/postgresql -U "$$POSTGRES_USER"; do sleep 1; done
+      i=0
+      while [ $$i -lt 10 ]; do
+        if psql -v ON_ERROR_STOP=1 -h /var/run/postgresql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" \
+             -c "ALTER USER \"$$POSTGRES_USER\" WITH PASSWORD '$$POSTGRES_PASSWORD';" >/dev/null 2>&1; then
+          echo "[pw-sync] DB-Passwort an POSTGRES_PASSWORD (.env) angeglichen."
+          break
+        fi
+        i=$$((i + 1)); sleep 2
+      done
+    ) &
+    exec docker-entrypoint.sh postgres
+
 services:
   # ---------------------------------------------------------------------------
   # Suite-Datenbank (laeuft auch in der Entwicklung)
@@ -29,6 +55,7 @@ services:
     container_name: suite-db
     restart: unless-stopped
     logging: *logging
+    entrypoint: *db-pw-sync-entrypoint
     environment:
       POSTGRES_USER: ${SUITE_DB_USER:-suite}
       POSTGRES_PASSWORD: ${SUITE_DB_PASSWORD:-suite_dev_passwort}
@@ -126,6 +153,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     logging: *logging
+    entrypoint: *db-pw-sync-entrypoint
     environment:
       POSTGRES_USER: ${HK_DB_USER:-handkassen}
       POSTGRES_PASSWORD: ${HK_DB_PASSWORD:-handkassen}
@@ -211,6 +239,7 @@ services:
     image: postgres:16
     restart: unless-stopped
     logging: *logging
+    entrypoint: *db-pw-sync-entrypoint
     environment:
       POSTGRES_USER: ${STUNDEN_DB_USER:-stunden}
       POSTGRES_PASSWORD: ${STUNDEN_DB_PASSWORD:-stunden_dev_passwort}
@@ -268,6 +297,7 @@ services:
     image: postgres:16
     restart: unless-stopped
     logging: *logging
+    entrypoint: *db-pw-sync-entrypoint
     environment:
       POSTGRES_USER: ${FOERDERUNGEN_DB_USER:-foerderungen}
       POSTGRES_PASSWORD: ${FOERDERUNGEN_DB_PASSWORD:-foerderungen_dev_passwort}
