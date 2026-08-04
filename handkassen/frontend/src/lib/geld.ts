@@ -32,3 +32,12 @@ export function summeSteuerCent(
     0
   );
 }
+
+// Formatiert einen Steuersatz fuer die Anzeige. Ganze Werte ohne
+// Nachkommastelle, gebrochene mit de-AT-Komma und einer Nachkommastelle.
+// 20 -> "20", 13 -> "13", 4.9 -> "4,9", 0 -> "0".
+export function formatProzent(satz: number): string {
+  return Number.isInteger(satz)
+    ? String(satz)
+    : satz.toLocaleString("de-AT", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
