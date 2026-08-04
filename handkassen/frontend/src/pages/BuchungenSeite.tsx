@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
-import { formatCent, summeSteuerCent } from "../lib/geld.js";
+import { formatCent, formatProzent, summeSteuerCent } from "../lib/geld.js";
 import BuchungsFormular, { type KorrekturVorlage } from "../components/BuchungsFormular.js";
 import DatumFeld, { isoZuDe } from "../components/DatumFeld.js";
 import { bestaetigen, hinweis } from "../components/dialog.js";
@@ -310,7 +310,7 @@ export default function BuchungenSeite() {
                         <span className="ml-2 text-xs text-amber-700">(Korrektur von Nr. {b.korrekturVon.buchungsnummer})</span>
                       )}
                       <div className="text-xs text-slate-500">
-                        {b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ")}
+                        {b.positionen.map((p) => `${p.konto.nummer} (${formatProzent(p.steuersatz)}%)`).join(", ")}
                       </div>
                     </td>
                     <td className="text-right">

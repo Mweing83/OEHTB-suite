@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
-import { euroStringZuCent, formatCent } from "../lib/geld.js";
+import { euroStringZuCent, formatCent, formatProzent } from "../lib/geld.js";
 import BelegErfassung from "./BelegErfassung.js";
 import DatumFeld from "./DatumFeld.js";
 
@@ -258,7 +258,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
               onChange={(e) => positionAendern(i, "steuersatz", Number(e.target.value))}
             >
               {steuersaetze.map((s) => (
-                <option key={s.id} value={s.prozent}>{s.prozent} %</option>
+                <option key={s.id} value={s.prozent}>{formatProzent(s.prozent)} %</option>
               ))}
             </select>
             <select

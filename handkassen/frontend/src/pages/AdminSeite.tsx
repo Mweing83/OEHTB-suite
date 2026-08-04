@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
-import { formatCent, euroStringZuCent } from "../lib/geld.js";
+import { formatCent, euroStringZuCent, formatProzent } from "../lib/geld.js";
 
 // ============================================================
 //  Gemeinsame kleine Bausteine
@@ -447,8 +447,9 @@ function SteuersaetzeTab() {
 
   async function anlegen() {
     setFehler("");
-    const prozent = parseInt(neu.prozent, 10);
-    if (isNaN(prozent)) { setFehler("Bitte einen gültigen Prozentwert eingeben."); return; }
+    const roh = parseFloat(neu.prozent.replace(",", "."));
+    if (isNaN(roh)) { setFehler("Bitte einen gültigen Prozentwert eingeben."); return; }
+    const prozent = Math.round(roh * 10) / 10;
     try {
       await api.post("/admin/steuersaetze", { prozent, bezeichnung: neu.bezeichnung });
       setNeu({ prozent: "", bezeichnung: "" });
@@ -469,7 +470,7 @@ function SteuersaetzeTab() {
         <div className="grid grid-cols-4 gap-3 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">Prozent</label>
-            <input className="w-full border rounded px-3 py-2 text-right" placeholder="z. B. 13" value={neu.prozent}
+            <input className="w-full border rounded px-3 py-2 text-right" placeholder="z. B. 13 oder 4,9" value={neu.prozent}
               onChange={(e) => setNeu({ ...neu, prozent: e.target.value })} />
           </div>
           <div className="col-span-2">
@@ -494,7 +495,7 @@ function SteuersaetzeTab() {
           <tbody>
             {liste.map((s) => (
               <tr key={s.id} className="border-b last:border-0">
-                <td className="py-2">{s.prozent} %</td>
+                <td className="py-2">{formatProzent(s.prozent)} %</td>
                 <td>{s.bezeichnung}</td>
                 <td>{s.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
                 <td className="text-right"><StatusKnopf aktiv={s.aktiv} onClick={() => aktivSchalten(s)} /></td>
