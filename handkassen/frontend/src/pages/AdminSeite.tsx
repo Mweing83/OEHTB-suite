@@ -84,6 +84,8 @@ interface Kostenstelle {
   anfangssaldoCent: number;
   saldoCent: number;
   aktiv: boolean;
+  belegStartnummer: number | null;
+  belegStartJahr: number | null;
 }
 // Stammdaten-Eintrag für Bereich bzw. Kassenart
 interface Stammwert { id: number; bezeichnung: string; aktiv: boolean; }
@@ -228,10 +230,10 @@ function KostenstellenTab() {
   const [bereiche, setBereiche] = useState<Stammwert[]>([]);
   const [kassenarten, setKassenarten] = useState<Stammwert[]>([]);
   const [fehler, setFehler] = useState("");
-  const [neu, setNeu] = useState({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "" });
+  const [neu, setNeu] = useState({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: String(new Date().getFullYear()) });
   // Inline-Bearbeitung
   const [bearbeiteId, setBearbeiteId] = useState<number | null>(null);
-  const [entwurf, setEntwurf] = useState({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "" });
+  const [entwurf, setEntwurf] = useState({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: "" });
 
   function laden() {
     api.get<Kostenstelle[]>("/admin/kostenstellen").then(setListe).catch(() => {});
@@ -257,8 +259,11 @@ function KostenstellenTab() {
         bereichId: neu.bereichId,
         kassenartId: neu.kassenartId,
         anfangssaldoCent: neu.anfangssaldo ? euroStringZuCent(neu.anfangssaldo) : 0,
+        ...(neu.belegStartnummer.trim()
+          ? { belegStartnummer: Number(neu.belegStartnummer), belegStartJahr: Number(neu.belegStartJahr) }
+          : {}),
       });
-      setNeu({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "" });
+      setNeu({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: String(new Date().getFullYear()) });
       laden();
     } catch (e) {
       setFehler((e as Error).message);
@@ -278,6 +283,8 @@ function KostenstellenTab() {
       bereichId: k.bereichId,
       kassenartId: k.kassenartId,
       anfangssaldo: (k.anfangssaldoCent / 100).toFixed(2).replace(".", ","),
+      belegStartnummer: k.belegStartnummer != null ? String(k.belegStartnummer) : "",
+      belegStartJahr: k.belegStartJahr != null ? String(k.belegStartJahr) : String(new Date().getFullYear()),
     });
   }
   async function bearbeitenSpeichern(id: number) {
@@ -293,6 +300,8 @@ function KostenstellenTab() {
         bereichId: entwurf.bereichId,
         kassenartId: entwurf.kassenartId,
         anfangssaldoCent: cent,
+        belegStartnummer: entwurf.belegStartnummer.trim() ? Number(entwurf.belegStartnummer) : null,
+        belegStartJahr: entwurf.belegStartnummer.trim() ? Number(entwurf.belegStartJahr) : null,
       });
       setBearbeiteId(null);
       laden();
@@ -344,6 +353,21 @@ function KostenstellenTab() {
           </div>
           <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
+        <div className="grid grid-cols-8 gap-3 items-end mt-3">
+          <div className="col-span-2">
+            <label className="block text-sm font-medium mb-1">Start-Belegnummer (optional)</label>
+            <input className="w-full border rounded px-3 py-2 text-right" placeholder="z. B. 48" value={neu.belegStartnummer}
+              onChange={(e) => setNeu({ ...neu, belegStartnummer: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">gilt für Jahr</label>
+            <input className="w-full border rounded px-3 py-2 text-right" value={neu.belegStartJahr}
+              onChange={(e) => setNeu({ ...neu, belegStartJahr: e.target.value })} />
+          </div>
+          <p className="col-span-5 text-xs text-slate-500 self-center">
+            Für die unterjährige Umstellung: die erste Buchung dieser Kassa im angegebenen Jahr erhält diese laufende Nummer.
+          </p>
+        </div>
         {(aktiveBereiche.length === 0 || aktiveArten.length === 0) && (
           <p className="text-xs text-amber-600 mt-2">
             Hinweis: Es muss mindestens ein aktiver Bereich und eine aktive Art vorhanden sein.
@@ -357,7 +381,7 @@ function KostenstellenTab() {
           <thead>
             <tr className="text-left text-slate-500 border-b">
               <th className="py-2">Nummer</th><th>Bezeichnung</th><th>Gegenkonto</th><th>Bereich</th><th>Art</th>
-              <th className="text-right">Anfangssaldo</th><th className="text-right">akt. Saldo</th><th>Status</th><th></th>
+              <th className="text-right">Anfangssaldo</th><th className="text-right">akt. Saldo</th><th>Start-Beleg</th><th>Status</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -406,6 +430,16 @@ function KostenstellenTab() {
                   ) : formatCent(k.anfangssaldoCent)}
                 </td>
                 <td className="text-right">{formatCent(k.saldoCent)}</td>
+                <td>
+                  {imEdit ? (
+                    <div className="flex gap-1">
+                      <input className={`${zelleInput} w-16 text-right`} placeholder="Nr." value={entwurf.belegStartnummer}
+                        onChange={(e) => setEntwurf({ ...entwurf, belegStartnummer: e.target.value })} />
+                      <input className={`${zelleInput} w-16 text-right`} placeholder="Jahr" value={entwurf.belegStartJahr}
+                        onChange={(e) => setEntwurf({ ...entwurf, belegStartJahr: e.target.value })} />
+                    </div>
+                  ) : (k.belegStartnummer != null ? `${k.belegStartnummer} (${k.belegStartJahr})` : <span className="text-slate-400">–</span>)}
+                </td>
                 <td>{k.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
                 <td className="text-right space-x-2 whitespace-nowrap">
                   {imEdit ? (
