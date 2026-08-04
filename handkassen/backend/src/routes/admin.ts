@@ -263,6 +263,17 @@ adminRouter.post("/steuersaetze/:id/aktiv", async (req, res) => {
   res.json({ id: satz.id, aktiv: satz.aktiv });
 });
 
+// Steuersatz endgueltig loeschen. Bereits gebuchte Positionen speichern den
+// Satz als Zahlwert (keine Fremdschluessel-Beziehung), bleiben also unberuehrt.
+adminRouter.post("/steuersaetze/:id/loeschen", async (req, res) => {
+  const id = Number(req.params.id);
+  const satz = await prisma.steuersatz.findUnique({ where: { id } });
+  if (!satz) return res.status(404).json({ fehler: "Steuersatz nicht gefunden." });
+  await prisma.steuersatz.delete({ where: { id } });
+  await audit({ benutzerId: req.benutzer!.id, aktion: "steuersatz.geloescht", entitaet: "steuersatz", entitaetId: id, alteWerte: satz });
+  res.json({ ok: true });
+});
+
 // ============================================================
 //  BEREICHE (Stammdaten für Kostenstellen)
 // ============================================================

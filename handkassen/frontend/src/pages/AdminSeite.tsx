@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 import { formatCent, euroStringZuCent, formatProzent } from "../lib/geld.js";
+import { bestaetigen } from "../components/dialog.js";
 
 // ============================================================
 //  Gemeinsame kleine Bausteine
@@ -496,6 +497,21 @@ function SteuersaetzeTab() {
     await api.post(`/admin/steuersaetze/${s.id}/aktiv`, { aktiv: !s.aktiv }).catch((e) => setFehler((e as Error).message));
     laden();
   }
+  async function loeschen(s: Steuersatz) {
+    setFehler("");
+    const ok = await bestaetigen(`Steuersatz ${formatProzent(s.prozent)} % wirklich löschen?`, {
+      titel: "Steuersatz löschen",
+      bestaetigenText: "Löschen",
+      gefahr: true,
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/admin/steuersaetze/${s.id}/loeschen`);
+      laden();
+    } catch (e) {
+      setFehler((e as Error).message);
+    }
+  }
 
   return (
     <>
@@ -532,7 +548,10 @@ function SteuersaetzeTab() {
                 <td className="py-2">{formatProzent(s.prozent)} %</td>
                 <td>{s.bezeichnung}</td>
                 <td>{s.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
-                <td className="text-right"><StatusKnopf aktiv={s.aktiv} onClick={() => aktivSchalten(s)} /></td>
+                <td className="text-right space-x-2 whitespace-nowrap">
+                  <StatusKnopf aktiv={s.aktiv} onClick={() => aktivSchalten(s)} />
+                  <button onClick={() => loeschen(s)} className="text-xs text-red-600 hover:underline">löschen</button>
+                </td>
               </tr>
             ))}
           </tbody>
