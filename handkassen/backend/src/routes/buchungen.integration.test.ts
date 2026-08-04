@@ -70,4 +70,53 @@ run("buchungen-Routen (Integration)", () => {
     const rAdmin = await admin.post("/api/buchungen").send(alt);
     expect(rAdmin.status).toBe(201);
   });
+
+  it("verwendet die manuelle Start-Belegnummer im Umstellungsjahr", async () => {
+    await prisma.kostenstelle.update({
+      where: { id: basis.ksA },
+      data: { belegStartnummer: 48, belegStartJahr: 2026 },
+    });
+    const r = await erfasser.post("/api/buchungen").send(buchungEingabe(basis.ksA, basis.kontoId));
+    expect(r.status).toBe(201);
+    expect(r.body.belegLaufnummer).toBe(48);
+    expect(r.body.belegnummer).toBe("2026-1000-48");
+  });
+
+  it("Startwert hebt nur die Untergrenze an (kein Rueckwaertsspringen)", async () => {
+    await prisma.kostenstelle.update({
+      where: { id: basis.ksA },
+      data: { belegStartnummer: 48, belegStartJahr: 2026 },
+    });
+    const r1 = await erfasser.post("/api/buchungen").send(buchungEingabe(basis.ksA, basis.kontoId));
+    expect(r1.body.belegLaufnummer).toBe(48);
+    const r2 = await erfasser.post("/api/buchungen").send(buchungEingabe(basis.ksA, basis.kontoId));
+    expect(r2.body.belegLaufnummer).toBe(49); // Ist-Max (48) gewinnt gegen Start (48)
+  });
+
+  it("ignoriert die Start-Belegnummer in einem anderen Jahr", async () => {
+    await prisma.kostenstelle.update({
+      where: { id: basis.ksA },
+      data: { belegStartnummer: 48, belegStartJahr: 2026 },
+    });
+    // Mai 2027 fuer ksA entsperren, damit der Erfasser dort buchen darf.
+    await prisma.monatsSperre.create({
+      data: { kostenstelleId: basis.ksA, jahr: 2027, monat: 5, gesperrt: false },
+    });
+    const r = await erfasser
+      .post("/api/buchungen")
+      .send(buchungEingabe(basis.ksA, basis.kontoId, { belegdatum: "2027-05-15" }));
+    expect(r.status).toBe(201);
+    expect(r.body.belegLaufnummer).toBe(1);
+    expect(r.body.belegnummer).toBe("2027-1000-01");
+  });
+
+  it("speichert die Start-Belegnummer ueber die Admin-API", async () => {
+    const r = await admin
+      .put(`/api/admin/kostenstellen/${basis.ksA}`)
+      .send({ belegStartnummer: 48, belegStartJahr: 2026 });
+    expect(r.status).toBe(200);
+    const ks = await prisma.kostenstelle.findUnique({ where: { id: basis.ksA } });
+    expect(ks!.belegStartnummer).toBe(48);
+    expect(ks!.belegStartJahr).toBe(2026);
+  });
 });

@@ -87,6 +87,8 @@ const ksSchema = z.object({
   bereichId: z.number().int(),
   kassenartId: z.number().int(),
   anfangssaldoCent: z.number().int().optional(),
+  belegStartnummer: z.number().int().positive().optional(),
+  belegStartJahr: z.number().int().optional(),
 });
 
 adminRouter.post("/kostenstellen", async (req, res) => {
@@ -106,7 +108,7 @@ adminRouter.post("/kostenstellen", async (req, res) => {
 // laufende Saldo um die Differenz korrigiert (Startbestand verschiebt sich).
 adminRouter.put("/kostenstellen/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const { nummer, bezeichnung, gegenkonto, bereichId, kassenartId, anfangssaldoCent } = req.body ?? {};
+  const { nummer, bezeichnung, gegenkonto, bereichId, kassenartId, anfangssaldoCent, belegStartnummer, belegStartJahr } = req.body ?? {};
   const alt = await prisma.kostenstelle.findUnique({ where: { id } });
   if (!alt) return res.status(404).json({ fehler: "Nicht gefunden." });
 
@@ -134,6 +136,12 @@ adminRouter.put("/kostenstellen/:id", async (req, res) => {
       kassenartId: typeof kassenartId === "number" ? kassenartId : alt.kassenartId,
       anfangssaldoCent: neuerAnfang,
       saldoCent: { increment: differenz },
+      belegStartnummer:
+        belegStartnummer === undefined ? alt.belegStartnummer
+        : (belegStartnummer === null || belegStartnummer === "" ? null : Number(belegStartnummer)),
+      belegStartJahr:
+        belegStartJahr === undefined ? alt.belegStartJahr
+        : (belegStartJahr === null || belegStartJahr === "" ? null : Number(belegStartJahr)),
     },
   });
   await audit({ benutzerId: req.benutzer!.id, aktion: "kostenstelle.bearbeitet", entitaet: "kostenstelle", entitaetId: id, alteWerte: alt, neueWerte: ks });

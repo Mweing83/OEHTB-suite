@@ -220,17 +220,23 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
 
     // Belegnummer läuft JE Kostenstelle UND Jahr fortlaufend (Jahr aus Belegdatum).
     const belegJahr = beleg.getFullYear();
+    // Kostenstelle inkl. optionaler Start-Belegnummer laden.
+    const ks = await tx.kostenstelle.findUnique({
+      where: { id: eingabe.kostenstelleId },
+      select: { nummer: true, belegStartnummer: true, belegStartJahr: true },
+    });
     const maxLauf = await tx.buchung.aggregate({
       where: { kostenstelleId: eingabe.kostenstelleId, belegJahr },
       _max: { belegLaufnummer: true },
     });
-    const naechsteLaufnummer = (maxLauf._max.belegLaufnummer ?? 0) + 1;
+    let basis = maxLauf._max.belegLaufnummer ?? 0;
+    // Manuelle Start-Belegnummer nur im Umstellungsjahr; hebt die Untergrenze an.
+    if (ks!.belegStartJahr === belegJahr && ks!.belegStartnummer != null) {
+      basis = Math.max(basis, ks!.belegStartnummer - 1);
+    }
+    const naechsteLaufnummer = basis + 1;
 
-    // Kostenstellen-Nummer für die volle Belegnummer (z. B. "2026-1260-01") holen.
-    const ks = await tx.kostenstelle.findUnique({
-      where: { id: eingabe.kostenstelleId },
-      select: { nummer: true },
-    });
+    // Volle Belegnummer (z. B. "2026-1260-48").
     const belegnummer = belegnummerFormat(belegJahr, ks!.nummer, naechsteLaufnummer);
 
     const buchung = await tx.buchung.create({
@@ -405,16 +411,20 @@ buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
 
     // Belegnummer der Korrektur läuft je Kostenstelle und Jahr weiter (Jahr aus Belegdatum).
     const belegJahr = neuesBelegdatum.getFullYear();
+    const ksK = await tx.kostenstelle.findUnique({
+      where: { id: eingabe.kostenstelleId },
+      select: { nummer: true, belegStartnummer: true, belegStartJahr: true },
+    });
     const maxLauf = await tx.buchung.aggregate({
       where: { kostenstelleId: eingabe.kostenstelleId, belegJahr },
       _max: { belegLaufnummer: true },
     });
-    const naechsteLaufnummer = (maxLauf._max.belegLaufnummer ?? 0) + 1;
+    let basis = maxLauf._max.belegLaufnummer ?? 0;
+    if (ksK!.belegStartJahr === belegJahr && ksK!.belegStartnummer != null) {
+      basis = Math.max(basis, ksK!.belegStartnummer - 1);
+    }
+    const naechsteLaufnummer = basis + 1;
 
-    const ksK = await tx.kostenstelle.findUnique({
-      where: { id: eingabe.kostenstelleId },
-      select: { nummer: true },
-    });
     const belegnummer = belegnummerFormat(belegJahr, ksK!.nummer, naechsteLaufnummer);
 
     const korrektur = await tx.buchung.create({

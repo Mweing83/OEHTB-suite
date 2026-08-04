@@ -85,6 +85,10 @@ model Kostenstelle {
   anfangssaldoCent Int  @default(0)
   // Aktueller Kassenstand in Cent (wird aus Buchungen abgeleitet/gepflegt)
   saldoCent   Int       @default(0)
+  // Manuell setzbare Start-Belegnummer fuer die unterjaehrige Umstellung.
+  // Gilt nur im belegStartJahr und hebt die laufende Nummer nur an (nie rueckwaerts).
+  belegStartnummer Int?
+  belegStartJahr   Int?
   aktiv       Boolean   @default(true)
 
   benutzer    BenutzerKostenstelle[]
