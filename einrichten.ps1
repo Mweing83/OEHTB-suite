@@ -69,6 +69,12 @@ PROVISION_SECRET=$provision
 # COOKIE_INSECURE=
 SESSION_TIMEOUT_MINUTEN=15
 
+# ==== Tailscale (optionaler HTTPS-Fernzugriff) ====
+# Auth-Key EINMALIG in der Tailscale-Admin-Konsole erzeugen und hier eintragen,
+# dann "SERVER - Tailscale.bat" ausfuehren. Geheim halten. Details: TAILSCALE.md
+# TAILSCALE_AUTHKEY=tskey-...
+# TAILSCALE_HOSTNAME=oehtb-suite
+
 # ==== Datenbanken ====
 SUITE_DB_USER=suite
 SUITE_DB_PASSWORD=$suitePw
