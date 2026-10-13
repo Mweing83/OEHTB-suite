@@ -1,16 +1,17 @@
 # OEHTB-Suite: Gesamt-Deployment.
 #
 # ENTWICKLUNG:  docker compose up -d
-#   -> startet NUR suite-db (Handkassen-/Stunden-DBs laufen wie bisher aus
-#      den jeweiligen Projektordnern; Apps per "npm run dev").
+#   -> startet NUR suite-db (die Dev-DBs der Tools laufen aus den jeweiligen
+#      Projektordnern mit eigenem Mini-Compose; Apps per "npm run dev").
 #
 # PRODUKTION:   docker compose --profile produktion up -d --build
-#   -> startet alles: nginx (Port 80), Portal, beide Tools, drei DBs, Backup.
+#   -> startet alles: nginx (Port 80), Portal, drei Tools, vier DBs, Backup.
+#      Es ist der EINZIGE Betriebsweg; eigenstaendige Tool-Stacks gibt es nicht.
 #
-# WICHTIG (Cutover vom alten Handkassen-Server): Die Volumes der bestehenden
-# Handkassen-Installation werden ueber explizite "name:"-Eintraege
-# weiterverwendet (handkassen_db_data, handkassen_belege_data). Dadurch
-# uebernimmt die Suite die vorhandenen Produktivdaten.
+# WICHTIG: Die Produktivdaten der Handkasse liegen in den Volumes
+# handkassen_db_data und handkassen_belege_data (historische Namen aus der
+# Zeit vor der Suite, ueber "name:" festgeschrieben). Diese Namen NIE aendern
+# und NIE eine zweite PostgreSQL-Instanz darauf starten (Datenverlust).
 
 # Gemeinsame Log-Rotation: pro Container max. 3 Dateien à 10 MB (=30 MB Deckel),
 # damit die Container-Logs die Serverplatte nicht unbegrenzt vollschreiben.
@@ -54,6 +55,9 @@ services:
     image: postgres:16-alpine
     container_name: suite-db
     restart: unless-stopped
+    # Postgres sauber herunterfahren lassen (Checkpoint schreiben), statt es nach
+    # 10 s abzuschiessen - Schutz des Datenverzeichnisses bei Updates/Neustarts.
+    stop_grace_period: 60s
     logging: *logging
     entrypoint: *db-pw-sync-entrypoint
     environment:
@@ -152,6 +156,9 @@ services:
     profiles: ["produktion"]
     image: postgres:16-alpine
     restart: unless-stopped
+    # Postgres sauber herunterfahren lassen (Checkpoint schreiben), statt es nach
+    # 10 s abzuschiessen - Schutz des Datenverzeichnisses bei Updates/Neustarts.
+    stop_grace_period: 60s
     logging: *logging
     entrypoint: *db-pw-sync-entrypoint
     environment:
@@ -238,6 +245,9 @@ services:
     profiles: ["produktion"]
     image: postgres:16
     restart: unless-stopped
+    # Postgres sauber herunterfahren lassen (Checkpoint schreiben), statt es nach
+    # 10 s abzuschiessen - Schutz des Datenverzeichnisses bei Updates/Neustarts.
+    stop_grace_period: 60s
     logging: *logging
     entrypoint: *db-pw-sync-entrypoint
     environment:
@@ -296,6 +306,9 @@ services:
     profiles: ["produktion"]
     image: postgres:16
     restart: unless-stopped
+    # Postgres sauber herunterfahren lassen (Checkpoint schreiben), statt es nach
+    # 10 s abzuschiessen - Schutz des Datenverzeichnisses bei Updates/Neustarts.
+    stop_grace_period: 60s
     logging: *logging
     entrypoint: *db-pw-sync-entrypoint
     environment:
@@ -354,6 +367,10 @@ volumes:
     name: handkassen_db_data
   handkassen_belege_data:
     name: handkassen_belege_data
+    # Name stammt aus der Zeit vor der Suite (damaliges Compose-Projekt "handkassen").
+    # "external" beendet die Warnung "volume ... was created for project handkassen";
+    # Start-/Update-Skripte legen das Volume bei Bedarf per "docker volume create" an.
+    external: true
   stunden_db_data:
     name: stunden_db_data
   foerderungen_db_data:

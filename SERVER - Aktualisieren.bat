@@ -60,6 +60,31 @@ if "%VORHER%"=="%NACHHER%" (
   git log --oneline %VORHER%..%NACHHER%
 )
 
+REM --- 2b. Schutz: fremde Container an Suite-Volumes? --------------------
+REM (zwei Postgres-Instanzen auf einem Volume = Datenverlust)
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\volume-schutz.ps1"
+if errorlevel 1 (
+  echo.
+  echo Update abgebrochen. Container wurden NICHT neu gebaut.
+  pause
+  exit /b 1
+)
+
+REM --- 2c. Sofort-Sicherung aller Datenbanken ^(vor dem Neubau^) -----------
+echo.
+echo Sichere alle Datenbanken vor dem Update ...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\db-sicherung-update.ps1" -Phase vorher
+if errorlevel 1 (
+  echo.
+  echo FEHLER: Sicherung fehlgeschlagen. Update abgebrochen, Container NICHT neu gebaut.
+  pause
+  exit /b 1
+)
+
+REM Beleg-Volume ist in docker-compose.yml "external" ^(stammt aus der Standalone-Zeit^).
+docker volume create handkassen_belege_data >nul 2>nul
+
 REM --- 3. Container neu bauen und starten --------------------------------
 echo.
 echo Baue und starte alle Dienste neu - das kann einige Minuten dauern ...
@@ -84,6 +109,15 @@ if errorlevel 1 (
   echo   Logs:    docker compose --profile produktion logs
 ) else (
   echo   Bereit.
+)
+
+REM --- 5. Plausibilitaetscheck: hat eine Datenbank Zeilen verloren? ------
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\db-sicherung-update.ps1" -Phase nachher
+if errorlevel 1 (
+  echo.
+  echo ACHTUNG: Bitte die Warnung oben lesen, BEVOR jemand mit der Suite arbeitet!
+  echo.
 )
 
 echo.

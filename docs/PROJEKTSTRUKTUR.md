@@ -193,12 +193,9 @@ meisten „eigene" Dateien wie Handbücher und Backup-Skripte).
 | `2026-06 Handkasse Manual.pdf` | Handbuch als PDF |
 | `Handbuch als PDF erstellen.bat`, `Manual als PDF erstellen.bat` | Doppelklick-Skripte, die aus dem Handbuch ein PDF erzeugen |
 | `BACKUP.md` | Erklärung des Backup-Konzepts |
-| `INSTALL-Windows-Server.md`, `UPDATE-admin.md` | Anleitungen für Installation und Updates (aus der Zeit vor der Suite) |
-| `docker-compose.yml` | Eigenes Compose nur für dieses Tool – für Entwicklung/Einzelbetrieb; im Suite-Betrieb gilt das Compose im Wurzelverzeichnis |
-| `start.ps1`, `stop.ps1`, `restore.ps1`, `setup-server.ps1` | PowerShell-Skripte: starten, stoppen, Backup wiederherstellen, Server einrichten |
-| `Handkassen starten.bat`, `... stoppen.bat`, `... wiederherstellen.bat`, `SERVER - *.bat` | Doppelklick-Hüllen um diese Skripte |
-| `.env` / `.env.example` | Konfiguration (Tool-eigene Variante) |
-| `.githooks/pre-commit` | Git-Hook: läuft vor jedem Commit (z. B. Formatprüfung) |
+| `docker-compose.yml` | Nur die Entwicklungs-Datenbank (`handkassen-dev-db`, Daten in `postgres-data/`). Kein App-/Backup-Dienst: Betrieb ausschließlich über das Compose im Wurzelverzeichnis |
+| `backend/.env.example` | Vorlage für die lokale Backend-Konfiguration (Entwicklung) |
+| `Handbuch als PDF erstellen.bat`, `Manual als PDF erstellen.bat` | Erzeugen das Benutzerhandbuch als PDF |
 | `.gitattributes`, `.gitignore`, `.dockerignore` | Regeln, was Git bzw. Docker ignorieren/wie Zeilenenden behandelt werden |
 | `.claude/settings.local.json` | Lokale Einstellungen für Claude Code (Entwicklungswerkzeug) |
 

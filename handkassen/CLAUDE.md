@@ -19,17 +19,23 @@ Handkassen-System", Version 1.0.
 - Frontend: React + Vite + TypeScript + Tailwind CSS
 - Backend: Node.js + Express + TypeScript
 - Datenbank: PostgreSQL, Zugriff über Prisma ORM
-- Auth: eigene Benutzerverwaltung, Passwort-Hash mit bcrypt, Sessions per JWT-Cookie
+- Auth: Suite-SSO – Anmeldung und Passwörter liegen zentral im Suite-Portal; das Tool
+  prüft das gemeinsame JWT-Cookie (lib/suiteAuth.ts) und provisioniert Benutzer beim Login
 - PDF: serverseitig (pdfkit)
-- Betrieb: Docker + Docker Compose
+- Betrieb: Docker + Docker Compose, ausschließlich über die OEHTB-Suite (Suite-Root)
 
 ### Betrieb / Start
 
-- **Entwicklung:** nur die Datenbank in Docker starten mit `docker compose up -d`
-  (der App-Dienst hat das Profil "produktion" und startet hier absichtlich NICHT;
-  das Backend läuft in der Entwicklung per `npm run dev` im backend-Ordner).
-- **Produktion:** komplette Anwendung inkl. Backend-Container starten mit
-  `docker compose --profile produktion up -d`.
+- **Entwicklung:** `docker compose up -d` in diesem Ordner startet NUR die
+  Entwicklungs-Datenbank (Container `handkassen-dev-db`, Daten in `postgres-data/`).
+  Backend per `npm run dev` im backend-Ordner, Konfiguration aus `backend/.env`
+  (Vorlage `backend/.env.example`). Login läuft auch lokal über das Suite-Portal.
+- **Produktion:** NUR über die Suite im übergeordneten Ordner
+  (`docker compose --profile produktion up -d --build` bzw. `SERVER - *.bat` dort).
+  Es gibt keinen eigenständigen Handkassen-Betrieb mehr; die hiesige
+  `docker-compose.yml` enthält bewusst keinen App-/Backup-Dienst und kein
+  benanntes Volume, damit sie die Produktivdaten (`handkassen_db_data`) nie
+  berühren kann.
 
 ## Domänenregeln (zentral, immer beachten)
 

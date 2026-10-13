@@ -2,7 +2,7 @@
 # ÖHTB Handkassen – Datensicherung
 # Sichert Datenbank (pg_dump) + Belegfotos (uploads) als ein Archiv und
 # verteilt es auf alle verfügbaren Ablageorte (lokal, NAS, USB).
-# Wird vom Backup-Container automatisch per Cron aufgerufen (siehe entrypoint.sh),
+# Wird vom Suite-Backup-Container (handkassen-backup) planmaessig aufgerufen (siehe entrypoint.sh),
 # kann aber auch manuell gestartet werden (siehe BACKUP.md).
 set -eu
 

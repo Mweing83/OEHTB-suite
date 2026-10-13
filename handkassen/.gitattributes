@@ -1,6 +1,0 @@
-# Shell-Skripte müssen LF-Zeilenenden behalten, sonst scheitern sie im Linux-Container.
-*.sh text eol=lf
-backup/* text eol=lf
-# Git-Hooks haben keine .sh-Endung, brauchen aber zwingend LF – sonst scheitert
-# der sh-Interpreter unter Windows (CRLF -> "bad interpreter") und blockiert Commits.
-.githooks/* text eol=lf

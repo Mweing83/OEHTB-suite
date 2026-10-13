@@ -4,7 +4,7 @@
 #   /bin/sh /backup/restore.sh /backups/lokal/taeglich/handkassen_JJJJMMTT_HHMMSS.tar.gz
 #
 # ACHTUNG: Überschreibt die aktuelle Datenbank und die Belegfotos!
-# Vorher die Anwendung (app-Container) stoppen.
+# Vorher die Anwendung (Container handkassen-app der Suite) stoppen.
 #
 # SICHERHEITSNETZ: Vor dem Überschreiben wird automatisch eine Sicherheitskopie
 # des AKTUELLEN Stands unter /backups/lokal/vor-restore/ abgelegt – im gleichen

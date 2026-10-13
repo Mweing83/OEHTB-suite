@@ -104,6 +104,20 @@ Tailscale-URL erreichbar; die Tools liegen unter `/handkassen` und `/stunden`.
 Eine neue Version wird per Doppelklick auf **`SERVER - Aktualisieren.bat`**
 eingespielt. Das Skript:
 
+Das Update-Skript schützt die Daten dabei zusätzlich:
+
+- **Volume-Schutz** (`scripts\volume-schutz.ps1`): bricht ab, wenn ein Container,
+  der nicht zur Suite gehört, an einem Suite-Volume hängt. Zwei PostgreSQL-Instanzen
+  auf demselben Datenverzeichnis zerstören die Datenbank; der Schutz verhindert
+  genau das.
+- **Sofort-Sicherung** (`scripts\db-sicherung-update.ps1 -Phase vorher`): `pg_dump`
+  aller vier Datenbanken nach `backups-vor-update\<Zeitstempel>\` plus Zeilenzahlen
+  aller Tabellen. Schlägt sie fehl, wird nicht neu gebaut. Die letzten 10
+  Sicherungen bleiben liegen.
+- **Plausibilitätscheck** (`-Phase nachher`): vergleicht nach dem Start die
+  Zeilenzahlen mit dem Stand davor und warnt deutlich, wenn eine Tabelle Zeilen
+  verloren hat.
+
 1. holt den neuesten Stand aus Git (`git pull --ff-only` – nur vorwärts, keine
    Konflikte),
 2. zeigt an, welche Commits neu sind,

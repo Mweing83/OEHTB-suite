@@ -1,0 +1,5 @@
+# Shell-Skripte muessen LF-Zeilenenden behalten, sonst scheitern sie im
+# Linux-Container ("bad interpreter"). Betrifft v. a. die Backup-Skripte der
+# Handkasse, die der Suite-Backup-Container direkt ausfuehrt.
+*.sh text eol=lf
+handkassen/backup/* text eol=lf

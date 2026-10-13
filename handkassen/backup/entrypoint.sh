@@ -6,7 +6,7 @@
 # "Datensicherung".
 set -u
 
-# Direktaufruf (z. B. Test):  docker compose run --rm backup /bin/sh /backup/backup.sh
+# Direktaufruf (Suite-Root):  docker compose --profile produktion exec handkassen-backup /bin/sh /backup/backup.sh
 if [ "$#" -gt 0 ]; then
   exec "$@"
 fi

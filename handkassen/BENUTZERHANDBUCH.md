@@ -3,11 +3,12 @@
 Dieses Handbuch richtet sich an alle Personen, die mit dem Handkassen-System
 arbeiten: beim Erfassen von Buchungen, beim Monatsabschluss, beim Prüfen und
 Freigeben sowie bei der Verwaltung. Es beschreibt die Bedienung der Anwendung –
-die technische Einrichtung des Servers steht in `INSTALL-Windows-Server.md`.
+die technische Einrichtung des Servers steht in der Suite-Anleitung `INSTALL.md`.
 
-> Das System ist eine **revisionssichere** Handkasse: Einmal erfasste Buchungen
-> werden nicht gelöscht oder überschrieben, sondern bei Bedarf storniert oder
-> korrigiert. So bleibt jeder Vorgang nachvollziehbar.
+> Das System ist eine **revisionssichere** Handkasse: Buchungen werden nie
+> gelöscht. Solange der Monat noch nicht freigegeben ist, lassen sie sich
+> bearbeiten oder stornieren; jede Änderung wird mit altem und neuem Stand im
+> Protokoll festgehalten. Nach der Freigabe sind sie unveränderlich.
 
 ---
 
@@ -18,7 +19,7 @@ die technische Einrichtung des Servers steht in `INSTALL-Windows-Server.md`.
 3. Der Aufbau der Oberfläche
 4. Buchungen erfassen
 5. Belege erfassen (Datei, Foto, Scanner)
-6. Buchungen korrigieren und stornieren
+6. Buchungen bearbeiten und stornieren
 7. Buchungen suchen und filtern
 8. Monatsabschluss
 9. Berichte und Exporte
@@ -32,20 +33,16 @@ die technische Einrichtung des Servers steht in `INSTALL-Windows-Server.md`.
 ## 1. Erste Schritte
 
 ### Anmelden
-Die Anwendung wird im Browser über die Adresse aufgerufen, die euch die
-Administration mitteilt (z. B. `http://<server>:3001`). Es erscheint die
-Anmeldemaske. Dort Benutzername und Passwort eingeben und auf **Anmelden**
-klicken.
+Die Handkasse ist Teil der **ÖHTB-Suite**. Im Browser die Adresse der Suite
+aufrufen, die euch die Administration mitteilt (z. B. `http://<server>`). Es
+erscheint die Anmeldemaske des Portals. Dort Benutzername und Passwort eingeben
+und auf **Anmelden** klicken. Danach im Portal die Kachel **Handkassen** wählen
+(oder direkt `http://<server>/handkassen` aufrufen).
 
-### Erstes Passwort festlegen
-Wenn für einen Zugang noch kein Passwort vergeben wurde, erkennt das die
-Anmeldung automatisch: Statt einer Fehlermeldung erscheint die Maske
-„Passwort festlegen". Dort das gewünschte Passwort (mindestens **8 Zeichen**)
-zweimal eingeben. Danach ist man direkt angemeldet.
-
-### Passwort später ändern
-Oben rechts gibt es jederzeit den Link **Passwort ändern**. Dazu das aktuelle
-Passwort und zweimal das neue eingeben (mindestens 8 Zeichen).
+### Passwort
+Benutzerkonten und Passwörter werden zentral im Suite-Portal verwaltet, nicht in
+der Handkasse. Erstes Passwort und Passwortänderung laufen dort; bei Fragen an
+die Administration (Menüpunkt **Kontakt**).
 
 ### Automatische Abmeldung
 Aus Sicherheitsgründen wird man nach **15 Minuten ohne Aktivität** automatisch
@@ -88,8 +85,7 @@ Am oberen Rand befindet sich die Navigationsleiste mit den Menüpunkten:
 - **Verwaltung** – nur für die Rolle Admin sichtbar.
 - **Kontakt** – Ansprechpartner bei Fragen.
 
-Rechts oben stehen der eigene Name samt Rolle sowie die Links **Passwort ändern**
-und **Abmelden**.
+Rechts oben stehen der eigene Name samt Rolle sowie der Link **Abmelden**.
 
 ---
 
@@ -167,18 +163,26 @@ mit der Buchung gespeichert.
 
 ---
 
-## 6. Buchungen korrigieren und stornieren
+## 6. Buchungen bearbeiten und stornieren
 
 Weil das System revisionssicher ist, werden Buchungen **nicht gelöscht**. Es
 gibt stattdessen zwei Wege, die in der Buchungsliste rechts je Zeile angeboten
-werden (solange die Buchung nicht gesperrt ist):
+werden (solange der Monat noch nicht freigegeben ist):
 
-### Korrigieren
-**Korrigieren** übernimmt die Werte der Buchung ins Formular (oben). Dort lassen
-sich Betrag, Konto, Datum usw. anpassen; optional kann ein **Korrekturgrund**
-angegeben werden. Beim Speichern wird die **ursprüngliche Buchung automatisch
-storniert** (sie bleibt sichtbar) und durch die **neue, korrigierte Buchung**
-ersetzt. Die korrigierte Buchung trägt einen Hinweis „Korrektur von Nr. …".
+### Bearbeiten
+**Bearbeiten** übernimmt die Werte der Buchung ins Formular (oben); die Zeile
+wird in der Liste gelb hervorgehoben. Dort lassen sich Betrag, Konto, Steuersatz,
+Datum und Beschreibung anpassen und bei Bedarf ein neuer Beleg anhängen (ohne
+neuen Beleg bleibt der vorhandene). Mit **Änderungen speichern** wird die Buchung
+**direkt geändert**: Buchungs- und Belegnummer bleiben gleich, der Kassenstand
+wird angepasst, und alter wie neuer Stand landen im Protokoll. Das Belegjahr kann
+nicht gewechselt werden, weil die Belegnummer daran hängt; in dem Fall die
+Buchung stornieren und neu erfassen. **Abbrechen** verlässt den Bearbeiten-Modus
+ohne Änderung.
+
+Ältere Buchungen können noch den Hinweis „Korrektur von Nr. …" tragen: Das war
+der frühere Weg (Original storniert, neue Buchung angelegt) und bleibt so
+sichtbar.
 
 ### Stornieren
 **Storno** macht eine Buchung ungültig, ohne sie zu ersetzen (nach einer
@@ -187,7 +191,7 @@ sichtbar und fließen nicht mehr in den Kassenstand ein.
 
 ### Gesperrte Buchungen
 Buchungen aus einem bereits **freigegebenen** Monat sind **gesperrt** und tragen
-den Vermerk „gesperrt". Sie können weder korrigiert noch storniert werden.
+den Vermerk „gesperrt". Sie können weder bearbeitet noch storniert werden.
 
 ---
 
@@ -300,11 +304,11 @@ vier Oberbereiche mit Unterreitern gegliedert.
 - **Steuersätze** – die wählbaren MwSt-Sätze.
 
 ### Benutzer
-Anlegen und Bearbeiten von Benutzern (Benutzername, Name, Rolle) sowie die
-**Zuweisung von Kostenstellen** je Benutzer. Konten werden **deaktiviert** statt
-gelöscht; ein deaktivierter Zugang kann sich nicht mehr anmelden. Neue Benutzer
-legen ihr Passwort beim ersten Login selbst fest (siehe Abschnitt 1). Es gibt
-Filter nach Rolle und Status (aktiv, inaktiv, Passwort noch offen).
+Benutzerkonten, Passwörter und die Rolle je Tool werden zentral im Suite-Portal
+(Verwaltung) angelegt; beim ersten Anmelden erscheint der Benutzer automatisch
+hier. In der Handkasse wird je Benutzer die **Zuweisung von Kostenstellen**
+gepflegt. Konten werden **deaktiviert** statt gelöscht; ein deaktivierter Zugang
+kann sich nicht mehr anmelden. Es gibt Filter nach Rolle und Status.
 
 ### Einstellungen
 - **Belege** – ob ein Beleg verpflichtend ist und in welcher Auflösung Belegfotos
@@ -318,7 +322,7 @@ Filter nach Rolle und Status (aktiv, inaktiv, Passwort noch offen).
 - **Audit-Log** – das Protokoll aller sicherheitsrelevanten Vorgänge.
 
 > Hinweise zum Anlegen echter Benutzer und zum Deaktivieren der Demo-Zugänge bei
-> der Inbetriebnahme stehen in `INSTALL-Windows-Server.md`.
+> der Inbetriebnahme stehen in der Suite-Anleitung `INSTALL.md`.
 
 ---
 
@@ -332,26 +336,27 @@ Filter nach Rolle und Status (aktiv, inaktiv, Passwort noch offen).
 - **Beleg / Belegnummer** – der Nachweis zur Buchung; die Belegnummer verbindet
   Papierbeleg und digitale Buchung.
 - **Storno** – das Ungültigmachen einer Buchung (sie bleibt sichtbar).
-- **Korrektur** – Storno des Originals plus neue, berichtigte Buchung.
+- **Bearbeiten** – eine Buchung in einem offenen Monat direkt ändern; Nummern
+  bleiben, alter und neuer Stand stehen im Protokoll.
 - **Zählliste** – der real gezählte Bargeldbestand beim Monatsabschluss.
 - **Soll / Ist** – rechnerischer Stand (Soll) gegenüber gezähltem Stand (Ist).
-- **Revisionssicher** – Vorgänge werden nicht gelöscht, sondern nachvollziehbar
-  storniert/korrigiert.
+- **Revisionssicher** – Vorgänge werden nicht gelöscht; Änderungen und Stornos
+  sind im Protokoll nachvollziehbar, freigegebene Monate sind unveränderlich.
 
 ---
 
 ## 13. Häufige Fragen
 
 **Ich kann mich nicht anmelden.**
-Benutzername/Passwort prüfen. Erscheint „Passwort festlegen", ist für den Zugang
-noch kein Passwort vergeben – dann jetzt eines setzen. Bleibt es bei einer
-Fehlermeldung, an die Administration wenden (Menüpunkt Kontakt).
+Die Anmeldung läuft über das Suite-Portal. Benutzername/Passwort prüfen; bleibt
+es bei einer Fehlermeldung oder fehlt die Kachel „Handkassen", an die
+Administration wenden (Menüpunkt Kontakt).
 
 **Ich habe mich vertippt – die Buchung ist schon gespeichert.**
-Die Buchung **korrigieren** (übernimmt die Werte, Original wird storniert) oder
+Die Buchung **bearbeiten** (Werte werden übernommen und direkt geändert) oder
 **stornieren**. Löschen ist bewusst nicht möglich.
 
-**Ich finde die Aktionen „Korrigieren/Storno" nicht.**
+**Ich finde die Aktionen „Bearbeiten/Storno" nicht.**
 Die Buchung gehört vermutlich zu einem bereits **freigegebenen** Monat und ist
 **gesperrt**. Gesperrte Buchungen sind unveränderlich.
 

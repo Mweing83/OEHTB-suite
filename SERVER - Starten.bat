@@ -8,6 +8,17 @@ if not exist ".env" (
   exit /b 1
 )
 
+REM Schutz: haengt ein fremder Container (nicht Projekt oehtb-suite) an Suite-Volumes?
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\volume-schutz.ps1"
+if errorlevel 1 (
+  pause
+  exit /b 1
+)
+
+REM Beleg-Volume ist in docker-compose.yml "external" (stammt aus der Standalone-Zeit);
+REM hier sicherstellen, dass es existiert (idempotent, loescht nichts).
+docker volume create handkassen_belege_data >nul 2>nul
+
 echo Baue und starte alle Dienste ...
 docker compose --profile produktion up -d --build
 if errorlevel 1 (

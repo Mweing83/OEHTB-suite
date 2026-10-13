@@ -23,6 +23,7 @@ uploads/
 backups/
 backups-nas/
 backups-usb/
+backups-vor-update/
 postgres-data/
 
 # === Sonstiges ===

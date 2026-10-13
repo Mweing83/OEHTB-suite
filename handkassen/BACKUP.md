@@ -4,7 +4,8 @@ Sichert die **Datenbank** (alle Buchungen, Stammdaten, Audit-Log) und die
 **Belegfotos** (`uploads`) automatisch und verteilt jede Sicherung auf mehrere
 Orte (lokal, NAS, USB) – nach dem Prinzip „mehrere Kopien an mehr als einem Ort".
 
-Umgesetzt als eigener Dienst `backup` in der `docker-compose.yml`. Er nutzt
+Umgesetzt als Dienst `handkassen-backup` in der `docker-compose.yml` der Suite
+(Suite-Root); die Skripte liegen in `handkassen/backup/`. Er nutzt
 dasselbe PostgreSQL-Image wie die Datenbank (damit `pg_dump`/`pg_restore` exakt
 zur Version passen). Er liest Zeitplan und Einstellungen aus der Datenbank und
 wird über den Admin-Tab **„Datensicherung“** gesteuert (Uhrzeit, Aufbewahrung,
@@ -23,17 +24,16 @@ aktive Ziele, Knopf „Jetzt sichern“, Statusanzeige).
    **Jahresstände bleiben dauerhaft** (für die 7-jährige Aufbewahrungspflicht).
 
 Zeitplan, Aufbewahrung und aktive Ziele (NAS/USB) werden im Admin-Tab
-„Datensicherung“ verwaltet und in der Datenbank gespeichert. In der `.env` stehen
-nur die Ablage-**Pfade** (`BACKUP_LOKAL`, `BACKUP_NAS`, `BACKUP_USB`,
-`BACKUP_UPLOADS_SRC`), da sie am Server fest eingehängt sind.
+„Datensicherung“ verwaltet und in der Datenbank gespeichert. In der `.env` der
+Suite stehen nur die Ablage-**Pfade** (`BACKUP_LOKAL`, `BACKUP_NAS`, `BACKUP_USB`),
+da sie am Server fest eingehängt sind.
 
 ## Einrichtung am Server (Produktivbetrieb)
 
-1. In der `.env` die echten Pfade eintragen, z. B.:
+1. In der `.env` im Suite-Root die echten Pfade eintragen, z. B.:
    ```
    BACKUP_NAS=/mnt/nas/handkassen-backup
    BACKUP_USB=/mnt/usb/handkassen-backup
-   BACKUP_UPLOADS_SRC=belege_data
    ```
 2. NAS und USB am Server einbinden (mounten), sodass die obigen Pfade existieren.
 3. **Wichtig:** In jedem dieser Ziele einmalig eine leere Markierungsdatei
@@ -44,36 +44,25 @@ nur die Ablage-**Pfade** (`BACKUP_LOKAL`, `BACKUP_NAS`, `BACKUP_USB`,
    ```
    Fehlt sie, wird das Ziel übersprungen (Schutz davor, dass bei einem nicht
    eingebundenen Laufwerk unbemerkt ins Leere gesichert wird).
-4. Produktivbetrieb inklusive Backup starten:
+4. Suite inklusive Backup starten (im Suite-Root):
    ```
    docker compose --profile produktion up -d
    ```
+   oder `SERVER - Starten.bat`.
 
 Die Zugriffsrechte auf NAS-Freigabe und USB sollten beschränkt sein, da die
 Belege dort unverschlüsselt liegen.
 
-## Lokaler Test (jetzt, auf dem Entwicklungsrechner)
+## Sicherung sofort ausführen (ohne auf den Zeitplan zu warten)
 
-So prüfst du, dass die Mechanik funktioniert, bevor der echte Server steht.
-Docker Desktop muss laufen.
-
-1. Datenbank starten (falls nicht schon laufend):
-   ```
-   docker compose up -d db
-   ```
-2. Eine Sicherung einmalig ausführen:
-   ```
-   docker compose --profile produktion run --rm backup /bin/sh /backup/backup.sh
-   ```
-3. Ergebnis ansehen: im Ordner `backups/lokal/taeglich/` sollte jetzt eine Datei
-   `handkassen_*.tar.gz` liegen.
-
-NAS und USB werden lokal übersprungen (keine `.ziel-ok`-Datei). Wenn du auch das
-Kopieren testen willst, lege die Markierungen an und starte erneut:
+Entweder im Admin-Tab „Datensicherung“ auf **„Jetzt sichern“** klicken, oder im
+Suite-Root:
 ```
-New-Item -ItemType File ./backups-nas/.ziel-ok -Force
-New-Item -ItemType File ./backups-usb/.ziel-ok -Force
+docker compose --profile produktion exec handkassen-backup /bin/sh /backup/backup.sh
 ```
+Ergebnis: im Ordner `handkassen/backups/taeglich/` (bzw. `BACKUP_LOKAL`) liegt
+eine neue Datei `handkassen_*.tar.gz`. NAS und USB werden übersprungen, solange
+dort keine `.ziel-ok`-Datei liegt.
 
 ## Steuerung über die Oberfläche
 
@@ -84,19 +73,13 @@ Im Admin-Bereich gibt es den Tab **„Datensicherung“**:
   welche Ziele aktiv sind (NAS/USB).
 - **„Jetzt sichern“:** löst eine sofortige Sicherung aus (läuft binnen ~30 s).
 
-Damit der Tab funktioniert, muss die Datenbank-Tabelle vorhanden sein. Beim
-Einspielen dieser Version daher einmalig die Migration anwenden:
-```
-cd backend
-npx prisma migrate dev --name backup_konfig
-```
-(Fügt nur eine neue Tabelle hinzu – kein Zurücksetzen der Daten nötig.)
-
 ## Läuft die Sicherung? (Überwachung)
 
-- Protokoll: `backups/lokal/backup.log`
-- Letzter Erfolg: `backups/lokal/LETZTER_ERFOLG.txt` (enthält den Zeitstempel der
-  letzten erfolgreichen Sicherung).
+- Protokoll: `handkassen/backups/backup.log`
+- Letzter Erfolg: `handkassen/backups/LETZTER_ERFOLG.txt` (enthält den Zeitstempel
+  der letzten erfolgreichen Sicherung).
+- Zusätzlich zieht `SERVER - Aktualisieren.bat` vor jedem Update einen `pg_dump`
+  aller Suite-Datenbanken nach `backups-vor-update\` (siehe `../INSTALL.md`).
 
 ## Wiederherstellung (Restore)
 
@@ -109,35 +92,38 @@ npx prisma migrate dev --name backup_konfig
 > versehentliches Zurückspielen lässt sich damit rückgängig machen, indem du
 > diese `handkassen_vor-restore_*.tar.gz`-Datei genauso zurückspielst.
 
-Am Server, im Projektordner:
+Am Server, im Suite-Root (der Backup-Container hat Datenbank, Belege-Volume und
+alle Ablageorte bereits eingebunden; das Belege-Volume ist dort nur lesend
+gemountet, deshalb wird für den Restore ein eigener Container gestartet):
 
 ```
-# 1) Anwendung stoppen
-docker compose --profile produktion stop app
+# 1) Anwendung stoppen (Backup-Dienst darf weiterlaufen)
+docker compose --profile produktion stop handkassen-app
 
-# 2) Wiederherstellen (Datenbank + Belegfotos). Passwort aus der .env einsetzen.
-docker run --rm \
-  --network handkassen_default \
-  -e POSTGRES_USER=handkassen \
-  -e POSTGRES_PASSWORD=DEIN_DB_PASSWORT \
-  -e POSTGRES_DB=handkassen \
-  -e DB_HOST=db \
-  -v handkassen_belege_data:/uploads \
-  -v "$(pwd)/backup:/backup:ro" \
-  -v "$(pwd)/backups:/backups/lokal" \
-  postgres:16-alpine /bin/sh /backup/restore.sh \
+# 2) Wiederherstellen (Datenbank + Belegfotos). Passwort = HK_DB_PASSWORD aus der .env.
+docker run --rm `
+  --network oehtb-suite_default `
+  -e POSTGRES_USER=handkassen `
+  -e POSTGRES_PASSWORD=DEIN_DB_PASSWORT `
+  -e POSTGRES_DB=handkassen `
+  -e DB_HOST=handkassen-db `
+  -v handkassen_belege_data:/uploads `
+  -v "${PWD}\handkassen\backup:/backup:ro" `
+  -v "${PWD}\handkassen\backups:/backups/lokal" `
+  postgres:16-alpine /bin/sh /backup/restore.sh `
   /backups/lokal/taeglich/handkassen_JJJJMMTT_HHMMSS.tar.gz
 
 # 3) Anwendung wieder starten
-docker compose --profile produktion start app
+docker compose --profile produktion start handkassen-app
 ```
 
 Hinweise:
-- Netzwerk- und Volume-Name (`handkassen_default`, `handkassen_belege_data`)
-  ergeben sich aus dem Projektordnernamen. Prüfen mit `docker network ls` bzw.
-  `docker volume ls`, falls abweichend.
+- Netzwerkname `oehtb-suite_default` und Volume `handkassen_belege_data` prüfen
+  mit `docker network ls` bzw. `docker volume ls`, falls abweichend.
 - Liegt die gewünschte Sicherung auf NAS/USB statt lokal, den Pfad in der
   `-v ...:/backups/lokal`-Zeile entsprechend auf den NAS-/USB-Ordner setzen.
+- **Niemals** eine zweite PostgreSQL-Instanz auf das Volume `handkassen_db_data`
+  starten (Datenverlust). Der Restore geht immer über die laufende `handkassen-db`.
 
 ## Probe-Wiederherstellung (Feuerprobe)
 
