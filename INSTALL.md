@@ -118,6 +118,13 @@ Das Update-Skript schützt die Daten dabei zusätzlich:
   Zeilenzahlen mit dem Stand davor und warnt deutlich, wenn eine Tabelle Zeilen
   verloren hat.
 
+**Altlasten aufräumen** (`scripts\server-aufraeumen.ps1`): entfernt Reste aus der
+Zeit vor der Suite (alte `handkassen-app`-Images, beendete Container außerhalb
+des Projekts `oehtb-suite`, verwaiste anonyme Volumes, `handkassen\.env`). Ohne
+Parameter nur Trockenlauf, mit `-Ausfuehren` nach Rückfrage; `-MitDefektVolume`
+löscht zusätzlich das aufbewahrte defekte Datenverzeichnis vom 13.10.2026.
+Laufende Container, Suite-Volumes und die Backup-Ordner werden nie angefasst.
+
 1. holt den neuesten Stand aus Git (`git pull --ff-only` – nur vorwärts, keine
    Konflikte),
 2. zeigt an, welche Commits neu sind,
