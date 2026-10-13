@@ -52,7 +52,9 @@ Handkassen-System", Version 1.0.
 - Erfasser:innen sind **je Kostenstelle separat freigeschaltet** (Tabelle
   benutzer_kostenstelle). Nutzer sehen nur Daten ihrer zugewiesenen Kostenstellen.
 - Monatsabschluss-Status: offen -> eingereicht -> geprüft -> freigegeben.
-  Nach Freigabe ist die Periode gesperrt; Korrektur nur über Storno.
+  Solange die Periode nicht freigegeben ist, werden Buchungen direkt bearbeitet
+  (PUT /buchungen/:id; alte/neue Werte im audit_log, Nummern bleiben). Nach
+  Freigabe ist die Periode gesperrt (weder Bearbeiten noch Storno).
 
 ## Revisionssicherheit
 

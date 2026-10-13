@@ -22,32 +22,33 @@ interface Position {
   kontoId: number;
 }
 
-// Vorbelegung für den Korrektur-Modus
-export interface KorrekturVorlage {
+// Vorbelegung für den Bearbeiten-Modus (bestehende Buchung direkt ändern)
+export interface BearbeitenVorlage {
   buchungId: number;
   buchungsnummer: number;
+  belegnummer: string;
   belegdatum: string; // "YYYY-MM-DD"
   typ: "eingang" | "ausgang";
   beschreibung: string;
+  hatBeleg: boolean;
   positionen: Position[];
 }
 
 interface Props {
   kostenstelleId: number;
   onGespeichert: () => void;
-  // Wenn gesetzt, arbeitet das Formular im Korrektur-Modus.
-  korrektur?: KorrekturVorlage | null;
-  // Aufruf, um den Korrektur-Modus abzubrechen (zurück zum Neuanlegen).
-  onKorrekturAbbrechen?: () => void;
+  // Wenn gesetzt, arbeitet das Formular im Bearbeiten-Modus.
+  bearbeiten?: BearbeitenVorlage | null;
+  // Aufruf, um den Bearbeiten-Modus abzubrechen (zurück zum Neuanlegen).
+  onBearbeitenAbbrechen?: () => void;
 }
 
-export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrektur, onKorrekturAbbrechen }: Props) {
+export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbeiten, onBearbeitenAbbrechen }: Props) {
   const [konten, setKonten] = useState<Konto[]>([]);
   const [steuersaetze, setSteuersaetze] = useState<Steuersatz[]>([]);
   const [belegdatum, setBelegdatum] = useState(new Date().toISOString().slice(0, 10));
   const [typ, setTyp] = useState<"eingang" | "ausgang">("ausgang");
   const [beschreibung, setBeschreibung] = useState("");
-  const [korrekturGrund, setKorrekturGrund] = useState("");
   const [positionen, setPositionen] = useState<Position[]>([
     { betrag: "", steuersatz: 20, kontoId: 0 },
   ]);
@@ -57,20 +58,21 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
   const [erfolg, setErfolg] = useState<string>("");
   const [speichert, setSpeichert] = useState(false);
 
-  const istKorrektur = !!korrektur;
+  const istBearbeiten = !!bearbeiten;
 
-  // Bei Wechsel in den Korrektur-Modus: Formular mit den alten Werten vorausfüllen.
+  // Bei Wechsel in den Bearbeiten-Modus: Formular mit den bisherigen Werten vorausfüllen.
   useEffect(() => {
-    if (korrektur) {
-      setBelegdatum(korrektur.belegdatum);
-      setTyp(korrektur.typ);
-      setBeschreibung(korrektur.beschreibung);
-      setPositionen(korrektur.positionen.length ? korrektur.positionen : [{ betrag: "", steuersatz: 20, kontoId: 0 }]);
-      setKorrekturGrund("");
+    if (bearbeiten) {
+      setBelegdatum(bearbeiten.belegdatum);
+      setTyp(bearbeiten.typ);
+      setBeschreibung(bearbeiten.beschreibung);
+      setPositionen(bearbeiten.positionen.length ? bearbeiten.positionen : [{ betrag: "", steuersatz: 20, kontoId: 0 }]);
+      setDatei(null);
+      setBelegReset((n) => n + 1);
       setFehler("");
       setErfolg("");
     }
-  }, [korrektur]);
+  }, [bearbeiten]);
 
   useEffect(() => {
     if (!kostenstelleId) { setKonten([]); return; }
@@ -143,15 +145,14 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
         })),
       };
 
-      if (istKorrektur && korrektur) {
-        // Korrektur: Original stornieren + neue Buchung anlegen (serverseitig)
-        const neu = await api.post<{ belegnummer: string }>(
-          `/buchungen/${korrektur.buchungId}/korrigieren`,
-          { ...nutzdaten, korrekturGrund }
+      if (istBearbeiten && bearbeiten) {
+        // Bearbeiten: Buchung wird direkt geändert (Belegnummer bleibt).
+        // Ohne neue Datei bleibt der bisherige Beleg erhalten (belegId undefined).
+        const neu = await api.put<{ belegnummer: string }>(
+          `/buchungen/${bearbeiten.buchungId}`,
+          nutzdaten
         );
-        setErfolg(
-          `Korrektur gespeichert. Neue Belegnummer ${neu.belegnummer} (Original Nr. ${korrektur.buchungsnummer} wurde storniert).`
-        );
+        setErfolg(`Buchung Nr. ${bearbeiten.buchungsnummer} gespeichert (Belegnummer ${neu.belegnummer}).`);
       } else {
         const buchung = await api.post<{ belegnummer: string }>("/buchungen", nutzdaten);
         setErfolg(
@@ -162,12 +163,11 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
       // zurücksetzen
       setPositionen([{ betrag: "", steuersatz: standardSteuersatz, kontoId: 0 }]);
       setBeschreibung("");
-      setKorrekturGrund("");
       setDatei(null);
       setBelegReset((n) => n + 1);
       setFehler("");
       onGespeichert();
-      if (istKorrektur && onKorrekturAbbrechen) onKorrekturAbbrechen(); // Korrektur-Modus verlassen
+      if (istBearbeiten && onBearbeitenAbbrechen) onBearbeitenAbbrechen(); // Bearbeiten-Modus verlassen
     } catch (err) {
       setFehler((err as Error).message);
     } finally {
@@ -178,12 +178,13 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
   return (
     <div className="bg-white rounded-lg shadow p-5">
       <h2 className="font-semibold text-marke-900 mb-4">
-        {istKorrektur ? `Buchung korrigieren (Original Nr. ${korrektur!.buchungsnummer})` : "Neue Buchung"}
+        {istBearbeiten ? `Buchung bearbeiten (Nr. ${bearbeiten!.buchungsnummer}, Beleg-Nr. ${bearbeiten!.belegnummer})` : "Neue Buchung"}
       </h2>
 
-      {istKorrektur && (
+      {istBearbeiten && (
         <div className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-          Das Original wird storniert (bleibt sichtbar) und durch diese korrigierte Buchung ersetzt.
+          Änderungen werden direkt an dieser Buchung gespeichert; Buchungs- und Belegnummer bleiben erhalten.
+          {bearbeiten!.hatBeleg && " Der vorhandene Beleg bleibt, solange kein neuer gewählt wird."}
         </div>
       )}
 
@@ -223,18 +224,6 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
         value={beschreibung}
         onChange={(e) => setBeschreibung(e.target.value)}
       />
-
-      {istKorrektur && (
-        <>
-          <label className="block text-sm font-medium mb-1">Korrekturgrund (optional)</label>
-          <input
-            className="w-full border rounded px-3 py-2 mb-4"
-            placeholder="z. B. falscher Betrag, falsches Konto…"
-            value={korrekturGrund}
-            onChange={(e) => setKorrekturGrund(e.target.value)}
-          />
-        </>
-      )}
 
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-medium">Positionen (Split bei mehreren Steuersätzen)</span>
@@ -303,13 +292,13 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, korrek
         >
           {speichert
             ? "Speichert…"
-            : istKorrektur
-            ? "Korrektur speichern"
+            : istBearbeiten
+            ? "Änderungen speichern"
             : "Buchung speichern"}
         </button>
-        {istKorrektur && onKorrekturAbbrechen && (
+        {istBearbeiten && onBearbeitenAbbrechen && (
           <button
-            onClick={onKorrekturAbbrechen}
+            onClick={onBearbeitenAbbrechen}
             disabled={speichert}
             className="border rounded px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
           >

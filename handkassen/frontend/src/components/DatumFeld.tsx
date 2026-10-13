@@ -36,7 +36,7 @@ export default function DatumFeld({ wert, onChange, className = "", size = "norm
   const [fehlerhaft, setFehlerhaft] = useState(false);
   const nativeRef = useRef<HTMLInputElement | null>(null);
 
-  // Wert von außen übernehmen (z. B. Zurücksetzen oder Korrektur-Vorlage).
+  // Wert von außen übernehmen (z. B. Zurücksetzen oder Bearbeiten-Vorlage).
   useEffect(() => {
     setText(isoZuDe(wert));
     setFehlerhaft(false);

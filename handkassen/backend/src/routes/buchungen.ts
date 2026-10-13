@@ -80,6 +80,20 @@ async function belegDateiBenennen(belegId: number, belegnummer: string) {
   }
 }
 
+// Entfernt einen ersetzten Beleg (Datei im Upload-Ordner + Datensatz). Fehler
+// sind für die bereits geänderte Buchung unkritisch und werden nur protokolliert.
+async function belegEntfernen(belegId: number) {
+  try {
+    const beleg = await prisma.beleg.findUnique({ where: { id: belegId } });
+    if (!beleg) return;
+    const pfad = path.join(UPLOAD_DIR, path.basename(beleg.dateipfad));
+    if (fs.existsSync(pfad)) fs.unlinkSync(pfad);
+    await prisma.beleg.delete({ where: { id: belegId } });
+  } catch (e) {
+    console.error("Ersetzter Beleg konnte nicht entfernt werden:", e);
+  }
+}
+
 // Beleg hochladen -> liefert nur die belegId zurück (Datei speichern).
 // Die fortlaufende Nummer hängt jetzt an der Buchung, nicht am Beleg.
 buchungRouter.post("/belege", angemeldet, belegUpload, async (req, res) => {
@@ -136,6 +150,26 @@ buchungRouter.get("/belege/:id", angemeldet, async (req, res) => {
   res.sendFile(vollerPfad);
 });
 
+// Fachliche Prüfung einer Buchungseingabe (Anlegen UND Bearbeiten): aktive
+// Steuersätze, Positionssummen, Konto-Freigabe je Bereich der Kostenstelle.
+async function fachlichPruefen(eingabe: BuchungEingabe): Promise<{ ok: true } | { ok: false; fehler: string | string[] }> {
+  const aktiveSteuersaetze = await prisma.steuersatz.findMany({
+    where: { aktiv: true },
+    select: { prozent: true },
+  });
+  const erlaubt = aktiveSteuersaetze.map((s) => s.prozent.toNumber());
+  const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
+  if (!pruef.ok) return { ok: false, fehler: pruef.fehler };
+
+  // Konten muessen dem Bereich der Kostenstelle freigegeben sein.
+  const freigabe = await pruefeKontenFreigabe(
+    eingabe.kostenstelleId,
+    eingabe.positionen.map((p) => p.kontoId)
+  );
+  if (!freigabe.ok) return { ok: false, fehler: freigabe.fehler };
+  return { ok: true };
+}
+
 // --- Buchungen einer Kostenstelle auflisten ---
 buchungRouter.get("/", angemeldet, async (req, res) => {
   const kostenstelleId = Number(req.query.kostenstelle);
@@ -165,21 +199,9 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
     return res.status(403).json({ fehler: "Kein Zugriff auf diese Kostenstelle." });
   }
 
-  // 2) Fachliche Validierung (zentrale, getestete Logik)
-  const aktiveSteuersaetze = await prisma.steuersatz.findMany({
-    where: { aktiv: true },
-    select: { prozent: true },
-  });
-  const erlaubt = aktiveSteuersaetze.map((s) => s.prozent.toNumber());
-  const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
+  // 2) Fachliche Validierung (zentrale, getestete Logik) + Konto-Freigabe
+  const pruef = await fachlichPruefen(eingabe);
   if (!pruef.ok) return res.status(400).json({ fehler: pruef.fehler });
-
-  // 2c) Konten muessen dem Bereich der Kostenstelle freigegeben sein.
-  const freigabe = await pruefeKontenFreigabe(
-    eingabe.kostenstelleId,
-    eingabe.positionen.map((p) => p.kontoId)
-  );
-  if (!freigabe.ok) return res.status(400).json({ fehler: freigabe.fehler });
 
   // 2b) Beleg-Pflicht (falls vom Administrator aktiviert)
   if (!eingabe.belegId && (await belegPflichtAktiv())) {
@@ -326,48 +348,51 @@ buchungRouter.post("/:id/storno", angemeldet, async (req, res) => {
   res.json({ ok: true });
 });
 
-// --- Korrigieren (revisionssicher: Original stornieren + Korrekturbuchung anlegen) ---
-// Das Original bleibt unverändert erhalten (storniert), die neue Buchung verweist
-// per korrekturVonId darauf. Beide bleiben in der Liste sichtbar.
-buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
+// --- Bearbeiten (direkt, ohne Storno) ---
+// Solange die Periode nicht freigegeben ist, wird die Buchung direkt geändert:
+// Buchungs- und Belegnummer bleiben erhalten, der Saldo wird um die Differenz
+// fortgeschrieben, alte und neue Werte landen im Audit-Log.
+buchungRouter.put("/:id", angemeldet, async (req, res) => {
   const id = Number(req.params.id);
-  const eingabe = req.body as BuchungEingabe & { belegId?: number; korrekturGrund?: string };
-
-  const original = await prisma.buchung.findUnique({ where: { id } });
+  const original = await prisma.buchung.findUnique({ where: { id }, include: { positionen: true } });
   if (!original) return res.status(404).json({ fehler: "Nicht gefunden." });
   if (!(await darfKostenstelle(req.benutzer!, original.kostenstelleId))) {
     return res.status(403).json({ fehler: "Kein Zugriff." });
   }
-  if (original.gesperrt) return res.status(409).json({ fehler: "Buchung ist gesperrt und kann nicht korrigiert werden." });
-  if (original.storniert) return res.status(409).json({ fehler: "Buchung ist bereits storniert." });
+  if (original.gesperrt) {
+    return res.status(409).json({ fehler: "Periode ist freigegeben – Buchung kann nicht mehr bearbeitet werden." });
+  }
+  if (original.storniert) return res.status(409).json({ fehler: "Buchung ist storniert." });
 
-  // Fachliche Validierung der Korrektur (gleiche Logik wie beim Anlegen)
-  const aktiveSteuersaetze = await prisma.steuersatz.findMany({
-    where: { aktiv: true },
-    select: { prozent: true },
-  });
-  const erlaubt = aktiveSteuersaetze.map((s) => s.prozent.toNumber());
-  const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
+  // Die Kostenstelle ist Teil der Belegnummer und bleibt daher fest.
+  const eingabe: BuchungEingabe & { belegId?: number } = {
+    ...(req.body as BuchungEingabe & { belegId?: number }),
+    kostenstelleId: original.kostenstelleId,
+  };
+
+  const pruef = await fachlichPruefen(eingabe);
   if (!pruef.ok) return res.status(400).json({ fehler: pruef.fehler });
 
-  // Konten muessen dem Bereich der (Ziel-)Kostenstelle freigegeben sein.
-  const freigabe = await pruefeKontenFreigabe(
-    eingabe.kostenstelleId,
-    eingabe.positionen.map((p) => p.kontoId)
-  );
-  if (!freigabe.ok) return res.status(400).json({ fehler: freigabe.fehler });
+  const neuesBelegdatum = new Date(eingabe.belegdatum);
+  // Belegnummer hängt am Jahr – Jahreswechsel würde sie ungültig machen.
+  if (neuesBelegdatum.getFullYear() !== original.belegJahr) {
+    return res.status(400).json({
+      fehler: "Das Belegjahr kann nicht geändert werden (Belegnummer). Bitte stornieren und neu anlegen.",
+    });
+  }
 
-  // Beleg-Pflicht gilt auch für die Korrektur (neue Buchung).
-  if (!eingabe.belegId && (await belegPflichtAktiv())) {
+  // Beleg: ohne neue belegId bleibt der bisherige Beleg erhalten.
+  const belegWechsel = eingabe.belegId != null && eingabe.belegId !== original.belegId;
+  const neueBelegId = belegWechsel ? eingabe.belegId! : original.belegId;
+  if (!neueBelegId && (await belegPflichtAktiv())) {
     return res.status(400).json({ fehler: "Ein Beleg ist verpflichtend. Bitte einen Beleg anhängen." });
   }
 
-  // Periode der KORREKTUR darf nicht freigegeben sein
-  const neuesBelegdatum = new Date(eingabe.belegdatum);
+  // Ziel-Periode darf nicht freigegeben sein (z. B. Verschieben in einen anderen Monat).
   const abschluss = await prisma.abschluss.findUnique({
     where: {
       kostenstelleId_jahr_monat: {
-        kostenstelleId: eingabe.kostenstelleId,
+        kostenstelleId: original.kostenstelleId,
         jahr: neuesBelegdatum.getFullYear(),
         monat: neuesBelegdatum.getMonth() + 1,
       },
@@ -377,7 +402,7 @@ buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
     return res.status(409).json({ fehler: "Periode ist freigegeben und gesperrt." });
   }
 
-  // Monatssperre: weder die Original- noch die Ziel-Periode dürfen für
+  // Monatssperre: weder der bisherige noch der neue Monat dürfen für
   // Nicht-Admins gesperrt sein.
   if (req.benutzer!.rolle !== "admin") {
     const origGesperrt = await monatGesperrt(
@@ -386,62 +411,28 @@ buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
       original.belegdatum.getMonth() + 1
     );
     const zielGesperrt = await monatGesperrt(
-      eingabe.kostenstelleId,
+      original.kostenstelleId,
       neuesBelegdatum.getFullYear(),
       neuesBelegdatum.getMonth() + 1
     );
     if (origGesperrt || zielGesperrt) {
       return res.status(409).json({
-        fehler: "Dieser Monat ist gesperrt. Nur Administratoren können hier noch korrigieren.",
+        fehler: "Dieser Monat ist gesperrt. Nur Administratoren können hier noch bearbeiten.",
       });
     }
   }
 
   const ergebnis = await prisma.$transaction(async (tx) => {
-    // 1) Original stornieren und dessen Saldo-Wirkung rückgängig machen
-    await tx.buchung.update({ where: { id }, data: { storniert: true } });
-    await tx.kostenstelle.update({
-      where: { id: original.kostenstelleId },
-      data: { saldoCent: { increment: -saldoWirkung(original.typ, original.betragCent) } },
-    });
-
-    // 2) Neue Korrekturbuchung anlegen (verweist auf das Original)
-    const maxNummer = await tx.buchung.aggregate({ _max: { buchungsnummer: true } });
-    const naechsteNummer = (maxNummer._max.buchungsnummer ?? 0) + 1;
-
-    // Belegnummer der Korrektur läuft je Kostenstelle und Jahr weiter (Jahr aus Belegdatum).
-    const belegJahr = neuesBelegdatum.getFullYear();
-    const ksK = await tx.kostenstelle.findUnique({
-      where: { id: eingabe.kostenstelleId },
-      select: { nummer: true, belegStartnummer: true, belegStartJahr: true },
-    });
-    const maxLauf = await tx.buchung.aggregate({
-      where: { kostenstelleId: eingabe.kostenstelleId, belegJahr },
-      _max: { belegLaufnummer: true },
-    });
-    let basis = maxLauf._max.belegLaufnummer ?? 0;
-    if (ksK!.belegStartJahr === belegJahr && ksK!.belegStartnummer != null) {
-      basis = Math.max(basis, ksK!.belegStartnummer - 1);
-    }
-    const naechsteLaufnummer = basis + 1;
-
-    const belegnummer = belegnummerFormat(belegJahr, ksK!.nummer, naechsteLaufnummer);
-
-    const korrektur = await tx.buchung.create({
+    // Positionen vollständig ersetzen.
+    await tx.buchungsPosition.deleteMany({ where: { buchungId: id } });
+    const buchung = await tx.buchung.update({
+      where: { id },
       data: {
-        buchungsnummer: naechsteNummer,
-        belegJahr,
-        belegLaufnummer: naechsteLaufnummer,
-        belegnummer,
         belegdatum: neuesBelegdatum,
         betragCent: eingabe.betragCent,
         typ: eingabe.typ,
         beschreibung: eingabe.beschreibung,
-        kostenstelleId: eingabe.kostenstelleId,
-        erstellerId: req.benutzer!.id,
-        belegId: eingabe.belegId ?? null,
-        korrekturVonId: id,
-        korrekturGrund: eingabe.korrekturGrund || null,
+        belegId: neueBelegId,
         positionen: {
           create: eingabe.positionen.map((p) => ({
             betragCent: p.betragCent,
@@ -453,26 +444,33 @@ buchungRouter.post("/:id/korrigieren", angemeldet, async (req, res) => {
       include: { positionen: true },
     });
 
-    // 3) Saldo-Wirkung der Korrektur anwenden
-    await tx.kostenstelle.update({
-      where: { id: eingabe.kostenstelleId },
-      data: { saldoCent: { increment: saldoWirkung(eingabe.typ, eingabe.betragCent) } },
-    });
+    // Saldo um die Differenz zwischen alter und neuer Wirkung fortschreiben.
+    const differenz =
+      saldoWirkung(eingabe.typ, eingabe.betragCent) - saldoWirkung(original.typ, original.betragCent);
+    if (differenz !== 0) {
+      await tx.kostenstelle.update({
+        where: { id: original.kostenstelleId },
+        data: { saldoCent: { increment: differenz } },
+      });
+    }
 
-    return korrektur;
+    return buchung;
   });
 
-  // Fotografierten Beleg der Korrektur nach der Belegnummer benennen.
-  if (eingabe.belegId) await belegDateiBenennen(eingabe.belegId, ergebnis.belegnummer);
+  // Beleg ersetzt: alte Datei + Datensatz entfernen, neue Datei nach Belegnummer benennen.
+  if (belegWechsel) {
+    if (original.belegId) await belegEntfernen(original.belegId);
+    await belegDateiBenennen(neueBelegId!, ergebnis.belegnummer);
+  }
 
   await audit({
     benutzerId: req.benutzer!.id,
-    aktion: "buchung.korrigiert",
+    aktion: "buchung.geaendert",
     entitaet: "buchung",
-    entitaetId: ergebnis.id,
+    entitaetId: id,
     alteWerte: original,
     neueWerte: ergebnis,
   });
 
-  res.status(201).json(buchungFuerAusgabe(ergebnis));
+  res.json(buchungFuerAusgabe(ergebnis));
 });

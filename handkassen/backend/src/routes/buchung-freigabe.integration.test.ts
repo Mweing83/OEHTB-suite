@@ -33,21 +33,20 @@ run("Buchen: Konto-Freigabe je Bereich (Integration)", () => {
     expect(anzahl).toBe(0);
   });
 
-  it("lehnt Korrigieren mit nicht freigegebenem Konto ab (400) und aendert nichts", async () => {
+  it("lehnt Bearbeiten mit nicht freigegebenem Konto ab (400) und aendert nichts", async () => {
     const agent = await alsAgent("erfasser");
     const anlegen = await agent.post("/api/buchungen").send(buchungEingabe(ksA, freigegeben));
     expect(anlegen.status).toBe(201);
     const buchungId = anlegen.body.id;
 
-    const r = await agent
-      .post(`/api/buchungen/${buchungId}/korrigieren`)
-      .send(buchungEingabe(ksA, fremd, { korrekturGrund: "Test" }));
+    const r = await agent.put(`/api/buchungen/${buchungId}`).send(buchungEingabe(ksA, fremd));
     expect(r.status).toBe(400);
 
-    // Kein Storno des Originals, keine Korrekturbuchung angelegt.
+    // Buchung unveraendert, keine weitere Buchung angelegt.
     const anzahl = await prisma.buchung.count();
     expect(anzahl).toBe(1);
-    const original = await prisma.buchung.findUnique({ where: { id: buchungId } });
+    const original = await prisma.buchung.findUnique({ where: { id: buchungId }, include: { positionen: true } });
     expect(original?.storniert).toBe(false);
+    expect(original?.positionen[0].kontoId).toBe(freigegeben);
   });
 });

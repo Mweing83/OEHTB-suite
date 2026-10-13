@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 import { formatCent, formatProzent, summeSteuerCent } from "../lib/geld.js";
-import BuchungsFormular, { type KorrekturVorlage } from "../components/BuchungsFormular.js";
+import BuchungsFormular, { type BearbeitenVorlage } from "../components/BuchungsFormular.js";
 import DatumFeld, { isoZuDe } from "../components/DatumFeld.js";
 import { bestaetigen, hinweis } from "../components/dialog.js";
 
@@ -43,8 +43,8 @@ export default function BuchungenSeite() {
   const [typFilter, setTypFilter] = useState<"" | "eingang" | "ausgang">("");
   const [stornierteZeigen, setStornierteZeigen] = useState(false);
 
-  // Aktive Korrektur-Vorlage (wenn gesetzt, arbeitet das Formular im Korrektur-Modus)
-  const [korrektur, setKorrektur] = useState<KorrekturVorlage | null>(null);
+  // Aktive Bearbeiten-Vorlage (wenn gesetzt, arbeitet das Formular im Bearbeiten-Modus)
+  const [bearbeiten, setBearbeiten] = useState<BearbeitenVorlage | null>(null);
 
   // Beleg-Vorschau im rechten Panel (statt in einem neuen Tab)
   const [belegVorschau, setBelegVorschau] = useState<{ id: number; originalname: string; belegnummer: string } | null>(null);
@@ -129,23 +129,25 @@ export default function BuchungenSeite() {
     }
   }
 
-  // Korrektur starten: aus der gewählten Buchung eine Vorlage bauen und das
-  // Formular in den Korrektur-Modus versetzen. Beträge werden von Cent in den
+  // Bearbeiten starten: aus der gewählten Buchung eine Vorlage bauen und das
+  // Formular in den Bearbeiten-Modus versetzen. Beträge werden von Cent in den
   // Euro-Eingabetext ("12,50") umgewandelt.
-  function korrekturStarten(b: Buchung) {
-    const vorlage: KorrekturVorlage = {
+  function bearbeitenStarten(b: Buchung) {
+    const vorlage: BearbeitenVorlage = {
       buchungId: b.id,
       buchungsnummer: b.buchungsnummer,
+      belegnummer: b.belegnummer,
       belegdatum: b.belegdatum.slice(0, 10),
       typ: b.typ,
       beschreibung: b.beschreibung ?? "",
+      hatBeleg: !!b.beleg,
       positionen: b.positionen.map((p) => ({
         betrag: (p.betragCent / 100).toFixed(2).replace(".", ","),
         steuersatz: p.steuersatz,
         kontoId: p.kontoId,
       })),
     };
-    setKorrektur(vorlage);
+    setBearbeiten(vorlage);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -175,8 +177,8 @@ export default function BuchungenSeite() {
       <div className="space-y-6">
         {aktiv && <BuchungsFormular
           kostenstelleId={aktiv}
-          korrektur={korrektur}
-          onKorrekturAbbrechen={() => setKorrektur(null)}
+          bearbeiten={bearbeiten}
+          onBearbeitenAbbrechen={() => setBearbeiten(null)}
           onGespeichert={() => {
             ladeBuchungen(aktiv);
             api.get<Kostenstelle[]>("/kostenstellen").then(setKostenstellen);
@@ -273,7 +275,12 @@ export default function BuchungenSeite() {
               </thead>
               <tbody>
                 {gefiltert.map((b) => (
-                  <tr key={b.id} className={`border-b last:border-0 ${b.storniert ? "text-slate-500 line-through" : ""}`}>
+                  <tr
+                    key={b.id}
+                    className={`border-b last:border-0 ${b.storniert ? "text-slate-500 line-through" : ""} ${
+                      bearbeiten?.buchungId === b.id ? "bg-amber-50" : ""
+                    }`}
+                  >
                     <td className="py-2">{b.buchungsnummer}</td>
                     <td>{b.belegnummer.replace(/^\d{4}-/, "")}</td>
                     <td>
@@ -323,8 +330,8 @@ export default function BuchungenSeite() {
                     <td className="text-right">
                       {!b.storniert && !b.gesperrt && (
                         <div className="flex gap-2 justify-end">
-                          <button onClick={() => korrekturStarten(b)} className="text-xs text-marke-700 hover:underline">
-                            Korrigieren
+                          <button onClick={() => bearbeitenStarten(b)} className="text-xs text-marke-700 hover:underline">
+                            Bearbeiten
                           </button>
                           <button onClick={() => storno(b.id)} className="text-xs text-red-600 hover:underline">
                             Storno

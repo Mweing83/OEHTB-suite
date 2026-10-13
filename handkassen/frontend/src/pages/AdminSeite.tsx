@@ -1309,7 +1309,7 @@ function BelegeTab() {
         </label>
         {bpHinweis && <div className="mt-2 text-sm text-green-800">{bpHinweis}</div>}
         <p className="text-xs text-slate-500 mt-3">
-          Ist dies aktiv, kann eine Buchung (auch eine Korrektur) nur mit angehängtem Beleg gespeichert
+          Ist dies aktiv, kann eine Buchung (auch beim Bearbeiten) nur mit angehängtem Beleg gespeichert
           werden. Gilt für alle Kassen und alle Rollen.
         </p>
       </Karte>
@@ -1409,7 +1409,7 @@ function KassensperreTab() {
         </div>
         <p className="text-xs text-slate-500 mt-3">
           Jede Kasse wird automatisch gesperrt, sobald nach dem Monatsende so viele Tage vergangen sind.
-          Danach kann in diesem Monat nur noch ein Administrator buchen, stornieren oder korrigieren.
+          Danach kann in diesem Monat nur noch ein Administrator buchen, stornieren oder bearbeiten.
           Mit „0“ wird sofort mit dem Monatsende gesperrt.
         </p>
       </Karte>
