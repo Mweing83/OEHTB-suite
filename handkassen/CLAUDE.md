@@ -82,6 +82,5 @@ Handkassen-System", Version 1.0.
 
 ## Arbeitsweise
 
-- Im Plan Mode arbeiten, Plan vor Ausführung zeigen.
-- Modul für Modul (siehe Phasenplan im Umsetzungskonzept).
+- Größere Änderungen vorher als kurzen Plan zeigen, dann umsetzen.
 - Keine echten Personen-/Buchungsdaten in Beispielen; Seed-Daten sind fiktiv.

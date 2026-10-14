@@ -1,7 +1,7 @@
 # Stunden-Tool ÖHTB
 
 Web-Tool zur Verwaltung von Wochenstunden und Beschäftigungsausmaß (%).
-Siehe `PLAN.md` für die vollständige Architektur.
+Die Architektur ist unten im Abschnitt Projektstruktur beschrieben.
 
 ## Erststart (Phase 1: Gerüst)
 
@@ -74,7 +74,6 @@ Produktivbetrieb ändern.
 ## Projektstruktur
 ```
 stunden/
-├── PLAN.md              <- Architektur-Referenz
 ├── docker-compose.yml
 ├── backend/
 │   ├── prisma/

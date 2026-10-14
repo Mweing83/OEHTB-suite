@@ -24,6 +24,9 @@ backups/
 backups-nas/
 backups-usb/
 backups-vor-update/
+
+# Erzeugtes Benutzerhandbuch (per "Handbuch als PDF erstellen.bat")
+handkassen/*.pdf
 postgres-data/
 
 # === Sonstiges ===

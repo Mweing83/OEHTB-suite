@@ -1,3 +1,13 @@
+# Stunden - NUR Entwicklungs-Datenbank.
+#
+# Der Produktivbetrieb laeuft ausschliesslich ueber die OEHTB-Suite
+# (docker-compose.yml im Suite-Root, Profil "produktion"). Diese Datei
+# startet lediglich eine lokale PostgreSQL-Instanz fuer "npm run dev":
+#
+#   docker compose up -d        (im Ordner stunden\)
+#
+# Bewusst KEIN App-Dienst mehr: ein versehentliches "--profile produktion up"
+# in diesem Ordner darf keinen zweiten Stunden-Server neben der Suite starten.
 services:
   db:
     image: postgres:16
@@ -12,19 +22,3 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
-
-  # App-Service nur fuer den Produktionsbetrieb (Profil "produktion").
-  # In der Entwicklung laeuft das Backend ueber "npm run dev" lokal,
-  # damit Port 3002 nicht doppelt belegt wird (Lehre aus Handkassen).
-  app:
-    profiles: ["produktion"]
-    build: ./backend
-    container_name: stunden-app
-    restart: unless-stopped
-    depends_on:
-      - db
-    environment:
-      DATABASE_URL: "postgresql://stunden:stunden_dev_passwort@db:5432/stunden"
-      PORT: "3002"
-    ports:
-      - "3002:3002"

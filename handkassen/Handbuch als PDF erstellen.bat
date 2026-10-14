@@ -1,6 +1,7 @@
 @echo off
 REM ============================================================
-REM   Erzeugt BENUTZERHANDBUCH.pdf aus BENUTZERHANDBUCH.md
+REM   Erzeugt BENUTZERHANDBUCH.pdf (A4) aus BENUTZERHANDBUCH.md.
+REM   Das PDF liegt NICHT im Repo (wird bei Bedarf hier erzeugt).
 REM   Benoetigt Node.js (auf dem Entwicklungsrechner vorhanden)
 REM   und einmalig Internet (laedt das Werkzeug per npx).
 REM ============================================================
@@ -18,7 +19,7 @@ echo Erzeuge BENUTZERHANDBUCH.pdf ...
 echo (Beim ersten Mal kann das etwas dauern - das Werkzeug wird geladen.)
 echo.
 
-call npx --yes md-to-pdf "BENUTZERHANDBUCH.md"
+call npx --yes md-to-pdf "BENUTZERHANDBUCH.md" --pdf-options "{ \"format\": \"A4\", \"margin\": \"20mm\" }"
 
 echo.
 if exist "BENUTZERHANDBUCH.pdf" (

@@ -96,8 +96,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM Verwaiste ^(ungetaggte^) Images entfernen, damit die Platte nicht volllaeuft.
-docker image prune -f >nul 2>nul
+REM Platte freihalten: ungenutzte Images ^(alte Suite-Builds^) und den Docker-Build-Cache
+REM entfernen. Betrifft keine Container und keine Volumes/Daten.
+docker image prune -a -f >nul 2>nul
+docker builder prune -f >nul 2>nul
 
 REM --- 4. Auf Bereitschaft warten ---------------------------------------
 echo.

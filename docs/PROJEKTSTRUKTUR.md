@@ -190,12 +190,10 @@ meisten „eigene" Dateien wie Handbücher und Backup-Skripte).
 |---|---|
 | `README.md`, `CLAUDE.md` | Beschreibung des Tools bzw. Arbeitsanweisungen für KI-gestützte Entwicklung |
 | `BENUTZERHANDBUCH.md` / `.html` | Handbuch für Endanwender (Markdown-Quelle und erzeugte HTML-Fassung) |
-| `2026-06 Handkasse Manual.pdf` | Handbuch als PDF |
-| `Handbuch als PDF erstellen.bat`, `Manual als PDF erstellen.bat` | Doppelklick-Skripte, die aus dem Handbuch ein PDF erzeugen |
+| `Handbuch als PDF erstellen.bat` | Doppelklick-Skript, das aus dem Handbuch ein PDF erzeugt (PDF liegt nicht im Repo) |
 | `BACKUP.md` | Erklärung des Backup-Konzepts |
 | `docker-compose.yml` | Nur die Entwicklungs-Datenbank (`handkassen-dev-db`, Daten in `postgres-data/`). Kein App-/Backup-Dienst: Betrieb ausschließlich über das Compose im Wurzelverzeichnis |
 | `backend/.env.example` | Vorlage für die lokale Backend-Konfiguration (Entwicklung) |
-| `Handbuch als PDF erstellen.bat`, `Manual als PDF erstellen.bat` | Erzeugen das Benutzerhandbuch als PDF |
 | `.gitattributes`, `.gitignore`, `.dockerignore` | Regeln, was Git bzw. Docker ignorieren/wie Zeilenenden behandelt werden |
 | `.claude/settings.local.json` | Lokale Einstellungen für Claude Code (Entwicklungswerkzeug) |
 
@@ -253,7 +251,7 @@ Wertet per E-Mail eingehende Arbeitszeit-Anfragen mit KI-Unterstützung aus.
 
 | Datei | Zweck |
 |---|---|
-| `README.md`, `PLAN.md`, `CHECKLISTE.md` | Beschreibung, ursprünglicher Bauplan, Abnahme-Checkliste |
+| `README.md` | Beschreibung und Architektur-Überblick |
 | `docker-compose.yml`, `einrichten.ps1`, `start.ps1`, `stopp.ps1` | Einzelbetrieb/Entwicklung: eigene Datenbank starten, Tool einrichten |
 | `.claude/settings.local.json`, `.gitignore` | Werkzeug-Einstellungen, Ignorier-Regeln |
 
