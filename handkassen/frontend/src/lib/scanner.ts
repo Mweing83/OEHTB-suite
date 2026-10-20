@@ -8,8 +8,9 @@
 // (Soll doch wieder vom CDN geladen werden, hier die URLs entsprechend setzen:
 //  https://docs.opencv.org/4.7.0/opencv.js bzw. die jscanify-CDN-URL.)
 
-const OPENCV_URL = "/scanner/opencv.js";
-const JSCANIFY_URL = "/scanner/jscanify.min.js";
+// Mit Vite-Basis (z. B. /handkassen/), sonst unter dem Suite-Proxy nicht gefunden.
+const OPENCV_URL = `${import.meta.env.BASE_URL}scanner/opencv.js`;
+const JSCANIFY_URL = `${import.meta.env.BASE_URL}scanner/jscanify.min.js`;
 
 declare global {
   interface Window {

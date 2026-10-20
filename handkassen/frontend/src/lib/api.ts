@@ -6,6 +6,13 @@
 
 const BASIS = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
 
+// Vollstaendige URL fuer direkte Links (Berichte, Exporte, Belegvorschau),
+// die nicht ueber fetch laufen. Ohne Praefix landeten sie unter dem Proxy beim
+// Portal ("Cannot GET /api/berichte/...").
+export function apiUrl(pfad: string): string {
+  return BASIS + pfad;
+}
+
 // Fehler mit Zugriff auf die Antwortdaten (z. B. Flags wie passwortSetzenErforderlich)
 export class ApiFehler extends Error {
   status: number;

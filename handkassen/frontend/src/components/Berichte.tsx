@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../lib/auth.js";
+import { apiUrl } from "../lib/api.js";
 import DatumFeld from "./DatumFeld.js";
 
 interface Props {
@@ -19,7 +20,7 @@ export default function Berichte({ kostenstelleId }: Props) {
   const [bis, setBis] = useState(heute.toISOString().slice(0, 10));
 
   function url(bericht: "kassabericht" | "detailbericht" | "zaehlliste" | "csv"): string {
-    const basis = `/api/berichte/${bericht}?kostenstelle=${kostenstelleId}`;
+    const basis = apiUrl(`/berichte/${bericht}?kostenstelle=${kostenstelleId}`);
     if (modus === "monat") {
       return `${basis}&jahr=${jahr}&monat=${monat}`;
     }
@@ -47,14 +48,14 @@ export default function Berichte({ kostenstelleId }: Props) {
   const [bmdMonat, setBmdMonat] = useState(heute.getMonth() + 1);
 
   function bmdExport() {
-    const u = `/api/export/bmd?jahr=${bmdJahr}&monat=${bmdMonat}`;
+    const u = apiUrl(`/export/bmd?jahr=${bmdJahr}&monat=${bmdMonat}`);
     window.open(u, "_blank", "noopener,noreferrer");
   }
 
   // CSV über alle Kassen des gewählten Monats herunterladen.
   function csvAlleHerunterladen() {
     const a = document.createElement("a");
-    a.href = `/api/export/csv?jahr=${bmdJahr}&monat=${bmdMonat}`;
+    a.href = apiUrl(`/export/csv?jahr=${bmdJahr}&monat=${bmdMonat}`);
     a.download = "";
     document.body.appendChild(a);
     a.click();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../lib/api.js";
+import { api, apiUrl } from "../lib/api.js";
 import { formatCent, formatProzent, summeSteuerCent } from "../lib/geld.js";
 import BuchungsFormular, { type BearbeitenVorlage } from "../components/BuchungsFormular.js";
 import DatumFeld, { isoZuDe } from "../components/DatumFeld.js";
@@ -368,19 +368,19 @@ export default function BuchungenSeite() {
               </div>
               {belegVorschau.originalname.toLowerCase().endsWith(".pdf") ? (
                 <iframe
-                  src={`/api/buchungen/belege/${belegVorschau.id}`}
+                  src={apiUrl(`/buchungen/belege/${belegVorschau.id}`)}
                   className="w-full h-[75vh] border rounded"
                   title="Belegvorschau"
                 />
               ) : (
                 <img
-                  src={`/api/buchungen/belege/${belegVorschau.id}`}
+                  src={apiUrl(`/buchungen/belege/${belegVorschau.id}`)}
                   alt="Belegvorschau"
                   className="w-full rounded border"
                 />
               )}
               <a
-                href={`/api/buchungen/belege/${belegVorschau.id}`}
+                href={apiUrl(`/buchungen/belege/${belegVorschau.id}`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-3 text-xs text-marke-700 hover:underline"

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, mitBasis } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { MitarbeiterListe } from "../lib/typen";
 import Layout from "../components/Layout";
@@ -57,7 +57,8 @@ const MONATE_NAMEN = [
 // Laedt eine geschuetzte Datei (mit Session-Cookie) herunter.
 async function csvHerunterladen(pfad: string, dateiname: string): Promise<void> {
   try {
-    const res = await fetch(pfad, { credentials: "include" });
+    // Mit Basis-Pfad (/stunden/), sonst landet der Export unter dem Proxy beim Portal.
+    const res = await fetch(mitBasis(pfad), { credentials: "include" });
     if (!res.ok) {
       await hinweis("Export fehlgeschlagen.");
       return;
