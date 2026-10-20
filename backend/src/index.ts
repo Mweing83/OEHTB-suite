@@ -6,6 +6,7 @@ import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
+import { corsAktiv, fremdeSeitenAbwehren } from "./lib/herkunft";
 import cookieParser from "cookie-parser";
 import fs from "fs";
 import path from "path";
@@ -74,7 +75,8 @@ app.use(
   })
 );
 
-app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+if (corsAktiv()) app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+app.use(fremdeSeitenAbwehren);
 app.use(express.json());
 app.use(cookieParser());
 

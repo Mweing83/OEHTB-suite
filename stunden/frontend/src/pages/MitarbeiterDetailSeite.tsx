@@ -19,6 +19,9 @@ export default function MitarbeiterDetailSeite() {
   const darfBearbeiten =
     benutzer?.rolle === "admin" || benutzer?.rolle === "sachbearbeiter";
   const istAdmin = benutzer?.rolle === "admin";
+  // Beschaeftigungen erfassen darf zusaetzlich die Personalverrechnung.
+  const darfBeschaeftigungErfassen =
+    darfBearbeiten || benutzer?.rolle === "personalverrechnung";
 
   const [daten, setDaten] = useState<MitarbeiterDetail | null>(null);
   const [laedt, setLaedt] = useState(true);
@@ -475,7 +478,7 @@ export default function MitarbeiterDetailSeite() {
           <h3 className="font-semibold text-gray-800">
             Verlauf der Beschäftigung
           </h3>
-          {darfBearbeiten && (
+          {darfBeschaeftigungErfassen && (
             <button
               onClick={() => setZeigeFormular((v) => !v)}
               className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"

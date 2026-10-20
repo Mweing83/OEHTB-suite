@@ -43,8 +43,11 @@ export function buchungValidieren(
   }
 
   for (const [i, pos] of (b.positionen ?? []).entries()) {
-    if (!Number.isInteger(pos.betragCent)) {
-      fehler.push(`Position ${i + 1}: Betrag muss Ganzzahl in Cent sein.`);
+    // Positionen muessen positiv sein: sonst liessen sich z. B. +20.000 EUR auf
+    // einem Konto und -19.990 EUR auf einem anderen "verstecken", solange die
+    // Summe stimmt (Security-Audit 2026-10, Haertung).
+    if (!Number.isInteger(pos.betragCent) || pos.betragCent <= 0) {
+      fehler.push(`Position ${i + 1}: Betrag muss eine positive Ganzzahl in Cent sein.`);
     }
     if (!erlaubteSteuersaetze.includes(pos.steuersatz)) {
       fehler.push(

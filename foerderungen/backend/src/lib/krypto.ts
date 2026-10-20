@@ -60,10 +60,18 @@ export function verschluesseln(klartext: string): string {
 
 export function entschluesseln(gespeichert: string): string {
   const [ivB64, tagB64, dataB64] = gespeichert.split(":");
-  const iv = Buffer.from(ivB64, "base64");
-  const authTag = Buffer.from(tagB64, "base64");
-  const daten = Buffer.from(dataB64, "base64");
-  const decipher = crypto.createDecipheriv(ALGORITHMUS, getSchluessel(), iv);
+  const iv = Buffer.from(ivB64 ?? "", "base64");
+  const authTag = Buffer.from(tagB64 ?? "", "base64");
+  const daten = Buffer.from(dataB64 ?? "", "base64");
+  // Volle Laengen erzwingen (Security-Audit 2026-10): ohne authTagLength
+  // akzeptiert Node auch gekuerzte GCM-Tags (z. B. 4 Byte), was die
+  // Integritaetspruefung praktisch aushebelt.
+  if (iv.length !== 12 || authTag.length !== 16) {
+    throw new Error("Verschluesselter Wert ist beschaedigt.");
+  }
+  const decipher = crypto.createDecipheriv(ALGORITHMUS, getSchluessel(), iv, {
+    authTagLength: 16,
+  });
   decipher.setAuthTag(authTag);
   const klartext = Buffer.concat([
     decipher.update(daten),

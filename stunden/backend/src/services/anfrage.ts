@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma";
-import { pseudonymisieren, PseudonymMapping } from "./pseudonym";
+import { pseudonymisieren, reIdentifizieren } from "./pseudonym";
 import { aktiverProvider } from "./llm/factory";
 
 // ---------------------------------------------------------------------------
@@ -69,8 +69,10 @@ export async function anfrageVerarbeiten(anfrageId: string): Promise<void> {
     const ergebnis = await provider.parseAenderung(text);
 
     // 3. Re-Identifikation (lokal)
+    // Nur echte, eigene Mapping-Eintraege aufloesen ("__proto__" o. Ae. vom
+    // Modell darf nicht in Object.prototype greifen).
     const mitarbeiterId = ergebnis.personPlatzhalter
-      ? mapping[ergebnis.personPlatzhalter] ?? null
+      ? reIdentifizieren(ergebnis.personPlatzhalter, mapping)
       : null;
 
     const aufbereitet: AufbereitetesErgebnis = {
@@ -110,11 +112,20 @@ export async function anfrageVerarbeiten(anfrageId: string): Promise<void> {
 
 // Hilfsfunktion: pruefen, ob ein Ergebnis vollstaendig genug fuer eine
 // automatische Uebernahme ist (Person + Stunden + Datum vorhanden).
+// Automatische Uebernahme nur mit denselben Wertgrenzen wie beim manuellen
+// Bestaetigen (Security-Audit 2026-10: vorher landeten z. B. 500 Stunden oder
+// 0 % Ausmass ungeprueft in der Historie).
 export function istUebernahmefaehig(e: AufbereitetesErgebnis): boolean {
   return (
     e.mitarbeiterId !== null &&
-    e.neuStunden !== null &&
+    typeof e.neuStunden === "number" &&
+    e.neuStunden > 0 &&
+    e.neuStunden <= 168 &&
+    typeof e.ausmassProzent === "number" &&
+    e.ausmassProzent > 0 &&
+    e.ausmassProzent <= 100 &&
     e.gueltigAb !== null &&
-    /^\d{4}-\d{2}-\d{2}$/.test(e.gueltigAb)
+    /^\d{4}-\d{2}-\d{2}$/.test(e.gueltigAb) &&
+    !Number.isNaN(new Date(e.gueltigAb + "T00:00:00.000Z").getTime())
   );
 }
