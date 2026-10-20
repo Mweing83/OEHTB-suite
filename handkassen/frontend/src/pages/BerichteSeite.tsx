@@ -32,7 +32,7 @@ export default function BerichteSeite() {
           <span className="text-sm text-slate-500">Keine Kostenstellen verfügbar.</span>
         ) : (
           <select
-            className="border rounded px-3 py-2"
+            className="border rounded-sm px-3 py-2"
             value={aktiv ?? ""}
             onChange={(e) => setAktiv(Number(e.target.value))}
           >

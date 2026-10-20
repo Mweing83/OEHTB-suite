@@ -63,7 +63,7 @@ export default function Berichte({ kostenstelleId }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-5">
+    <div className="bg-white rounded-lg shadow-sm p-5">
       <h2 className="font-semibold text-marke-900 mb-4">Berichte</h2>
 
       {/* Modus-Umschaltung */}
@@ -82,12 +82,12 @@ export default function Berichte({ kostenstelleId }: Props) {
         <div className="grid grid-cols-2 gap-4 mb-4 max-w-xs">
           <div>
             <label className="block text-sm font-medium mb-1">Jahr</label>
-            <input type="number" className="w-full border rounded px-3 py-2"
+            <input type="number" className="w-full border rounded-sm px-3 py-2"
               value={jahr} onChange={(e) => setJahr(Number(e.target.value))} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Monat</label>
-            <input type="number" min={1} max={12} className="w-full border rounded px-3 py-2"
+            <input type="number" min={1} max={12} className="w-full border rounded-sm px-3 py-2"
               value={monat} onChange={(e) => setMonat(Number(e.target.value))} />
           </div>
         </div>
@@ -106,19 +106,19 @@ export default function Berichte({ kostenstelleId }: Props) {
 
       <div className="flex flex-wrap gap-3">
         <button onClick={() => oeffnen("kassabericht")}
-          className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
+          className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800">
           Kassabericht
         </button>
         <button onClick={() => oeffnen("detailbericht")}
-          className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
+          className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800">
           Detailbericht
         </button>
         <button onClick={() => oeffnen("zaehlliste")}
-          className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
+          className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800">
           Zählliste
         </button>
         <button onClick={csvHerunterladen}
-          className="bg-green-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-green-800">
+          className="bg-green-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-green-800">
           CSV (Excel)
         </button>
       </div>
@@ -139,20 +139,20 @@ export default function Berichte({ kostenstelleId }: Props) {
           <div className="flex flex-wrap gap-3 items-end">
             <div>
               <label className="block text-sm font-medium mb-1">Jahr</label>
-              <input type="number" className="border rounded px-3 py-2 w-28"
+              <input type="number" className="border rounded-sm px-3 py-2 w-28"
                 value={bmdJahr} onChange={(e) => setBmdJahr(Number(e.target.value))} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Monat</label>
-              <input type="number" min={1} max={12} className="border rounded px-3 py-2 w-24"
+              <input type="number" min={1} max={12} className="border rounded-sm px-3 py-2 w-24"
                 value={bmdMonat} onChange={(e) => setBmdMonat(Number(e.target.value))} />
             </div>
             <button onClick={bmdExport}
-              className="bg-slate-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-slate-800">
+              className="bg-slate-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-slate-800">
               BMD-Datei herunterladen
             </button>
             <button onClick={csvAlleHerunterladen}
-              className="bg-green-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-green-800">
+              className="bg-green-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-green-800">
               CSV (alle Kassen)
             </button>
           </div>

@@ -156,7 +156,7 @@ export default function BuchungenSeite() {
       <div className="flex items-center gap-4 mb-6">
         <label className="text-sm font-medium">Kostenstelle:</label>
         <select
-          className="border rounded px-3 py-2"
+          className="border rounded-sm px-3 py-2"
           value={aktiv ?? ""}
           onChange={(e) => setAktiv(Number(e.target.value))}
         >
@@ -186,7 +186,7 @@ export default function BuchungenSeite() {
         />}
 
         <div className="flex gap-6 items-start">
-          <div className="bg-white rounded-lg shadow p-5 flex-1 min-w-0">
+          <div className="bg-white rounded-lg shadow-sm p-5 flex-1 min-w-0">
           <h2 className="font-semibold text-marke-900 mb-4">Buchungen</h2>
 
           {/* Filterleiste */}
@@ -195,7 +195,7 @@ export default function BuchungenSeite() {
               <div className="flex-1 min-w-[180px]">
                 <label className="block text-xs font-medium text-slate-500 mb-1">Suche (Beschreibung, Konto, Nr.)</label>
                 <input
-                  className="w-full border rounded px-3 py-1.5 text-sm"
+                  className="w-full border rounded-sm px-3 py-1.5 text-sm"
                   placeholder="Suchbegriff…"
                   value={suche}
                   onChange={(e) => setSuche(e.target.value)}
@@ -211,7 +211,7 @@ export default function BuchungenSeite() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Konto</label>
-                <select className="border rounded px-3 py-1.5 text-sm"
+                <select className="border rounded-sm px-3 py-1.5 text-sm"
                   value={kontoFilter} onChange={(e) => setKontoFilter(e.target.value)}>
                   <option value="">Alle</option>
                   {verfuegbareKonten.map((k) => (
@@ -221,7 +221,7 @@ export default function BuchungenSeite() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Typ</label>
-                <select className="border rounded px-3 py-1.5 text-sm"
+                <select className="border rounded-sm px-3 py-1.5 text-sm"
                   value={typFilter} onChange={(e) => setTypFilter(e.target.value as "" | "eingang" | "ausgang")}>
                   <option value="">Alle</option>
                   <option value="eingang">Eingang</option>
@@ -245,7 +245,7 @@ export default function BuchungenSeite() {
           </div>
 
           {ladeFehler ? (
-            <div className="text-sm text-gefahr-700 bg-gefahr-50 border border-gefahr-600/20 rounded px-3 py-2">
+            <div className="text-sm text-gefahr-700 bg-gefahr-50 border border-gefahr-600/20 rounded-sm px-3 py-2">
               {ladeFehler}{" "}
               <button
                 onClick={() => aktiv && ladeBuchungen(aktiv)}
@@ -349,7 +349,7 @@ export default function BuchungenSeite() {
           </div>
 
           {belegVorschau && (
-            <aside className="bg-white rounded-lg shadow p-4 w-[440px] shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-auto">
+            <aside className="bg-white rounded-lg shadow-sm p-4 w-[440px] shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-auto">
               <div className="flex items-center justify-between mb-3 gap-2">
                 <h3 className="font-semibold text-marke-900 text-sm truncate" title={belegVorschau.belegnummer}>
                   Beleg: {belegVorschau.belegnummer}
@@ -369,14 +369,14 @@ export default function BuchungenSeite() {
               {belegVorschau.originalname.toLowerCase().endsWith(".pdf") ? (
                 <iframe
                   src={apiUrl(`/buchungen/belege/${belegVorschau.id}`)}
-                  className="w-full h-[75vh] border rounded"
+                  className="w-full h-[75vh] border rounded-sm"
                   title="Belegvorschau"
                 />
               ) : (
                 <img
                   src={apiUrl(`/buchungen/belege/${belegVorschau.id}`)}
                   alt="Belegvorschau"
-                  className="w-full rounded border"
+                  className="w-full rounded-sm border"
                 />
               )}
               <a

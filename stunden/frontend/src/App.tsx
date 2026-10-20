@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { AuthProvider, useAuth } from "./lib/auth";
 import DashboardSeite from "./pages/DashboardSeite";
 import MitarbeiterSeite from "./pages/MitarbeiterSeite";
@@ -21,7 +21,7 @@ function KeineSitzung() {
         </p>
         <a
           href="/"
-          className="inline-block bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700"
+          className="inline-block bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700"
         >
           Zum Portal
         </a>

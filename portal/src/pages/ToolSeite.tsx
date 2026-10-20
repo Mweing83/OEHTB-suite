@@ -78,7 +78,7 @@ export default function ToolSeite() {
       </p>
 
       {benutzer && benutzer.tools.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 text-gray-500 text-sm">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-xs p-6 text-gray-500 text-sm">
           Für Ihr Konto ist aktuell kein Tool freigeschaltet. Bitte an die
           Verwaltung wenden.
         </div>
@@ -90,9 +90,9 @@ export default function ToolSeite() {
               <a
                 key={tool.slug}
                 href={tool.pfad}
-                className={`group relative rounded-xl border shadow-sm p-5 flex flex-col
+                className={`group relative rounded-xl border shadow-xs p-5 flex flex-col
                            transition-all hover:shadow-md hover:-translate-y-0.5
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marke-500 focus-visible:ring-offset-2
+                           focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-marke-500 focus-visible:ring-offset-2
                            motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${
                              istVerwaltung
                                ? "bg-marke-900 border-marke-900 hover:border-marke-500"

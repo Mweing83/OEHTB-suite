@@ -58,7 +58,7 @@ export default function AusschreibungenSeite() {
   function zeile(a: Ausschreibung) {
     const tage = fristTage(a);
     return (
-      <li key={a.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <li key={a.id} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className={"text-sm " + fristKlasse(a)}>
             {fristText(a)}

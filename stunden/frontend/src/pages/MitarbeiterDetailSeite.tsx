@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link } from "react-router";
 import { api, mitBasis } from "../lib/api";
 import { MitarbeiterDetail } from "../lib/typen";
 import { useAuth } from "../lib/auth";
@@ -212,7 +212,7 @@ export default function MitarbeiterDetailSeite() {
         ← Zurück zum Dashboard
       </Link>
 
-      <div className="bg-white rounded-lg shadow-sm p-6 mt-3 mb-6">
+      <div className="bg-white rounded-lg shadow-xs p-6 mt-3 mb-6">
         <div className="flex items-start justify-between">
           <h2 className="text-xl font-semibold text-gray-800">
             {daten.nachname}, {daten.vorname}
@@ -224,7 +224,7 @@ export default function MitarbeiterDetailSeite() {
                   zeigeBearbeiten ? setZeigeBearbeiten(false) : bearbeitenOeffnen()
                 }
                 className={
-                  "border border-gray-300 rounded px-2.5 py-1.5 text-gray-700 hover:bg-gray-50 " +
+                  "border border-gray-300 rounded-sm px-2.5 py-1.5 text-gray-700 hover:bg-gray-50 " +
                   (zeigeBearbeiten ? "bg-gray-100" : "")
                 }
                 title="Stammdaten bearbeiten"
@@ -249,7 +249,7 @@ export default function MitarbeiterDetailSeite() {
             {benutzer?.rolle !== "leser" && (
               <button
                 onClick={exportieren}
-                className="text-sm border border-gray-300 rounded px-3 py-1.5 text-gray-700 hover:bg-gray-50"
+                className="text-sm border border-gray-300 rounded-sm px-3 py-1.5 text-gray-700 hover:bg-gray-50"
                 title="DSGVO-Auskunft als JSON herunterladen"
               >
                 Daten exportieren
@@ -259,7 +259,7 @@ export default function MitarbeiterDetailSeite() {
               <button
                 onClick={() => setZeigeLoeschen((v) => !v)}
                 className={
-                  "border border-red-200 text-red-700 rounded px-2.5 py-1.5 hover:bg-red-50 " +
+                  "border border-red-200 text-red-700 rounded-sm px-2.5 py-1.5 hover:bg-red-50 " +
                   (zeigeLoeschen ? "bg-red-50" : "")
                 }
                 title="Person löschen"
@@ -293,7 +293,7 @@ export default function MitarbeiterDetailSeite() {
               <input
                 value={bVorname}
                 onChange={(e) => setBVorname(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -301,7 +301,7 @@ export default function MitarbeiterDetailSeite() {
               <input
                 value={bNachname}
                 onChange={(e) => setBNachname(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -311,7 +311,7 @@ export default function MitarbeiterDetailSeite() {
               <input
                 value={bPersonalnummer}
                 onChange={(e) => setBPersonalnummer(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -321,7 +321,7 @@ export default function MitarbeiterDetailSeite() {
               <input
                 value={bBereich}
                 onChange={(e) => setBBereich(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div className="col-span-2">
@@ -332,7 +332,7 @@ export default function MitarbeiterDetailSeite() {
                 type="email"
                 value={bEmail}
                 onChange={(e) => setBEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div className="col-span-2">
@@ -342,7 +342,7 @@ export default function MitarbeiterDetailSeite() {
               <DatumEingabe
                 value={bAustritt}
                 onChange={setBAustritt}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
               <p className="text-xs text-slate-500 mt-1">
                 Leer = beschäftigt. Ab diesem Tag zählt die Person nicht mehr zum
@@ -357,14 +357,14 @@ export default function MitarbeiterDetailSeite() {
               <button
                 type="submit"
                 disabled={bSpeichert}
-                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 {bSpeichert ? "Speichern …" : "Stammdaten speichern"}
               </button>
               <button
                 type="button"
                 onClick={() => setZeigeBearbeiten(false)}
-                className="border border-gray-300 rounded px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="border border-gray-300 rounded-sm px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Abbrechen
               </button>
@@ -391,21 +391,21 @@ export default function MitarbeiterDetailSeite() {
               <button
                 onClick={() => loeschen(false)}
                 disabled={loescht}
-                className="text-sm bg-amber-600 text-white rounded px-3 py-1.5 hover:bg-amber-700 disabled:opacity-50"
+                className="text-sm bg-amber-600 text-white rounded-sm px-3 py-1.5 hover:bg-amber-700 disabled:opacity-50"
               >
                 Anonymisieren
               </button>
               <button
                 onClick={() => loeschen(true)}
                 disabled={loescht}
-                className="text-sm bg-red-600 text-white rounded px-3 py-1.5 hover:bg-red-700 disabled:opacity-50"
+                className="text-sm bg-red-600 text-white rounded-sm px-3 py-1.5 hover:bg-red-700 disabled:opacity-50"
               >
                 Endgültig löschen
               </button>
               <button
                 onClick={() => setZeigeLoeschen(false)}
                 disabled={loescht}
-                className="text-sm border border-gray-300 rounded px-3 py-1.5 text-gray-700 hover:bg-gray-100"
+                className="text-sm border border-gray-300 rounded-sm px-3 py-1.5 text-gray-700 hover:bg-gray-100"
               >
                 Abbrechen
               </button>
@@ -473,7 +473,7 @@ export default function MitarbeiterDetailSeite() {
       </div>
 
       {/* Historie */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-xs p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-800">
             Verlauf der Beschäftigung
@@ -481,7 +481,7 @@ export default function MitarbeiterDetailSeite() {
           {darfBeschaeftigungErfassen && (
             <button
               onClick={() => setZeigeFormular((v) => !v)}
-              className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
+              className="bg-marke-600 text-white rounded-sm px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
             >
               {zeigeFormular ? "Abbrechen" : "+ Änderung erfassen"}
             </button>
@@ -501,7 +501,7 @@ export default function MitarbeiterDetailSeite() {
                 value={wochenstunden}
                 onChange={(e) => setWochenstunden(e.target.value)}
                 placeholder="z. B. 30"
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -512,7 +512,7 @@ export default function MitarbeiterDetailSeite() {
                 value={ausmass}
                 onChange={(e) => setAusmass(e.target.value)}
                 placeholder="z. B. 75"
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -522,7 +522,7 @@ export default function MitarbeiterDetailSeite() {
               <DatumEingabe
                 value={gueltigAb}
                 onChange={setGueltigAb}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -532,7 +532,7 @@ export default function MitarbeiterDetailSeite() {
               <input
                 value={notiz}
                 onChange={(e) => setNotiz(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             {formFehler && (
@@ -542,7 +542,7 @@ export default function MitarbeiterDetailSeite() {
               <button
                 type="submit"
                 disabled={speichert}
-                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 {speichert ? "Speichern …" : "Änderung speichern"}
               </button>

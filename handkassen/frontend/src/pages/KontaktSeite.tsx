@@ -29,7 +29,7 @@ export default function KontaktSeite() {
       <h1 className="text-xl font-bold text-marke-900 mb-1">Kontakt</h1>
       <p className="text-sm text-slate-500 mb-4">Ansprechpartner bei Fragen zum Handkassen-System.</p>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow-sm p-6">
         {!geladen ? (
           <p className="text-slate-500">Lädt…</p>
         ) : leer ? (

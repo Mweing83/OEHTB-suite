@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import Layout from "../components/Layout";
 import { api } from "../lib/api";
 import {
@@ -70,7 +70,7 @@ export default function LandschaftSeite() {
   }
 
   const eingabeKlasse =
-    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-marke-500";
+    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-marke-500";
   const auswahlKlasse =
     "rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm";
 
@@ -102,7 +102,7 @@ export default function LandschaftSeite() {
       {fehler && <p className="text-gefahr-700 mb-4">{fehler}</p>}
 
       {zeigeFormular && (
-        <form onSubmit={anlegen} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 grid gap-3 sm:grid-cols-2">
+        <form onSubmit={anlegen} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4 mb-6 grid gap-3 sm:grid-cols-2">
           <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={eingabeKlasse} />
           <input required value={traeger} onChange={(e) => setTraeger(e.target.value)} placeholder="Träger" className={eingabeKlasse} />
           <select value={neuEbene} onChange={(e) => setNeuEbene(e.target.value as Ebene)} className={eingabeKlasse} aria-label="Ebene der neuen Quelle">
@@ -136,7 +136,7 @@ export default function LandschaftSeite() {
             <li key={q.id}>
               <Link
                 to={`/landschaft/${q.id}`}
-                className="block bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:border-marke-400"
+                className="block bg-white rounded-lg shadow-xs border border-gray-200 p-4 hover:border-marke-400"
               >
                 <h2 className="text-base font-semibold text-gray-800">{q.name}</h2>
                 <p className="text-sm text-gray-500 mt-0.5">

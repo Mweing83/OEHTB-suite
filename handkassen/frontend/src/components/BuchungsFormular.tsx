@@ -176,26 +176,26 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbe
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-5">
+    <div className="bg-white rounded-lg shadow-sm p-5">
       <h2 className="font-semibold text-marke-900 mb-4">
         {istBearbeiten ? `Buchung bearbeiten (Nr. ${bearbeiten!.buchungsnummer}, Beleg-Nr. ${bearbeiten!.belegnummer})` : "Neue Buchung"}
       </h2>
 
       {istBearbeiten && (
-        <div className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+        <div className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-sm px-3 py-2">
           Änderungen werden direkt an dieser Buchung gespeichert; Buchungs- und Belegnummer bleiben erhalten.
           {bearbeiten!.hatBeleg && " Der vorhandene Beleg bleibt, solange kein neuer gewählt wird."}
         </div>
       )}
 
       {fehler && (
-        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-sm px-3 py-2">
           {fehler}
         </div>
       )}
 
       {erfolg && (
-        <div className="mb-4 text-sm text-green-800 bg-green-50 border border-green-200 rounded px-3 py-2">
+        <div className="mb-4 text-sm text-green-800 bg-green-50 border border-green-200 rounded-sm px-3 py-2">
           {erfolg}
         </div>
       )}
@@ -208,7 +208,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbe
         <div>
           <label className="block text-sm font-medium mb-1">Typ</label>
           <select
-            className="w-full border rounded px-3 py-2"
+            className="w-full border rounded-sm px-3 py-2"
             value={typ}
             onChange={(e) => setTyp(e.target.value as "eingang" | "ausgang")}
           >
@@ -220,7 +220,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbe
 
       <label className="block text-sm font-medium mb-1">Beschreibung (optional)</label>
       <input
-        className="w-full border rounded px-3 py-2 mb-4"
+        className="w-full border rounded-sm px-3 py-2 mb-4"
         value={beschreibung}
         onChange={(e) => setBeschreibung(e.target.value)}
       />
@@ -236,13 +236,13 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbe
         {positionen.map((p, i) => (
           <div key={i} className="grid grid-cols-12 gap-2 items-center">
             <input
-              className="col-span-3 border rounded px-2 py-1.5 text-right"
+              className="col-span-3 border rounded-sm px-2 py-1.5 text-right"
               placeholder="0,00"
               value={p.betrag}
               onChange={(e) => positionAendern(i, "betrag", e.target.value)}
             />
             <select
-              className="col-span-3 border rounded px-2 py-1.5"
+              className="col-span-3 border rounded-sm px-2 py-1.5"
               value={p.steuersatz}
               onChange={(e) => positionAendern(i, "steuersatz", Number(e.target.value))}
             >
@@ -251,7 +251,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbe
               ))}
             </select>
             <select
-              className="col-span-5 border rounded px-2 py-1.5"
+              className="col-span-5 border rounded-sm px-2 py-1.5"
               value={p.kontoId}
               onChange={(e) => positionAendern(i, "kontoId", Number(e.target.value))}
             >
@@ -288,7 +288,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbe
         <button
           onClick={speichern}
           disabled={speichert}
-          className="flex-1 bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800 disabled:opacity-50"
+          className="flex-1 bg-marke-700 text-white rounded-sm py-2 font-medium hover:bg-marke-800 disabled:opacity-50"
         >
           {speichert
             ? "Speichert…"
@@ -300,7 +300,7 @@ export default function BuchungsFormular({ kostenstelleId, onGespeichert, bearbe
           <button
             onClick={onBearbeitenAbbrechen}
             disabled={speichert}
-            className="border rounded px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+            className="border rounded-sm px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
           >
             Abbrechen
           </button>

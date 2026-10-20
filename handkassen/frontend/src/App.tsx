@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router";
 import { AuthProvider, useAuth } from "./lib/auth.js";
 import BuchungenSeite from "./pages/BuchungenSeite.js";
 import AbschlussSeite from "./pages/AbschlussSeite.js";
@@ -105,7 +105,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 function KeineSitzung() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="bg-white rounded-lg shadow p-8 w-full max-w-sm text-center">
+      <div className="bg-white rounded-lg shadow-sm p-8 w-full max-w-sm text-center">
         <h1 className="text-lg font-semibold text-marke-900 mb-2">
           ÖHTB Handkassen
         </h1>

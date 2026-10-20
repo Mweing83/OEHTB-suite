@@ -86,7 +86,7 @@ export default function DatumFeld({ wert, onChange, className = "", size = "norm
         type="text"
         inputMode="numeric"
         placeholder="TT.MM.JJJJ"
-        className={`w-full border rounded pr-9 ${groesse} ${fehlerhaft ? "border-red-400 bg-red-50" : ""}`}
+        className={`w-full border rounded-sm pr-9 ${groesse} ${fehlerhaft ? "border-red-400 bg-red-50" : ""}`}
         value={text}
         onChange={(e) => textGeaendert(e.target.value)}
         onBlur={beimVerlassen}

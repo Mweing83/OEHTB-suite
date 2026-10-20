@@ -184,7 +184,7 @@ export default function DatumEingabe({ value, onChange, className, id }: Props) 
               type="button"
               onClick={() => monatWechseln(-1)}
               aria-label="Vorheriger Monat"
-              className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+              className="rounded-sm px-2 py-1 text-gray-500 hover:bg-gray-100"
             >
               ‹
             </button>
@@ -195,7 +195,7 @@ export default function DatumEingabe({ value, onChange, className, id }: Props) 
               type="button"
               onClick={() => monatWechseln(1)}
               aria-label="Nächster Monat"
-              className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+              className="rounded-sm px-2 py-1 text-gray-500 hover:bg-gray-100"
             >
               ›
             </button>
@@ -221,7 +221,7 @@ export default function DatumEingabe({ value, onChange, className, id }: Props) 
                   type="button"
                   onClick={() => tagWaehlen(tag)}
                   className={
-                    "rounded py-1 hover:bg-marke-100 " +
+                    "rounded-sm py-1 hover:bg-marke-100 " +
                     (istGewaehlt
                       ? "bg-marke-600 text-white hover:bg-marke-600"
                       : istHeute

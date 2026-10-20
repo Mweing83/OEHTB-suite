@@ -152,7 +152,7 @@ export default function BelegErfassung({ onDatei }: Props) {
 
       {modus === "keine" && !vorschauUrl && (
         <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex items-center gap-2 cursor-pointer text-sm border rounded px-3 py-2 hover:bg-slate-50">
+          <label className="inline-flex items-center gap-2 cursor-pointer text-sm border rounded-sm px-3 py-2 hover:bg-slate-50">
             <span>Datei wählen</span>
             <input
               type="file"
@@ -165,7 +165,7 @@ export default function BelegErfassung({ onDatei }: Props) {
           <button
             type="button"
             onClick={kameraStarten}
-            className="inline-flex items-center gap-2 text-sm border rounded px-3 py-2 hover:bg-slate-50"
+            className="inline-flex items-center gap-2 text-sm border rounded-sm px-3 py-2 hover:bg-slate-50"
           >
             📷 Foto aufnehmen
           </button>
@@ -185,12 +185,12 @@ export default function BelegErfassung({ onDatei }: Props) {
 
       {modus === "livekamera" && (
         <div className="mt-3">
-          <video ref={videoRef} className="w-full max-w-sm rounded border bg-black" playsInline muted />
+          <video ref={videoRef} className="w-full max-w-sm rounded-sm border bg-black" playsInline muted />
           <div className="flex gap-2 mt-2">
             <button
               type="button"
               onClick={ausloesen}
-              className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800"
+              className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800"
             >
               Auslösen
             </button>
@@ -198,7 +198,7 @@ export default function BelegErfassung({ onDatei }: Props) {
               <button
                 type="button"
                 onClick={kameraWechseln}
-                className="text-sm border rounded px-3 py-2 hover:bg-slate-50"
+                className="text-sm border rounded-sm px-3 py-2 hover:bg-slate-50"
                 title="Zwischen den Kameras des Geräts wechseln"
               >
                 🔄 Kamera wechseln
@@ -230,9 +230,9 @@ export default function BelegErfassung({ onDatei }: Props) {
       {vorschauUrl && modus === "keine" && (
         <div className="mt-3">
           {dateiname.toLowerCase().endsWith(".pdf") ? (
-            <div className="text-sm text-slate-600 border rounded px-3 py-2">PDF angehängt: {dateiname}</div>
+            <div className="text-sm text-slate-600 border rounded-sm px-3 py-2">PDF angehängt: {dateiname}</div>
           ) : (
-            <img src={vorschauUrl} alt="Belegvorschau" className="w-full max-w-sm rounded border" />
+            <img src={vorschauUrl} alt="Belegvorschau" className="w-full max-w-sm rounded-sm border" />
           )}
           <div className="flex gap-2 mt-2">
             <button type="button" onClick={entfernen} className="text-sm text-red-600 hover:underline">

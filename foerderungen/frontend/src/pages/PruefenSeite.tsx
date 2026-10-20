@@ -89,7 +89,7 @@ export default function PruefenSeite() {
               </h2>
               <ul className="space-y-3 mb-8">
                 {quellen.map((q) => (
-                  <li key={q.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                  <li key={q.id} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4">
                     <h3 className="text-base font-semibold text-gray-800">{q.name}</h3>
                     <p className="text-sm text-gray-500 mt-0.5">
                       {q.traeger} · {EBENE_LABEL[q.ebene]} · {KATEGORIE_LABEL[q.kategorie]}
@@ -119,7 +119,7 @@ export default function PruefenSeite() {
               </h2>
               <ul className="space-y-3">
                 {ausschreibungen.map((a) => (
-                  <li key={a.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                  <li key={a.id} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4">
                     {a.aktualisiertAusschreibung && (
                       <p className="text-xs font-semibold text-warnung-700 uppercase tracking-wide mb-1">
                         Aktualisierungsvorschlag

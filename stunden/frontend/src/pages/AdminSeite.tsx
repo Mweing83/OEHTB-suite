@@ -145,7 +145,7 @@ function LlmEinstellungen() {
       : "(Attrappe braucht kein Modell)";
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <h3 className="font-semibold text-gray-800 mb-4">KI-Provider</h3>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -153,7 +153,7 @@ function LlmEinstellungen() {
           <select
             value={provider}
             onChange={(e) => providerWechseln(e.target.value)}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
           >
             <option value="dummy">Attrappe (ohne KI, zum Testen)</option>
             <option value="anthropic">Anthropic (Claude)</option>
@@ -176,7 +176,7 @@ function LlmEinstellungen() {
                   setModell(e.target.value);
                 }
               }}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
             >
               {(MODELL_VORSCHLAEGE[provider] ?? []).map((m) => (
                 <option key={m.wert} value={m.wert}>
@@ -190,7 +190,7 @@ function LlmEinstellungen() {
                 value={modell}
                 onChange={(e) => setModell(e.target.value)}
                 placeholder={modellPlatzhalter}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm mt-2"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm mt-2"
               />
             )}
           </div>
@@ -205,7 +205,7 @@ function LlmEinstellungen() {
               value={endpoint}
               onChange={(e) => setEndpoint(e.target.value)}
               placeholder="http://localhost:11434"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
             />
           </div>
         )}
@@ -225,7 +225,7 @@ function LlmEinstellungen() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={keyGesetzt ? "•••••••• (unverändert)" : "API-Key eingeben"}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
             />
             <p className="text-xs text-slate-500 mt-1">
               Der Key wird verschlüsselt gespeichert und nie im Klartext
@@ -239,7 +239,7 @@ function LlmEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
@@ -247,7 +247,7 @@ function LlmEinstellungen() {
       </div>
 
       {provider === "ollama" && (
-        <p className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-2 mt-3">
+        <p className="text-xs text-gray-500 bg-gray-50 rounded-sm px-3 py-2 mt-3">
           Ollama läuft lokal – es verlässt kein Text das Haus, kein API-Key
           nötig. Voraussetzung: Der Ollama-Dienst läuft und das angegebene
           Modell ist geladen (z. B. <code>ollama pull llama3.1</code>). Endpoint
@@ -311,7 +311,7 @@ function OllamaInstallation() {
   const laeuftGerade = status?.install?.status === "laeuft";
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <h3 className="font-semibold text-gray-800 mb-1">
         Ollama (lokales KI-Modell)
       </h3>
@@ -324,7 +324,7 @@ function OllamaInstallation() {
         <p className="text-sm text-gray-500">Prüfe …</p>
       ) : status.installiert ? (
         <p className="text-sm text-gray-700">
-          <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 rounded px-2 py-0.5">
+          <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 rounded-sm px-2 py-0.5">
             Installiert{status.version ? ` (${status.version})` : ""}
           </span>{" "}
           {status.laeuft
@@ -340,7 +340,7 @@ function OllamaInstallation() {
           <button
             onClick={installieren}
             disabled={startet || laeuftGerade}
-            className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+            className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
           >
             {laeuftGerade ? "Installiere …" : "Ollama installieren"}
           </button>
@@ -350,7 +350,7 @@ function OllamaInstallation() {
           </p>
         </div>
       ) : (
-        <p className="text-sm text-amber-700 bg-amber-50 rounded px-3 py-2">
+        <p className="text-sm text-amber-700 bg-amber-50 rounded-sm px-3 py-2">
           Automatische Installation auf diesem Betriebssystem (
           <code>{status.plattform}</code>) nicht möglich. Bitte manuell von{" "}
           <a
@@ -387,7 +387,7 @@ function OllamaInstallation() {
             )}
           </p>
           {status.install.log && (
-            <pre className="text-xs bg-gray-900 text-gray-100 rounded p-3 max-h-48 overflow-auto whitespace-pre-wrap">
+            <pre className="text-xs bg-gray-900 text-gray-100 rounded-sm p-3 max-h-48 overflow-auto whitespace-pre-wrap">
               {status.install.log}
             </pre>
           )}
@@ -437,7 +437,7 @@ function VollzeitEinstellungen() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <h3 className="font-semibold text-gray-800 mb-1">Referenz-Wochenstunden</h3>
       <p className="text-xs text-gray-500 mb-4">
         Wochenstunden, die 100 % Beschäftigungsausmaß entsprechen (Vollzeit).
@@ -448,7 +448,7 @@ function VollzeitEinstellungen() {
           value={stunden}
           onChange={(e) => setStunden(e.target.value)}
           inputMode="decimal"
-          className="w-28 border border-gray-300 rounded px-3 py-2 text-sm"
+          className="w-28 border border-gray-300 rounded-sm px-3 py-2 text-sm"
         />
         <span className="text-sm text-gray-500">Wochenstunden = 100 %</span>
       </div>
@@ -457,7 +457,7 @@ function VollzeitEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
@@ -500,7 +500,7 @@ function WorkflowEinstellungen() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <h3 className="font-semibold text-gray-800 mb-4">
         Bestätigung von Anfragen
       </h3>
@@ -552,7 +552,7 @@ function WorkflowEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
@@ -601,7 +601,7 @@ function AuditAnsicht() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-semibold text-gray-800">Protokoll (Audit-Log)</h3>
@@ -611,7 +611,7 @@ function AuditAnsicht() {
         </div>
         <button
           onClick={laden}
-          className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
+          className="bg-marke-600 text-white rounded-sm px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
         >
           {geladen ? "Aktualisieren" : "Protokoll laden"}
         </button>
@@ -637,7 +637,7 @@ function AuditAnsicht() {
                     {zeitDe(e.zeitpunkt)}
                   </td>
                   <td className="py-2">
-                    <span className="text-xs bg-gray-100 rounded px-2 py-0.5">
+                    <span className="text-xs bg-gray-100 rounded-sm px-2 py-0.5">
                       {e.aktion}
                     </span>
                   </td>
@@ -745,7 +745,7 @@ function ImapEinstellungen() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-semibold text-gray-800">E-Mail-Abruf (IMAP)</h3>
@@ -770,7 +770,7 @@ function ImapEinstellungen() {
             value={host}
             onChange={(e) => setHost(e.target.value)}
             placeholder="imap.dienstleister.at"
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -780,7 +780,7 @@ function ImapEinstellungen() {
               type="number"
               value={port}
               onChange={(e) => setPort(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
             />
           </div>
           <div className="flex items-end pb-2">
@@ -800,7 +800,7 @@ function ImapEinstellungen() {
             value={benutzer}
             onChange={(e) => setBenutzer(e.target.value)}
             placeholder="postfach@dienstleister.at"
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -817,7 +817,7 @@ function ImapEinstellungen() {
             value={passwort}
             onChange={(e) => setPasswort(e.target.value)}
             placeholder={passwortGesetzt ? "•••••••• (unverändert)" : "Passwort"}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -828,7 +828,7 @@ function ImapEinstellungen() {
             type="number"
             value={intervall}
             onChange={(e) => setIntervall(Number(e.target.value))}
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+            className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -837,14 +837,14 @@ function ImapEinstellungen() {
         <button
           onClick={speichern}
           disabled={speichert}
-          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           {speichert ? "Speichern …" : "Speichern"}
         </button>
         <button
           onClick={jetztAbrufen}
           disabled={ruftAb}
-          className="bg-gray-200 text-gray-700 rounded px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
+          className="bg-gray-200 text-gray-700 rounded-sm px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
         >
           {ruftAb ? "Rufe ab …" : "Jetzt manuell abrufen"}
         </button>
@@ -911,7 +911,7 @@ function ErlaubteAbsender() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <h3 className="font-semibold text-gray-800">Erlaubte Absender</h3>
       <p className="text-xs text-gray-500 mb-4">
         Nur Mails von diesen Adressen werden verarbeitet. Mails von anderen
@@ -927,24 +927,24 @@ function ErlaubteAbsender() {
             if (e.key === "Enter") hinzufuegen();
           }}
           placeholder="name@oehtb.at"
-          className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+          className="flex-1 border border-gray-300 rounded-sm px-3 py-2 text-sm"
         />
         <button
           onClick={hinzufuegen}
           disabled={speichert}
-          className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+          className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
         >
           Hinzufügen
         </button>
       </div>
 
       {adressen.length === 0 ? (
-        <p className="text-sm text-amber-700 bg-amber-50 rounded px-3 py-2">
+        <p className="text-sm text-amber-700 bg-amber-50 rounded-sm px-3 py-2">
           Noch keine erlaubten Absender. Aktuell werden keine IMAP-Mails
           angenommen.
         </p>
       ) : (
-        <ul className="divide-y divide-gray-100 border border-gray-100 rounded">
+        <ul className="divide-y divide-gray-100 border border-gray-100 rounded-sm">
           {adressen.map((a) => (
             <li
               key={a}

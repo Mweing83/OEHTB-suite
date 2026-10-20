@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import Layout from "../components/Layout";
 import { api } from "../lib/api";
 import {
@@ -112,7 +112,7 @@ export default function QuelleDetailSeite() {
   }
 
   const eingabeKlasse =
-    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-marke-500";
+    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-marke-500";
 
   if (laedt) return <Layout><p className="text-gray-500">Lädt …</p></Layout>;
   if (!quelle) return <Layout><p className="text-gefahr-700">{fehler ?? "Nicht gefunden."}</p></Layout>;
@@ -140,7 +140,7 @@ export default function QuelleDetailSeite() {
       {fehler && <p className="text-gefahr-700 mb-4">{fehler}</p>}
       {meldung && <p className="text-erfolg-700 mb-4">{meldung}</p>}
 
-      <form onSubmit={speichern} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-8 grid gap-3 sm:grid-cols-2">
+      <form onSubmit={speichern} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4 mb-8 grid gap-3 sm:grid-cols-2">
         <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={eingabeKlasse} />
         <input required value={traeger} onChange={(e) => setTraeger(e.target.value)} placeholder="Träger" className={eingabeKlasse} />
         <select value={ebene} onChange={(e) => setEbene(e.target.value as Ebene)} className={eingabeKlasse} aria-label="Ebene">
@@ -183,7 +183,7 @@ export default function QuelleDetailSeite() {
         ))}
       </ul>
 
-      <form onSubmit={ausschreibungAnlegen} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 grid gap-3 sm:grid-cols-2">
+      <form onSubmit={ausschreibungAnlegen} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4 grid gap-3 sm:grid-cols-2">
         <h3 className="sm:col-span-2 text-sm font-semibold text-gray-700">Neue Ausschreibung</h3>
         <input required value={neuTitel} onChange={(e) => setNeuTitel(e.target.value)} placeholder="Titel" className={eingabeKlasse} />
         <input value={neuLink} onChange={(e) => setNeuLink(e.target.value)} placeholder="Link (https://…)" className={eingabeKlasse} />

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { useAuth } from "./lib/auth";
 import LoginSeite from "./pages/LoginSeite";
 import ToolSeite from "./pages/ToolSeite";

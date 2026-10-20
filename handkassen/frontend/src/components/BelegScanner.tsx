@@ -222,18 +222,18 @@ export default function BelegScanner({ quelle, onFertig, onAbbrechen }: Props) {
   const polygon = ecken.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
-    <div className="mt-3 border rounded p-3 bg-slate-50">
+    <div className="mt-3 border rounded-sm p-3 bg-slate-50">
       {status === "laden" && <p className="text-sm text-slate-600">Beleg-Erkennung wird geladen…</p>}
 
       {status === "fehler" && (
         <div>
           <p className="text-sm text-amber-700 mb-2">{fehlertext} Du kannst das Foto unverändert verwenden.</p>
           {objektUrlRef.current && (
-            <img src={objektUrlRef.current} alt="Beleg" className="w-full max-w-sm rounded border mb-2" />
+            <img src={objektUrlRef.current} alt="Beleg" className="w-full max-w-sm rounded-sm border mb-2" />
           )}
           <div className="flex gap-2">
             <button type="button" onClick={originalVerwenden}
-              className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
+              className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800">
               Original verwenden
             </button>
             <button type="button" onClick={onAbbrechen}
@@ -249,7 +249,7 @@ export default function BelegScanner({ quelle, onFertig, onAbbrechen }: Props) {
           </p>
           {hinweis && <p className="text-xs text-amber-600 mb-2">{hinweis}</p>}
           <div className="relative inline-block" style={{ width: anzeige.breite, height: anzeige.hoehe, touchAction: "none" }}>
-            <canvas ref={canvasRef} width={anzeige.breite} height={anzeige.hoehe} className="rounded border block" />
+            <canvas ref={canvasRef} width={anzeige.breite} height={anzeige.hoehe} className="rounded-sm border block" />
             <svg
               ref={svgRef}
               width={anzeige.breite}
@@ -281,12 +281,12 @@ export default function BelegScanner({ quelle, onFertig, onAbbrechen }: Props) {
               type="button"
               onClick={uebernehmen}
               disabled={status === "verarbeite"}
-              className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800 disabled:opacity-60"
+              className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800 disabled:opacity-60"
             >
               {status === "verarbeite" ? "Wird zugeschnitten…" : "Übernehmen"}
             </button>
             <button type="button" onClick={originalVerwenden}
-              className="text-sm border rounded px-3 py-2 hover:bg-white">Original behalten</button>
+              className="text-sm border rounded-sm px-3 py-2 hover:bg-white">Original behalten</button>
             <button type="button" onClick={onAbbrechen}
               className="text-sm text-slate-600 hover:underline px-2">Abbrechen</button>
           </div>

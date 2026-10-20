@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useAuth } from "../lib/auth";
 
 // Gemeinsames Suite-Layout: markante Kopfleiste (Marken-Navy), einheitlich mit

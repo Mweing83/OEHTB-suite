@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { useAuth } from "../lib/auth";
 
 // Gemeinsames Seitenlayout mit markanter Kopfleiste (Marken-Navy) und

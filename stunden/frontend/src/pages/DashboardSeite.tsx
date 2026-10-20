@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api, mitBasis } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { MitarbeiterListe } from "../lib/typen";
@@ -20,14 +20,14 @@ function VerrechnungBadge({
 }) {
   if (status === "VERARBEITET") {
     return (
-      <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 rounded px-2 py-0.5 text-xs">
+      <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 rounded-sm px-2 py-0.5 text-xs">
         verarbeitet
       </span>
     );
   }
   if (status === "OFFEN") {
     return (
-      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 rounded px-2 py-0.5 text-xs">
+      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 rounded-sm px-2 py-0.5 text-xs">
         offen
       </span>
     );
@@ -88,7 +88,7 @@ function StatKarte({
   sub?: string;
 }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm px-4 py-3">
+    <div className="bg-white rounded-lg shadow-xs px-4 py-3">
       <div className="text-xs text-gray-500">{label}</div>
       <div className="text-2xl font-semibold text-gray-800 mt-0.5">{wert}</div>
       {sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}
@@ -217,12 +217,12 @@ export default function DashboardSeite() {
             placeholder="Suche Name / Personalnr."
             value={suche}
             onChange={(e) => setSuche(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm"
+            className="border border-gray-300 rounded-sm px-3 py-1.5 text-sm"
           />
           <select
             value={bereich}
             onChange={(e) => setBereich(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm"
+            className="border border-gray-300 rounded-sm px-3 py-1.5 text-sm"
           >
             <option value="">Alle Bereiche</option>
             {bereiche.map((b) => (
@@ -244,7 +244,7 @@ export default function DashboardSeite() {
               "stand_aktuell.csv"
             )
           }
-          className="text-sm border border-gray-300 rounded px-3 py-1.5 text-gray-700 hover:bg-gray-50"
+          className="text-sm border border-gray-300 rounded-sm px-3 py-1.5 text-gray-700 hover:bg-gray-50"
           title="Aktuellen Stand aller aktiven Mitarbeiter als CSV (Excel)"
         >
           Aktueller Stand (CSV)
@@ -253,7 +253,7 @@ export default function DashboardSeite() {
         <select
           value={monat}
           onChange={(e) => setMonat(e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+          className="border border-gray-300 rounded-sm px-2 py-1.5 text-sm"
           title="Monat für den historischen Stichtag"
         >
           {monatsOptionen.map((o) => (
@@ -269,7 +269,7 @@ export default function DashboardSeite() {
               `stand_${monat}.csv`
             )
           }
-          className="text-sm border border-gray-300 rounded px-3 py-1.5 text-gray-700 hover:bg-gray-50"
+          className="text-sm border border-gray-300 rounded-sm px-3 py-1.5 text-gray-700 hover:bg-gray-50"
           title="Stand aller Mitarbeiter zum Monatsende als CSV (Excel)"
         >
           Monats-Stand (CSV)
@@ -322,7 +322,7 @@ export default function DashboardSeite() {
           )}
 
           {analytik.proBereich.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-4 mt-3">
+            <div className="bg-white rounded-lg shadow-xs p-4 mt-3">
               <div className="text-xs font-medium text-gray-500 mb-2">
                 Nach Bereich
               </div>
@@ -330,7 +330,7 @@ export default function DashboardSeite() {
                 {analytik.proBereich.map((b) => (
                   <div
                     key={b.name}
-                    className="border border-gray-100 rounded px-3 py-2"
+                    className="border border-gray-100 rounded-sm px-3 py-2"
                   >
                     <div className="font-medium text-gray-700">{b.name}</div>
                     <div className="text-gray-500 text-xs mt-0.5">
@@ -345,7 +345,7 @@ export default function DashboardSeite() {
       )}
 
       {!laedt && !fehler && (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg shadow-xs overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600 text-left">
               <tr>
@@ -391,7 +391,7 @@ export default function DashboardSeite() {
                   </td>
                   <td className="px-4 py-3">
                     {m.naechsteAenderung ? (
-                      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 rounded px-2 py-0.5 text-xs">
+                      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 rounded-sm px-2 py-0.5 text-xs">
                         ab {datumDe(m.naechsteAenderung.gueltigAb)}:{" "}
                         {m.naechsteAenderung.wochenstunden.toLocaleString(
                           "de-DE"

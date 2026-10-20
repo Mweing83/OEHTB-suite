@@ -9,7 +9,7 @@ import { bestaetigen } from "../components/dialog.js";
 
 function Karte({ titel, children }: { titel: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg shadow p-5 mb-6">
+    <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
       <h2 className="font-semibold text-marke-900 mb-4">{titel}</h2>
       {children}
     </div>
@@ -19,7 +19,7 @@ function Karte({ titel, children }: { titel: string; children: React.ReactNode }
 function Fehlerzeile({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+    <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-sm px-3 py-2">
       {text}
     </div>
   );
@@ -58,7 +58,7 @@ function SpeichernAbbrechen({ onSpeichern, onAbbrechen }: { onSpeichern: () => v
 }
 
 // Einheitliche, kompakte Eingabefelder für die Inline-Bearbeitung in Tabellen
-const zelleInput = "w-full border rounded px-2 py-1 text-sm";
+const zelleInput = "w-full border rounded-sm px-2 py-1 text-sm";
 
 // ============================================================
 //  TAB: Benutzer (inkl. Kostenstellen-Zuweisung)
@@ -144,12 +144,12 @@ function BenutzerTab() {
         <div className="mb-4 flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-[180px]">
             <label className="block text-xs font-medium text-slate-500 mb-1">Suche (Benutzername, Name)</label>
-            <input className="w-full border rounded px-3 py-1.5 text-sm" placeholder="Suchbegriff…"
+            <input className="w-full border rounded-sm px-3 py-1.5 text-sm" placeholder="Suchbegriff…"
               value={suche} onChange={(e) => setSuche(e.target.value)} />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Rolle</label>
-            <select className="border rounded px-3 py-1.5 text-sm" value={rolleFilter}
+            <select className="border rounded-sm px-3 py-1.5 text-sm" value={rolleFilter}
               onChange={(e) => setRolleFilter(e.target.value)}>
               <option value="">Alle</option>
               <option value="erfasser">Erfasser</option>
@@ -213,7 +213,7 @@ function BenutzerTab() {
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setZuweisung(null)} className="px-3 py-2 text-sm text-slate-600 hover:underline">Abbrechen</button>
-              <button onClick={zuweisungSpeichern} className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">Speichern</button>
+              <button onClick={zuweisungSpeichern} className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800">Speichern</button>
             </div>
           </div>
         </div>
@@ -318,22 +318,22 @@ function KostenstellenTab() {
         <div className="grid grid-cols-8 gap-3 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">Nummer</label>
-            <input className="w-full border rounded px-3 py-2" placeholder="z. B. 1260" value={neu.nummer}
+            <input className="w-full border rounded-sm px-3 py-2" placeholder="z. B. 1260" value={neu.nummer}
               onChange={(e) => setNeu({ ...neu, nummer: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Gegenkonto (BMD)</label>
-            <input className="w-full border rounded px-3 py-2" placeholder="z. B. 99957" value={neu.gegenkonto}
+            <input className="w-full border rounded-sm px-3 py-2" placeholder="z. B. 99957" value={neu.gegenkonto}
               onChange={(e) => setNeu({ ...neu, gegenkonto: e.target.value })} />
           </div>
           <div className="col-span-2">
             <label className="block text-sm font-medium mb-1">Bezeichnung</label>
-            <input className="w-full border rounded px-3 py-2" value={neu.bezeichnung}
+            <input className="w-full border rounded-sm px-3 py-2" value={neu.bezeichnung}
               onChange={(e) => setNeu({ ...neu, bezeichnung: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Bereich</label>
-            <select className="w-full border rounded px-3 py-2" value={neu.bereichId}
+            <select className="w-full border rounded-sm px-3 py-2" value={neu.bereichId}
               onChange={(e) => setNeu({ ...neu, bereichId: Number(e.target.value) })}>
               <option value={0}>wählen…</option>
               {aktiveBereiche.map((b) => <option key={b.id} value={b.id}>{b.bezeichnung}</option>)}
@@ -341,7 +341,7 @@ function KostenstellenTab() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Art</label>
-            <select className="w-full border rounded px-3 py-2" value={neu.kassenartId}
+            <select className="w-full border rounded-sm px-3 py-2" value={neu.kassenartId}
               onChange={(e) => setNeu({ ...neu, kassenartId: Number(e.target.value) })}>
               <option value={0}>wählen…</option>
               {aktiveArten.map((a) => <option key={a.id} value={a.id}>{a.bezeichnung}</option>)}
@@ -349,20 +349,20 @@ function KostenstellenTab() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Anfangssaldo €</label>
-            <input className="w-full border rounded px-3 py-2 text-right" placeholder="0,00" value={neu.anfangssaldo}
+            <input className="w-full border rounded-sm px-3 py-2 text-right" placeholder="0,00" value={neu.anfangssaldo}
               onChange={(e) => setNeu({ ...neu, anfangssaldo: e.target.value })} />
           </div>
-          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded-sm py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
         <div className="grid grid-cols-8 gap-3 items-end mt-3">
           <div className="col-span-2">
             <label className="block text-sm font-medium mb-1">Start-Belegnummer (optional)</label>
-            <input className="w-full border rounded px-3 py-2 text-right" placeholder="z. B. 48" value={neu.belegStartnummer}
+            <input className="w-full border rounded-sm px-3 py-2 text-right" placeholder="z. B. 48" value={neu.belegStartnummer}
               onChange={(e) => setNeu({ ...neu, belegStartnummer: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">gilt für Jahr</label>
-            <input className="w-full border rounded px-3 py-2 text-right" value={neu.belegStartJahr}
+            <input className="w-full border rounded-sm px-3 py-2 text-right" value={neu.belegStartJahr}
               onChange={(e) => setNeu({ ...neu, belegStartJahr: e.target.value })} />
           </div>
           <p className="col-span-5 text-xs text-slate-500 self-center">
@@ -520,15 +520,15 @@ function SteuersaetzeTab() {
         <div className="grid grid-cols-4 gap-3 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">Prozent</label>
-            <input className="w-full border rounded px-3 py-2 text-right" placeholder="z. B. 13 oder 4,9" value={neu.prozent}
+            <input className="w-full border rounded-sm px-3 py-2 text-right" placeholder="z. B. 13 oder 4,9" value={neu.prozent}
               onChange={(e) => setNeu({ ...neu, prozent: e.target.value })} />
           </div>
           <div className="col-span-2">
             <label className="block text-sm font-medium mb-1">Bezeichnung</label>
-            <input className="w-full border rounded px-3 py-2" value={neu.bezeichnung}
+            <input className="w-full border rounded-sm px-3 py-2" value={neu.bezeichnung}
               onChange={(e) => setNeu({ ...neu, bezeichnung: e.target.value })} />
           </div>
-          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded-sm py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
         <p className="text-xs text-slate-500 mt-2">
           Deaktivierte Sätze stehen bei neuen Buchungen nicht mehr zur Auswahl, bleiben aber für Altbuchungen erhalten.
@@ -629,17 +629,17 @@ function KontenTab() {
         <div className="grid grid-cols-5 gap-3 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">Nummer</label>
-            <input className="w-full border rounded px-3 py-2" value={neu.nummer}
+            <input className="w-full border rounded-sm px-3 py-2" value={neu.nummer}
               onChange={(e) => setNeu({ ...neu, nummer: e.target.value })} />
           </div>
           <div className="col-span-2">
             <label className="block text-sm font-medium mb-1">Bezeichnung</label>
-            <input className="w-full border rounded px-3 py-2" value={neu.bezeichnung}
+            <input className="w-full border rounded-sm px-3 py-2" value={neu.bezeichnung}
               onChange={(e) => setNeu({ ...neu, bezeichnung: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Beschreibung</label>
-            <input className="w-full border rounded px-3 py-2" value={neu.beschreibung}
+            <input className="w-full border rounded-sm px-3 py-2" value={neu.beschreibung}
               onChange={(e) => setNeu({ ...neu, beschreibung: e.target.value })} />
           </div>
           <div className="col-span-5">
@@ -654,7 +654,7 @@ function KontenTab() {
               ))}
             </div>
           </div>
-          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded-sm py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
       </Karte>
 
@@ -783,10 +783,10 @@ function StammwertTab({
         <div className="grid grid-cols-4 gap-3 items-end">
           <div className="col-span-3">
             <label className="block text-sm font-medium mb-1">Bezeichnung</label>
-            <input className="w-full border rounded px-3 py-2" value={neu}
+            <input className="w-full border rounded-sm px-3 py-2" value={neu}
               onChange={(e) => setNeu(e.target.value)} />
           </div>
-          <button onClick={anlegen} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Anlegen</button>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded-sm py-2 font-medium hover:bg-marke-800">Anlegen</button>
         </div>
         <p className="text-xs text-slate-500 mt-2">
           Deaktivierte Einträge stehen bei neuen Kostenstellen nicht mehr zur Auswahl,
@@ -959,19 +959,19 @@ function VerzeichnisBrowser({
         <div className="px-3 py-2 border-b bg-slate-50 flex items-center gap-2">
           {elternpfad !== null && (
             <button onClick={() => navigieren(elternpfad)}
-              className="text-xs px-2 py-1 rounded border bg-white hover:bg-slate-50 text-slate-600 whitespace-nowrap">
+              className="text-xs px-2 py-1 rounded-sm border bg-white hover:bg-slate-50 text-slate-600 whitespace-nowrap">
               ↑ Hoch
             </button>
           )}
           <input
-            className="flex-1 text-xs font-mono border rounded px-2 py-1 bg-white"
+            className="flex-1 text-xs font-mono border rounded-sm px-2 py-1 bg-white"
             value={pfadEingabe}
             onChange={(e) => setPfadEingabe(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") navigieren(pfadEingabe); }}
             placeholder="Pfad eingeben und Enter drücken…"
           />
           <button onClick={() => navigieren(pfadEingabe)}
-            className="text-xs px-2 py-1 rounded border bg-white hover:bg-slate-50 text-slate-600">
+            className="text-xs px-2 py-1 rounded-sm border bg-white hover:bg-slate-50 text-slate-600">
             →
           </button>
         </div>
@@ -985,7 +985,7 @@ function VerzeichnisBrowser({
           {ordner.map((name) => (
             <button key={name} onClick={() => navigieren(unterordnerPfad(name))}
               className="w-full text-left px-4 py-1.5 text-sm hover:bg-marke-50 flex items-center gap-2">
-              <svg className="h-4 w-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="h-4 w-4 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
               </svg>
               <span className="font-mono">{name}</span>
@@ -995,10 +995,10 @@ function VerzeichnisBrowser({
 
         <div className="px-4 py-3 border-t flex items-center justify-between gap-2">
           <span className="text-xs text-slate-500 font-mono truncate">{pfad || "—"}</span>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 shrink-0">
             <button onClick={onAbbrechen} className="px-3 py-1.5 text-sm text-slate-600 hover:underline">Abbrechen</button>
             <button onClick={() => onAuswaehlen(pfad)} disabled={!pfad}
-              className="bg-marke-700 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-800 disabled:opacity-50">
+              className="bg-marke-700 text-white rounded-sm px-4 py-1.5 text-sm font-medium hover:bg-marke-800 disabled:opacity-50">
               Auswählen
             </button>
           </div>
@@ -1096,7 +1096,7 @@ function BackupTab() {
       <Karte titel="Status">
         <Fehlerzeile text={fehler} />
         {hinweis && (
-          <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded px-3 py-2">{hinweis}</div>
+          <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded-sm px-3 py-2">{hinweis}</div>
         )}
         {konfig && (
           <div className="space-y-2 text-sm">
@@ -1116,19 +1116,19 @@ function BackupTab() {
               <div className="text-amber-600">Eine Sicherung ist angefordert und wird in Kürze ausgeführt…</div>
             )}
             {konfig.bericht && (
-              <pre className="mt-2 bg-slate-50 border rounded p-3 text-xs whitespace-pre-wrap text-slate-700">{konfig.bericht}</pre>
+              <pre className="mt-2 bg-slate-50 border rounded-sm p-3 text-xs whitespace-pre-wrap text-slate-700">{konfig.bericht}</pre>
             )}
           </div>
         )}
         <div className="mt-4 flex gap-3 items-center">
-          <button onClick={jetztSichern} className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">Jetzt sichern</button>
+          <button onClick={jetztSichern} className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800">Jetzt sichern</button>
           <button onClick={laden} className="text-sm text-marke-700 hover:underline">Aktualisieren</button>
         </div>
       </Karte>
 
       <Karte titel="Sicherungen (lokal)">
         <div className="flex items-center gap-3 mb-3">
-          <button onClick={dateienLaden} className="bg-marke-700 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-800">
+          <button onClick={dateienLaden} className="bg-marke-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-800">
             {dateien === null ? "Sicherungen anzeigen" : "Aktualisieren"}
           </button>
           {dateienPfad && <span className="text-xs text-slate-500">Ordner: {dateienPfad}</span>}
@@ -1182,20 +1182,20 @@ function BackupTab() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">Uhrzeit (täglich)</label>
-            <input type="time" className="w-full border rounded px-3 py-2" value={form.uhrzeit}
+            <input type="time" className="w-full border rounded-sm px-3 py-2" value={form.uhrzeit}
               onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Aufbewahrung täglich</label>
-            <input type="number" min={1} className="w-full border rounded px-3 py-2 text-right" value={form.aufbewahrungTaeglich}
+            <input type="number" min={1} className="w-full border rounded-sm px-3 py-2 text-right" value={form.aufbewahrungTaeglich}
               onChange={(e) => setForm({ ...form, aufbewahrungTaeglich: e.target.value })} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Aufbewahrung monatlich</label>
-            <input type="number" min={0} className="w-full border rounded px-3 py-2 text-right" value={form.aufbewahrungMonatlich}
+            <input type="number" min={0} className="w-full border rounded-sm px-3 py-2 text-right" value={form.aufbewahrungMonatlich}
               onChange={(e) => setForm({ ...form, aufbewahrungMonatlich: e.target.value })} />
           </div>
-          <button onClick={speichern} className="bg-marke-700 text-white rounded py-2 font-medium hover:bg-marke-800">Speichern</button>
+          <button onClick={speichern} className="bg-marke-700 text-white rounded-sm py-2 font-medium hover:bg-marke-800">Speichern</button>
         </div>
         <div className="mt-4 flex flex-wrap gap-6">
           <label className="flex items-center gap-2 text-sm">
@@ -1216,22 +1216,22 @@ function BackupTab() {
       <Karte titel="Lokaler Anzeige-Pfad">
         <p className="text-sm text-slate-500 mb-4">
           Aus diesem Ordner liest die App die lokalen Sicherungen für die Liste und die Prüfung oben.
-          Leer lassen, um den Server-Standardpfad (aus <code className="bg-slate-100 px-1 rounded">.env</code>) zu verwenden.
+          Leer lassen, um den Server-Standardpfad (aus <code className="bg-slate-100 px-1 rounded-sm">.env</code>) zu verwenden.
         </p>
         <div>
           <label className="block text-sm font-medium mb-1">Lokal</label>
           <div className="flex gap-2">
-            <input className="flex-1 border rounded px-3 py-2 text-sm font-mono" placeholder="Standard aus .env"
+            <input className="flex-1 border rounded-sm px-3 py-2 text-sm font-mono" placeholder="Standard aus .env"
               value={form.pfadLokal} onChange={(e) => setForm({ ...form, pfadLokal: e.target.value })} />
             <button type="button" onClick={() => setBrowser("lokal")}
-              className="px-3 py-2 text-sm border rounded hover:bg-slate-50 whitespace-nowrap text-slate-600">
+              className="px-3 py-2 text-sm border rounded-sm hover:bg-slate-50 whitespace-nowrap text-slate-600">
               Durchsuchen…
             </button>
           </div>
         </div>
         <p className="text-xs text-slate-500 mt-3">
           Hinweis: <strong>Wohin</strong> gesichert wird (lokal, NAS, USB), wird am Server in der
-          Datei <code className="bg-slate-100 px-1 rounded">.env</code> festgelegt – nicht hier.
+          Datei <code className="bg-slate-100 px-1 rounded-sm">.env</code> festgelegt – nicht hier.
           Dieser Pfad beeinflusst nur die Anzeige. Änderungen werden beim Klick auf „Speichern" übernommen.
         </p>
       </Karte>
@@ -1321,19 +1321,19 @@ function BelegeTab() {
 
       <Karte titel="Belegfotos – Auflösung">
         <Fehlerzeile text={fotoFehler} />
-        {fotoHinweis && <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded px-3 py-2">{fotoHinweis}</div>}
+        {fotoHinweis && <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded-sm px-3 py-2">{fotoHinweis}</div>}
         <div className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">Max. Kantenlänge (px)</label>
-            <input type="number" min={400} max={4000} step={100} className="w-40 border rounded px-3 py-2 text-right"
+            <input type="number" min={400} max={4000} step={100} className="w-40 border rounded-sm px-3 py-2 text-right"
               value={fotoMaxKante} onChange={(e) => setFotoMaxKante(e.target.value)} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">JPEG-Qualität (30–100)</label>
-            <input type="number" min={30} max={100} className="w-40 border rounded px-3 py-2 text-right"
+            <input type="number" min={30} max={100} className="w-40 border rounded-sm px-3 py-2 text-right"
               value={fotoQualitaet} onChange={(e) => setFotoQualitaet(e.target.value)} />
           </div>
-          <button onClick={fotoSpeichern} className="bg-marke-700 text-white rounded px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
+          <button onClick={fotoSpeichern} className="bg-marke-700 text-white rounded-sm px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
         </div>
         <p className="text-xs text-slate-500 mt-3">
           Beim Speichern eines Belegfotos wird die längere Bildkante auf diesen Wert begrenzt
@@ -1403,14 +1403,14 @@ function KassensperreTab() {
     <>
       <Karte titel="Monatssperre – Frist">
         <Fehlerzeile text={fehler} />
-        {hinweis && <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded px-3 py-2">{hinweis}</div>}
+        {hinweis && <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded-sm px-3 py-2">{hinweis}</div>}
         <div className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm font-medium mb-1">Frist nach Monatsende (Tage)</label>
-            <input type="number" min={0} max={366} className="w-40 border rounded px-3 py-2 text-right"
+            <input type="number" min={0} max={366} className="w-40 border rounded-sm px-3 py-2 text-right"
               value={frist} onChange={(e) => setFrist(e.target.value)} />
           </div>
-          <button onClick={fristSpeichern} className="bg-marke-700 text-white rounded px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
+          <button onClick={fristSpeichern} className="bg-marke-700 text-white rounded-sm px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
         </div>
         <p className="text-xs text-slate-500 mt-3">
           Jede Kasse wird automatisch gesperrt, sobald nach dem Monatsende so viele Tage vergangen sind.
@@ -1424,7 +1424,7 @@ function KassensperreTab() {
         <div className="flex flex-wrap gap-4 items-end mb-4">
           <div className="min-w-[240px]">
             <label className="block text-sm font-medium mb-1">Kasse</label>
-            <select className="w-full border rounded px-3 py-2" value={ksId}
+            <select className="w-full border rounded-sm px-3 py-2" value={ksId}
               onChange={(e) => setKsId(Number(e.target.value))}>
               {kostenstellen.map((k) => (
                 <option key={k.id} value={k.id}>{k.nummer} – {k.bezeichnung}</option>
@@ -1434,9 +1434,9 @@ function KassensperreTab() {
           <div>
             <label className="block text-sm font-medium mb-1">Jahr</label>
             <div className="flex items-center gap-2">
-              <button onClick={() => setJahr(jahr - 1)} className="px-3 py-2 border rounded text-sm hover:bg-slate-50">‹</button>
+              <button onClick={() => setJahr(jahr - 1)} className="px-3 py-2 border rounded-sm text-sm hover:bg-slate-50">‹</button>
               <span className="font-medium w-14 text-center">{jahr}</span>
-              <button onClick={() => setJahr(jahr + 1)} className="px-3 py-2 border rounded text-sm hover:bg-slate-50">›</button>
+              <button onClick={() => setJahr(jahr + 1)} className="px-3 py-2 border rounded-sm text-sm hover:bg-slate-50">›</button>
             </div>
           </div>
         </div>
@@ -1514,33 +1514,33 @@ function KontaktTab() {
   return (
     <Karte titel="Kontaktdaten (für alle Nutzer sichtbar)">
       <Fehlerzeile text={fehler} />
-      {hinweis && <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded px-3 py-2">{hinweis}</div>}
+      {hinweis && <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded-sm px-3 py-2">{hinweis}</div>}
       <div className="space-y-3 max-w-lg">
         <div>
           <label className="block text-sm font-medium mb-1">Name / Funktion</label>
-          <input className="w-full border rounded px-3 py-2" value={form.kontaktName}
+          <input className="w-full border rounded-sm px-3 py-2" value={form.kontaktName}
             onChange={(e) => setForm({ ...form, kontaktName: e.target.value })}
             placeholder="z. B. Max Mustermann (Administration)" />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">E-Mail</label>
-          <input type="email" className="w-full border rounded px-3 py-2" value={form.kontaktEmail}
+          <input type="email" className="w-full border rounded-sm px-3 py-2" value={form.kontaktEmail}
             onChange={(e) => setForm({ ...form, kontaktEmail: e.target.value })}
             placeholder="name@oehtb.at" />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Telefon</label>
-          <input className="w-full border rounded px-3 py-2" value={form.kontaktTelefon}
+          <input className="w-full border rounded-sm px-3 py-2" value={form.kontaktTelefon}
             onChange={(e) => setForm({ ...form, kontaktTelefon: e.target.value })}
             placeholder="z. B. +43 1 234 56 78" />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Hinweis (optional)</label>
-          <textarea className="w-full border rounded px-3 py-2" rows={3} value={form.kontaktHinweis}
+          <textarea className="w-full border rounded-sm px-3 py-2" rows={3} value={form.kontaktHinweis}
             onChange={(e) => setForm({ ...form, kontaktHinweis: e.target.value })}
             placeholder="z. B. Erreichbarkeit, Zuständigkeit…" />
         </div>
-        <button onClick={speichern} className="bg-marke-700 text-white rounded px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
+        <button onClick={speichern} className="bg-marke-700 text-white rounded-sm px-5 py-2 font-medium hover:bg-marke-800">Speichern</button>
       </div>
       <p className="text-xs text-slate-500 mt-3">
         Diese Angaben sehen alle angemeldeten Nutzer im Menüpunkt „Kontakt“.

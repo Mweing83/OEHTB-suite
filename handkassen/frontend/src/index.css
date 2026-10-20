@@ -1,6 +1,52 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --color-marke-50: #f0f5fb;
+  --color-marke-100: #dbe8f6;
+  --color-marke-200: #bdd3ec;
+  --color-marke-300: #8fb4de;
+  --color-marke-400: #5b8fcb;
+  --color-marke-500: #3670b4;
+  --color-marke-600: #255a98;
+  --color-marke-700: #1f4a7d;
+  --color-marke-800: #1d3f68;
+  --color-marke-900: #1b3557;
+  --color-marke-950: #12233b;
+
+  --color-erfolg-50: #ecfdf5;
+  --color-erfolg-600: #059669;
+  --color-erfolg-700: #047857;
+
+  --color-warnung-50: #fffbeb;
+  --color-warnung-600: #d97706;
+  --color-warnung-700: #b45309;
+
+  --color-gefahr-50: #fef2f2;
+  --color-gefahr-600: #dc2626;
+  --color-gefahr-700: #b91c1c;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue,
+    Arial, sans-serif;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 /* OEHTB-Suite – gemeinsame Basis-Schicht (identisch in allen drei Werkzeugen).
    Barrierefreiheit: kraeftige Textfarbe, ruhige Flaeche, deutlicher Fokusrahmen. */
@@ -16,7 +62,7 @@
   }
   /* Sichtbarer Fokusrahmen fuer die Tastatur-Navigation (nicht nur Maus). */
   :focus-visible {
-    outline: 2px solid theme("colors.marke.600");
+    outline: 2px solid var(--color-marke-600);
     outline-offset: 2px;
     border-radius: 2px;
   }

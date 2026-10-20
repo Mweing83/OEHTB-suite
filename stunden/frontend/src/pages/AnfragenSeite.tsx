@@ -90,9 +90,9 @@ export default function AnfragenSeite() {
         <button
           onClick={() => setBereich("eingang")}
           className={
-            "px-4 py-1.5 rounded text-sm font-medium " +
+            "px-4 py-1.5 rounded-sm text-sm font-medium " +
             (bereich === "eingang"
-              ? "bg-white shadow-sm text-gray-800"
+              ? "bg-white shadow-xs text-gray-800"
               : "text-gray-500")
           }
         >
@@ -101,9 +101,9 @@ export default function AnfragenSeite() {
         <button
           onClick={() => setBereich("verarbeitung")}
           className={
-            "px-4 py-1.5 rounded text-sm font-medium " +
+            "px-4 py-1.5 rounded-sm text-sm font-medium " +
             (bereich === "verarbeitung"
-              ? "bg-white shadow-sm text-gray-800"
+              ? "bg-white shadow-xs text-gray-800"
               : "text-gray-500")
           }
         >
@@ -115,7 +115,7 @@ export default function AnfragenSeite() {
       {bereich === "eingang" && (
         <>
           {istHr && (
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="bg-white rounded-lg shadow-xs p-6 mb-6">
               <h3 className="font-semibold text-gray-800 mb-2">
                 Neue Mitteilung einfügen
               </h3>
@@ -128,14 +128,14 @@ export default function AnfragenSeite() {
                 onChange={(e) => setRohtext(e.target.value)}
                 rows={4}
                 placeholder="z. B.: Frau Mayer ändert ihre Wochenstunden von 35 auf 30 ab 01.10.2026."
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
               {fehler && <p className="text-sm text-red-600 mt-2">{fehler}</p>}
               <div className="mt-3">
                 <button
                   onClick={einreichen}
                   disabled={sendet || rohtext.trim().length < 3}
-                  className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+                  className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
                 >
                   {sendet ? "Wird ausgewertet …" : "Auswerten"}
                 </button>
@@ -273,7 +273,7 @@ function AnfrageKarte({
     anfrage.konfidenz != null ? Math.round(anfrage.konfidenz * 100) : null;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-5">
+    <div className="bg-white rounded-lg shadow-xs p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <p className="text-sm text-gray-700 italic">„{anfrage.rohtext}"</p>
@@ -289,7 +289,7 @@ function AnfrageKarte({
               anfrage.ergebnis === null && <span>—</span>}
           </div>
           {e?.hinweis && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mt-2 inline-block">
+            <p className="text-xs text-amber-700 bg-amber-50 rounded-sm px-2 py-1 mt-2 inline-block">
               {e.hinweis}
             </p>
           )}
@@ -305,7 +305,7 @@ function AnfrageKarte({
             <select
               value={mitarbeiterId}
               onChange={(ev) => setMitarbeiterId(ev.target.value)}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-2 py-1.5 text-sm"
             >
               <option value="">– wählen –</option>
               {mitarbeiter.map((m) => (
@@ -322,7 +322,7 @@ function AnfrageKarte({
             <input
               value={stunden}
               onChange={(ev) => setStunden(ev.target.value)}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -330,7 +330,7 @@ function AnfrageKarte({
             <input
               value={ausmass}
               onChange={(ev) => setAusmass(ev.target.value)}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-2 py-1.5 text-sm"
             />
           </div>
           <div>
@@ -338,7 +338,7 @@ function AnfrageKarte({
             <DatumEingabe
               value={gueltigAb}
               onChange={setGueltigAb}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-2 py-1.5 text-sm"
             />
           </div>
 
@@ -350,14 +350,14 @@ function AnfrageKarte({
             <button
               onClick={bestaetigen}
               disabled={arbeitet}
-              className="bg-green-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              className="bg-green-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
             >
               Bestätigen & übernehmen
             </button>
             <button
               onClick={ablehnen}
               disabled={arbeitet}
-              className="bg-gray-200 text-gray-700 rounded px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
+              className="bg-gray-200 text-gray-700 rounded-sm px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
             >
               Ablehnen
             </button>
@@ -370,7 +370,7 @@ function AnfrageKarte({
           <button
             onClick={ablehnen}
             disabled={arbeitet}
-            className="bg-gray-200 text-gray-700 rounded px-4 py-2 text-sm font-medium hover:bg-gray-300"
+            className="bg-gray-200 text-gray-700 rounded-sm px-4 py-2 text-sm font-medium hover:bg-gray-300"
           >
             Verwerfen
           </button>
@@ -421,7 +421,7 @@ function VerarbeitungKarte({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-5">
+    <div className="bg-white rounded-lg shadow-xs p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <p className="text-sm text-gray-700 italic">„{anfrage.rohtext}"</p>
@@ -444,7 +444,7 @@ function VerarbeitungKarte({
             </p>
           )}
         </div>
-        <span className="text-xs bg-green-50 text-green-700 rounded px-2 py-0.5 whitespace-nowrap">
+        <span className="text-xs bg-green-50 text-green-700 rounded-sm px-2 py-0.5 whitespace-nowrap">
           bestätigt
         </span>
       </div>
@@ -456,14 +456,14 @@ function VerarbeitungKarte({
               <button
                 onClick={verarbeiten}
                 disabled={arbeitet}
-                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 Als verarbeitet markieren
               </button>
               <button
                 onClick={() => setZeigeZurueck(true)}
                 disabled={arbeitet}
-                className="bg-gray-200 text-gray-700 rounded px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
+                className="bg-gray-200 text-gray-700 rounded-sm px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
               >
                 Zurück an HR
               </button>
@@ -478,20 +478,20 @@ function VerarbeitungKarte({
                 value={grund}
                 onChange={(ev) => setGrund(ev.target.value)}
                 placeholder="z. B. Datum stimmt nicht mit Vertrag überein"
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
               <div className="flex gap-2">
                 <button
                   onClick={zurueck}
                   disabled={arbeitet}
-                  className="bg-amber-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+                  className="bg-amber-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
                 >
                   Zurückgeben
                 </button>
                 <button
                   onClick={() => setZeigeZurueck(false)}
                   disabled={arbeitet}
-                  className="bg-gray-200 text-gray-700 rounded px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
+                  className="bg-gray-200 text-gray-700 rounded-sm px-4 py-2 text-sm font-medium hover:bg-gray-300 disabled:opacity-50"
                 >
                   Abbrechen
                 </button>

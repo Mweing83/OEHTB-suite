@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api } from "../lib/api";
 import { MitarbeiterListe } from "../lib/typen";
 import { useAuth } from "../lib/auth";
@@ -136,7 +136,7 @@ export default function MitarbeiterSeite() {
         {darfBearbeiten && (
           <button
             onClick={() => (zeigeFormular ? abbrechen() : neuOeffnen())}
-            className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
+            className="bg-marke-600 text-white rounded-sm px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
           >
             {zeigeFormular ? "Abbrechen" : "+ Neuer Mitarbeiter"}
           </button>
@@ -144,7 +144,7 @@ export default function MitarbeiterSeite() {
       </div>
 
       {zeigeFormular && (
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-xs p-6 mb-6">
           <h3 className="font-semibold text-gray-800 mb-4">
             {bearbeiteId ? "Mitarbeiter bearbeiten" : "Neuen Mitarbeiter anlegen"}
           </h3>
@@ -155,7 +155,7 @@ export default function MitarbeiterSeite() {
                 value={vorname}
                 onChange={(e) => setVorname(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -166,7 +166,7 @@ export default function MitarbeiterSeite() {
                 value={nachname}
                 onChange={(e) => setNachname(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -177,7 +177,7 @@ export default function MitarbeiterSeite() {
                 value={personalnummer}
                 onChange={(e) => setPersonalnummer(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -187,7 +187,7 @@ export default function MitarbeiterSeite() {
               <input
                 value={bereich}
                 onChange={(e) => setBereich(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
             <div className="col-span-2">
@@ -198,7 +198,7 @@ export default function MitarbeiterSeite() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
               />
             </div>
 
@@ -210,7 +210,7 @@ export default function MitarbeiterSeite() {
                 <DatumEingabe
                   value={austrittAm}
                   onChange={setAustrittAm}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
                 />
                 <p className="text-xs text-slate-500 mt-1">
                   Leer = beschäftigt. Ab diesem Tag zählt die Person nicht mehr
@@ -228,7 +228,7 @@ export default function MitarbeiterSeite() {
               <button
                 type="submit"
                 disabled={speichert}
-                className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+                className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
               >
                 {speichert
                   ? "Speichern …"
@@ -239,7 +239,7 @@ export default function MitarbeiterSeite() {
               <button
                 type="button"
                 onClick={abbrechen}
-                className="border border-gray-300 rounded px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="border border-gray-300 rounded-sm px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 Abbrechen
               </button>
@@ -251,7 +251,7 @@ export default function MitarbeiterSeite() {
       {laedt ? (
         <p className="text-gray-500">Lädt …</p>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg shadow-xs overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600 text-left">
               <tr>
@@ -302,7 +302,7 @@ export default function MitarbeiterSeite() {
                           <button
                             onClick={() => loeschen(m.id, false)}
                             disabled={loescht}
-                            className="text-xs bg-amber-600 text-white rounded px-2 py-1 hover:bg-amber-700 disabled:opacity-50"
+                            className="text-xs bg-amber-600 text-white rounded-sm px-2 py-1 hover:bg-amber-700 disabled:opacity-50"
                             title="Stammdaten anonymisieren, Verlauf bleibt erhalten (DSGVO)"
                           >
                             Anonymisieren
@@ -310,7 +310,7 @@ export default function MitarbeiterSeite() {
                           <button
                             onClick={() => loeschen(m.id, true)}
                             disabled={loescht}
-                            className="text-xs bg-red-600 text-white rounded px-2 py-1 hover:bg-red-700 disabled:opacity-50"
+                            className="text-xs bg-red-600 text-white rounded-sm px-2 py-1 hover:bg-red-700 disabled:opacity-50"
                             title="Person samt Verlauf endgültig löschen"
                           >
                             Endgültig
@@ -318,7 +318,7 @@ export default function MitarbeiterSeite() {
                           <button
                             onClick={() => setLoeschId(null)}
                             disabled={loescht}
-                            className="text-xs border border-gray-300 rounded px-2 py-1 text-gray-600 hover:bg-gray-100"
+                            className="text-xs border border-gray-300 rounded-sm px-2 py-1 text-gray-600 hover:bg-gray-100"
                           >
                             ✕
                           </button>

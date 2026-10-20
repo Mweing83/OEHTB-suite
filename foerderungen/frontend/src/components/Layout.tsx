@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { Ausschreibung, Foerderquelle } from "../lib/typen";

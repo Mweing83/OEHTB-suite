@@ -174,12 +174,12 @@ export default function VerwaltungSeite() {
         <NeuerBenutzer onAngelegt={laden} />
 
         {meldung && (
-          <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+          <p className="text-sm text-red-600 bg-red-50 rounded-sm px-3 py-2">
             {meldung}
           </p>
         )}
 
-        <div className="bg-white rounded-lg shadow-sm p-6 overflow-x-auto">
+        <div className="bg-white rounded-lg shadow-xs p-6 overflow-x-auto">
           <h3 className="font-semibold text-gray-800 mb-4">
             Benutzer &amp; Zugriffsrechte
           </h3>
@@ -232,7 +232,7 @@ export default function VerwaltungSeite() {
                           onChange={(e) =>
                             zugriffAendern(b.id, t.slug, e.target.value)
                           }
-                          className="border border-gray-300 rounded px-2 py-1 text-xs"
+                          className="border border-gray-300 rounded-sm px-2 py-1 text-xs"
                         >
                           <option value="">kein Zugriff</option>
                           {t.rollen.map((r) => (
@@ -327,12 +327,12 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-800">Neuer Benutzer</h3>
         <button
           onClick={() => setZeigt((v) => !v)}
-          className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
+          className="bg-marke-600 text-white rounded-sm px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
         >
           {zeigt ? "Abbrechen" : "+ Anlegen"}
         </button>
@@ -348,7 +348,7 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
               value={benutzername}
               onChange={(e) => setBenutzername(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -357,7 +357,7 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -368,7 +368,7 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
             />
           </div>
           {fehler && (
@@ -378,7 +378,7 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
             <button
               type="submit"
               disabled={speichert}
-              className="bg-marke-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
+              className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
             >
               {speichert ? "Speichern …" : "Anlegen"}
             </button>
@@ -422,7 +422,7 @@ function AuditAnsicht() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-xs p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-semibold text-gray-800">Protokoll (Audit-Log)</h3>
@@ -432,7 +432,7 @@ function AuditAnsicht() {
         </div>
         <button
           onClick={laden}
-          className="bg-marke-600 text-white rounded px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
+          className="bg-marke-600 text-white rounded-sm px-4 py-1.5 text-sm font-medium hover:bg-marke-700"
         >
           {geladen ? "Aktualisieren" : "Protokoll laden"}
         </button>
@@ -457,7 +457,7 @@ function AuditAnsicht() {
                     {datumZeitDe(e.zeitpunkt)}
                   </td>
                   <td className="py-2">
-                    <span className="text-xs bg-gray-100 rounded px-2 py-0.5">
+                    <span className="text-xs bg-gray-100 rounded-sm px-2 py-0.5">
                       {e.aktion}
                     </span>
                   </td>
