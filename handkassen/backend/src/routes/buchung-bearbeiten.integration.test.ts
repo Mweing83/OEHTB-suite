@@ -149,14 +149,14 @@ run("Buchung bearbeiten (Integration)", () => {
   });
 
   it("behält den Beleg ohne neue belegId und ersetzt ihn mit neuer belegId", async () => {
-    const alt = await prisma.beleg.create({ data: { dateipfad: "alt.jpg", originalname: "alt.jpg" } });
+    const alt = await prisma.beleg.create({ data: { dateipfad: "alt.jpg", originalname: "alt.jpg", hochgeladenVonId: basis.benutzer.erfasserA } });
     const b = await anlegen(erfasser, { belegId: alt.id });
 
     const r1 = await erfasser.put(`/api/buchungen/${b.id}`).send(buchungEingabe(basis.ksA, basis.kontoId));
     expect(r1.status).toBe(200);
     expect((await prisma.buchung.findUnique({ where: { id: b.id } }))!.belegId).toBe(alt.id);
 
-    const neu = await prisma.beleg.create({ data: { dateipfad: "neu.jpg", originalname: "neu.jpg" } });
+    const neu = await prisma.beleg.create({ data: { dateipfad: "neu.jpg", originalname: "neu.jpg", hochgeladenVonId: basis.benutzer.erfasserA } });
     const r2 = await erfasser.put(`/api/buchungen/${b.id}`).send(buchungEingabe(basis.ksA, basis.kontoId, { belegId: neu.id }));
     expect(r2.status).toBe(200);
     expect((await prisma.buchung.findUnique({ where: { id: b.id } }))!.belegId).toBe(neu.id);

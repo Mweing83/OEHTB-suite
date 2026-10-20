@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 // ---------------------------------------------------------------------------
 // Bestandsnutzer-Import in die Suite.
@@ -38,6 +39,20 @@ const STUNDEN_URL =
   "postgresql://stunden:stunden_dev_passwort@localhost:5433/stunden";
 
 const prisma = new PrismaClient();
+
+// Demo-Konten aus handkassen/backend/prisma/seed.ts (Passwoerter stehen im
+// Repository). Werden NIE uebernommen – sonst waeren sie gueltige Suite-Logins.
+// Erkannt am Hash: bleibt also auch ein umbenanntes Demo-Konto draussen,
+// waehrend ein echter Benutzer namens "leitung" normal importiert wird.
+const DEMO_PASSWOERTER = ["admin123", "leitung123", "erfass123"];
+
+async function istDemoKonto(q: { passwortHash: string | null }): Promise<boolean> {
+  if (!q.passwortHash) return false;
+  for (const pw of DEMO_PASSWOERTER) {
+    if (await bcrypt.compare(pw, q.passwortHash)) return true;
+  }
+  return false;
+}
 
 interface Quelle {
   benutzername: string;
@@ -180,6 +195,12 @@ async function main() {
   );
 
   for (const q of quellen.values()) {
+    if (await istDemoKonto(q)) {
+      console.log(
+        `  ${q.benutzername.padEnd(20)} UEBERSPRUNGEN (Demo-Konto mit bekanntem Passwort)`
+      );
+      continue;
+    }
     const zugaenge: string[] = [];
     if (q.hkRolle) zugaenge.push(`handkassen:${q.hkRolle}`);
     if (q.stundenRolle) zugaenge.push(`stunden:${q.stundenRolle}`);

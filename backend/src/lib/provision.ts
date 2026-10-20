@@ -55,6 +55,31 @@ async function bauePayload(
   };
 }
 
+// Neuester Stand gewinnt: Jeder Auftrag traegt den VOLLEN Stand (UPSERT) bzw.
+// ueberholt alles davor (DELETE). Noch nicht zugestellte, aeltere Auftraege
+// desselben Benutzers fuer dasselbe Tool werden daher abgehakt – sonst koennte
+// ein spaeter wiederholter alter UPSERT einen juengeren Entzug/Tombstone
+// ueberschreiben (Security-Audit 2026-10).
+const UEBERHOLT = {
+  status: "DONE",
+  letzterFehler: "ueberholt durch neueren Auftrag",
+} as const;
+
+async function einreihen(
+  toolSlug: string,
+  suiteUserId: string,
+  op: "UPSERT" | "DELETE",
+  payload: object
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.provisionOutbox.updateMany({
+      where: { toolSlug, suiteUserId, status: "PENDING" },
+      data: { ...UEBERHOLT, erledigtAm: new Date() },
+    });
+    await tx.provisionOutbox.create({ data: { toolSlug, suiteUserId, op, payload } });
+  });
+}
+
 // Enqueue: UPSERT eines Benutzers an ein bestimmtes Tool (nur Tools mit Backend).
 export async function provisionUpsert(
   suiteUserId: string,
@@ -64,14 +89,7 @@ export async function provisionUpsert(
   if (!tool?.provisionUrl) return; // kein eigenes Backend -> nichts zu tun
   const payload = await bauePayload(suiteUserId, toolSlug);
   if (!payload) return;
-  await prisma.provisionOutbox.create({
-    data: {
-      toolSlug,
-      suiteUserId,
-      op: "UPSERT",
-      payload: payload as object,
-    },
-  });
+  await einreihen(toolSlug, suiteUserId, "UPSERT", payload as object);
 }
 
 // Enqueue: DELETE (Tombstone) eines Benutzers an ein bestimmtes Tool.
@@ -82,14 +100,7 @@ export async function provisionDelete(
 ): Promise<void> {
   const tool = await prisma.tool.findUnique({ where: { slug: toolSlug } });
   if (!tool?.provisionUrl) return;
-  await prisma.provisionOutbox.create({
-    data: {
-      toolSlug,
-      suiteUserId,
-      op: "DELETE",
-      payload: { suiteUserId, benutzername } as object,
-    },
-  });
+  await einreihen(toolSlug, suiteUserId, "DELETE", { suiteUserId, benutzername });
 }
 
 // Enqueue: UPSERT an ALLE Tools (mit Backend), auf die der Benutzer Zugriff hat.

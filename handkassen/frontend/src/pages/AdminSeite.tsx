@@ -930,6 +930,11 @@ function VerzeichnisBrowser({
       setElternpfad(r.elternpfad);
     } catch (e) {
       setFehler((e as Error).message);
+      // Ungültiger Startpfad (außerhalb des Sicherungsbereichs): dort beginnen.
+      if (ziel !== "") {
+        setLaeuft(false);
+        return navigieren("");
+      }
     } finally {
       setLaeuft(false);
     }

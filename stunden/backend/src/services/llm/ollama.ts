@@ -1,5 +1,8 @@
 import { LLMProvider, ParseErgebnis, systemAnweisung } from "./typen";
 import { jsonAuswerten } from "./anthropic";
+import { ollamaBasisUrl } from "../../lib/ollamaEndpoint";
+
+const TIMEOUT_MS = 120_000;
 
 // ---------------------------------------------------------------------------
 // Ollama-Provider (lokales Modell, z. B. llama3.1 / mistral).
@@ -17,23 +20,29 @@ const STANDARD_MODELL = "llama3.1";
 
 export class OllamaProvider implements LLMProvider {
   name = "ollama";
-  private endpoint: string;
+  private endpoint: string | null;
   private modell: string;
   private vollzeitStunden?: number;
 
   constructor(endpoint?: string, modell?: string, vollzeitStunden?: number) {
     // Endpoint kann mit oder ohne abschliessendem "/" gespeichert sein.
-    const basis = (endpoint && endpoint.trim()) || STANDARD_ENDPOINT;
-    this.endpoint = basis.replace(/\/+$/, "");
+    // Gleiche Pruefung wie beim Speichern (Altbestand koennte ungueltig sein).
+    this.endpoint = ollamaBasisUrl((endpoint && endpoint.trim()) || STANDARD_ENDPOINT);
     this.modell = (modell && modell.trim()) || STANDARD_MODELL;
     this.vollzeitStunden = vollzeitStunden;
   }
 
   async parseAenderung(pseudonymisierterText: string): Promise<ParseErgebnis> {
+    if (!this.endpoint) {
+      throw new Error("Ollama-Endpoint ist ungültig. Bitte in der Administration korrigieren.");
+    }
     let res: Response;
     try {
       res = await fetch(`${this.endpoint}/api/chat`, {
         method: "POST",
+        // Keine Weiterleitungen folgen, nicht endlos warten (Security-Audit 2026-10).
+        redirect: "error",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: this.modell,
@@ -56,18 +65,18 @@ export class OllamaProvider implements LLMProvider {
       });
     } catch (err) {
       // Typischer Fall: Ollama laeuft nicht / Endpoint falsch.
-      const grund = err instanceof Error ? err.message : "unbekannt";
+      // Details nur ins Server-Log; die Meldung landet sichtbar fuer alle
+      // Rollen in der Anfrage und enthaelt daher weder URL noch Fehlertext.
+      console.error("Ollama nicht erreichbar:", this.endpoint, err);
       throw new Error(
-        `Ollama nicht erreichbar unter ${this.endpoint} (${grund}). ` +
-          `Laeuft der Ollama-Dienst und ist die Endpoint-URL korrekt?`
+        "Ollama nicht erreichbar. Läuft der Ollama-Dienst und ist die Endpoint-URL in der Administration korrekt?"
       );
     }
 
     if (!res.ok) {
-      const fehlertext = await res.text();
-      throw new Error(
-        `Ollama-API-Fehler (${res.status}): ${fehlertext.slice(0, 300)}`
-      );
+      const fehlertext = await res.text().catch(() => "");
+      console.error(`Ollama-API-Fehler ${res.status}:`, fehlertext.slice(0, 1000));
+      throw new Error(`Ollama-API-Fehler (HTTP ${res.status}). Details im Server-Log.`);
     }
 
     const daten = (await res.json()) as {

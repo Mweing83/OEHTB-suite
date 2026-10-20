@@ -58,16 +58,30 @@ Beim ersten Start passiert automatisch (in den jeweiligen Container-Startbefehle
 
 Kein manueller Seed-Schritt nötig.
 
-**Erstes Login (Admin):** Der Benutzer `admin` wird **ohne Passwort** angelegt.
-Beim ersten Login im Portal (Benutzername `admin`) fordert die Oberfläche direkt
-zur Vergabe eines Passworts auf – es gibt bewusst **kein** Standard-Passwort.
+**Erstes Login (Admin):** Der Benutzer `admin` wird **ohne Passwort** angelegt –
+es gibt bewusst **kein** Standard-Passwort. Zum Festlegen braucht es einen
+**Einrichtungscode**, den das Portal beim Start ins Log schreibt:
+
+```
+docker compose logs portal-app | findstr Einrichtungscode
+```
+
+Im Portal mit Benutzername `admin` anmelden (beliebiges Passwort), dann Code und
+neues Passwort eingeben. Der Code gilt 7 Tage; jeder Neustart des Portals stellt
+einen neuen aus, solange das Admin-Passwort noch nicht gesetzt ist.
+
 Danach als `admin` unter **Verwaltung** die weiteren Benutzer und Rechte pflegen.
+Beim Anlegen und bei „Passwort zurücksetzen“ zeigt die Verwaltung einmalig
+einen Einrichtungscode an – diesen der Person **persönlich** übergeben. Geht er
+verloren oder läuft er ab: „Neuer Einrichtungscode“ in der Benutzerzeile.
 
 ## 4. Bestandsnutzer importieren
 
 Übernimmt die vorhandenen Benutzer beider Tools ins Portal **inklusive ihrer
 Passwort-Hashes** (bestehende Passwörter gelten weiter), vergibt den Zugriff mit
 der heutigen Rolle und verknüpft die Tool-Konten (`suiteUserId`).
+Demo-Konten aus der Entwicklung (Passwörter `admin123`, `leitung123`,
+`erfass123`) werden dabei **übersprungen**.
 
 ```
 cd backend
@@ -154,7 +168,11 @@ wurden nicht gelöscht). Für Stunden ggf. Admin-Passwort neu setzen.
 
 - [ ] `.env` per `SERVER - Einrichten.bat` erzeugt (starke Zufalls-Secrets) und
       sicher gesichert (Passwort-Manager).
-- [ ] `admin`-Passwort beim ersten Login gesetzt (es gibt kein Standard-Passwort).
+- [ ] `admin`-Passwort beim ersten Login mit dem Einrichtungscode aus dem Log
+      gesetzt (es gibt kein Standard-Passwort).
+- [ ] In der Verwaltung keine Konten `leitung`/`erfasser` bzw. „Demo …“ aktiv
+      (Demo-Daten werden in Produktion nicht mehr angelegt; Altbestände
+      entschärft der Start automatisch und meldet sie im Log).
 - [ ] Beide `*_ENCRYPTION_KEY` gesetzt (sonst sind gespeicherte API-Keys nicht
       entschlüsselbar) – vom Skript automatisch erledigt.
 - [ ] Zugriff über HTTPS (Tailscale/Proxy); `COOKIE_INSECURE` leer. Nur im

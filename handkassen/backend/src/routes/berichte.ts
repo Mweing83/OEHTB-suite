@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
+import { csvFeld } from "../lib/csv.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
 import {
   neuesDokumentMitKopf,
@@ -315,13 +316,8 @@ berichtRouter.get("/csv", angemeldet, async (req, res) => {
   // UTF-8 mit BOM (sonst zeigt Excel Umlaute falsch), Zeilenende CRLF.
   const TRENN = ";";
   const betrag = (cent: number) => (cent / 100).toFixed(2).replace(".", ",");
-  const feld = (wert: string | number): string => {
-    const s = String(wert ?? "");
-    if (s.includes(TRENN) || s.includes('"') || s.includes("\n") || s.includes("\r")) {
-      return '"' + s.replace(/"/g, '""') + '"';
-    }
-    return s;
-  };
+  // Formel-Neutralisierung wie csvFeld in export.ts (Security-Audit 2026-10).
+  const feld = (wert: string | number): string => csvFeld(wert);
 
   const kopf = ["Nr.", "Belegnummer", "Belegdatum", "Typ", "Beschreibung", "Konten", "MwSt_EUR", "Betrag_EUR"];
   const zeilen: string[] = [kopf.join(TRENN)];

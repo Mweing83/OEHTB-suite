@@ -99,7 +99,11 @@ async function belegEntfernen(belegId: number) {
 buchungRouter.post("/belege", angemeldet, belegUpload, async (req, res) => {
   if (!req.file) return res.status(400).json({ fehler: "Keine gültige Datei (JPG, PNG, PDF)." });
   const beleg = await prisma.beleg.create({
-    data: { dateipfad: req.file.filename, originalname: req.file.originalname },
+    data: {
+      dateipfad: req.file.filename,
+      originalname: req.file.originalname,
+      hochgeladenVonId: req.benutzer!.id,
+    },
   });
   res.status(201).json({ belegId: beleg.id });
 });
@@ -150,6 +154,20 @@ buchungRouter.get("/belege/:id", angemeldet, async (req, res) => {
   res.sendFile(vollerPfad);
 });
 
+// Darf der Benutzer diesen Beleg an eine Buchung haengen? Nur einen selbst
+// hochgeladenen, noch keiner Buchung zugeordneten Beleg (Security-Audit
+// 2026-10: vorher war jede fremde, ratbare belegId uebernehmbar).
+async function belegZuordenbar(belegId: unknown, benutzerId: number): Promise<string | null> {
+  if (typeof belegId !== "number" || !Number.isInteger(belegId) || belegId <= 0) {
+    return "Ungültiger Beleg.";
+  }
+  const beleg = await prisma.beleg.findUnique({ where: { id: belegId }, include: { buchung: true } });
+  if (!beleg || beleg.hochgeladenVonId !== benutzerId || beleg.buchung) {
+    return "Beleg nicht gefunden oder bereits zugeordnet. Bitte den Beleg erneut hochladen.";
+  }
+  return null;
+}
+
 // Fachliche Prüfung einer Buchungseingabe (Anlegen UND Bearbeiten): aktive
 // Steuersätze, Positionssummen, Konto-Freigabe je Bereich der Kostenstelle.
 async function fachlichPruefen(eingabe: BuchungEingabe): Promise<{ ok: true } | { ok: false; fehler: string | string[] }> {
@@ -158,7 +176,14 @@ async function fachlichPruefen(eingabe: BuchungEingabe): Promise<{ ok: true } | 
     select: { prozent: true },
   });
   const erlaubt = aktiveSteuersaetze.map((s) => s.prozent.toNumber());
-  const pruef = buchungValidieren(eingabe, erlaubt.length ? erlaubt : undefined);
+  // Ohne aktiven Steuersatz nicht still auf 0/10/20 % zurueckfallen.
+  if (erlaubt.length === 0) {
+    return {
+      ok: false,
+      fehler: "Es ist kein Steuersatz aktiv. Bitte in der Administration einen Steuersatz aktivieren.",
+    };
+  }
+  const pruef = buchungValidieren(eingabe, erlaubt);
   if (!pruef.ok) return { ok: false, fehler: pruef.fehler };
 
   // Konten muessen dem Bereich der Kostenstelle freigegeben sein.
@@ -207,6 +232,10 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
   if (!eingabe.belegId && (await belegPflichtAktiv())) {
     return res.status(400).json({ fehler: "Ein Beleg ist verpflichtend. Bitte einen Beleg anhängen." });
   }
+  if (eingabe.belegId != null) {
+    const belegFehler = await belegZuordenbar(eingabe.belegId, req.benutzer!.id);
+    if (belegFehler) return res.status(400).json({ fehler: belegFehler });
+  }
 
   // 3) Periode darf nicht bereits freigegeben (gesperrt) sein
   const beleg = new Date(eingabe.belegdatum);
@@ -219,7 +248,7 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
       },
     },
   });
-  if (abschluss && abschluss.status === "freigegeben") {
+  if (abschluss && (abschluss.status === "freigegeben" || abschluss.freigegebenAm)) {
     return res.status(409).json({ fehler: "Periode ist freigegeben und gesperrt." });
   }
 
@@ -384,6 +413,10 @@ buchungRouter.put("/:id", angemeldet, async (req, res) => {
   // Beleg: ohne neue belegId bleibt der bisherige Beleg erhalten.
   const belegWechsel = eingabe.belegId != null && eingabe.belegId !== original.belegId;
   const neueBelegId = belegWechsel ? eingabe.belegId! : original.belegId;
+  if (belegWechsel) {
+    const belegFehler = await belegZuordenbar(eingabe.belegId, req.benutzer!.id);
+    if (belegFehler) return res.status(400).json({ fehler: belegFehler });
+  }
   if (!neueBelegId && (await belegPflichtAktiv())) {
     return res.status(400).json({ fehler: "Ein Beleg ist verpflichtend. Bitte einen Beleg anhängen." });
   }
@@ -398,7 +431,7 @@ buchungRouter.put("/:id", angemeldet, async (req, res) => {
       },
     },
   });
-  if (abschluss && abschluss.status === "freigegeben") {
+  if (abschluss && (abschluss.status === "freigegeben" || abschluss.freigegebenAm)) {
     return res.status(409).json({ fehler: "Periode ist freigegeben und gesperrt." });
   }
 

@@ -25,9 +25,22 @@ export interface SuiteToken {
   zugriff: Record<string, string>; // toolSlug -> Rolle
   letzteAktivitaet: number; // ms, fuer Inaktivitaets-Timeout
   geprueftAm: number; // ms, letzte Rechte-Pruefung gegen die Suite-DB
+  // ms, Zeitpunkt der Anmeldung. Wird beim gleitenden Erneuern NICHT
+  // zurueckgesetzt -> absolute Hoechstdauer einer Sitzung.
+  authTime: number;
+  // Muss SuiteUser.tokenGeneration entsprechen (Passwortwechsel/Logout
+  // erhoehen sie und machen damit alle aelteren Tokens ungueltig).
+  tokenGeneration: number;
 }
 
 export const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 15);
+export const ABSOLUT_MAX_MS =
+  Number(process.env.SESSION_ABSOLUT_STUNDEN ?? 12) * 60 * 60 * 1000;
+
+// Absolute Sitzungsdauer ueberschritten (oder Altbestand ohne authTime)?
+export function tokenIstAbsolutAbgelaufen(t: SuiteToken): boolean {
+  return typeof t.authTime !== "number" || Date.now() - t.authTime > ABSOLUT_MAX_MS;
+}
 
 // JWT_SECRET mit Produktionsguard (Muster Handkassen).
 export function jwtSecret(): string {
@@ -57,8 +70,8 @@ export function cookieOptionen(): CookieOptions {
 }
 
 export function tokenSignieren(
-  inhalt: Omit<SuiteToken, "letzteAktivitaet" | "geprueftAm"> &
-    Partial<Pick<SuiteToken, "letzteAktivitaet" | "geprueftAm">>
+  inhalt: Omit<SuiteToken, "letzteAktivitaet" | "geprueftAm" | "authTime"> &
+    Partial<Pick<SuiteToken, "letzteAktivitaet" | "geprueftAm" | "authTime">>
 ): string {
   const jetzt = Date.now();
   const payload: SuiteToken = {
@@ -68,8 +81,12 @@ export function tokenSignieren(
     zugriff: inhalt.zugriff,
     letzteAktivitaet: inhalt.letzteAktivitaet ?? jetzt,
     geprueftAm: inhalt.geprueftAm ?? jetzt,
+    authTime: inhalt.authTime ?? jetzt,
+    tokenGeneration: inhalt.tokenGeneration,
   };
-  return jwt.sign(payload, jwtSecret(), { expiresIn: "12h" });
+  // Ablauf nie ueber die absolute Hoechstdauer ab Anmeldung hinaus.
+  const restSek = Math.max(1, Math.floor((payload.authTime + ABSOLUT_MAX_MS - jetzt) / 1000));
+  return jwt.sign(payload, jwtSecret(), { expiresIn: restSek });
 }
 
 export function tokenPruefen(token: string): SuiteToken {
@@ -81,6 +98,8 @@ export function tokenPruefen(token: string): SuiteToken {
     zugriff: roh.zugriff ?? {},
     letzteAktivitaet: roh.letzteAktivitaet,
     geprueftAm: roh.geprueftAm,
+    authTime: roh.authTime,
+    tokenGeneration: roh.tokenGeneration,
   };
 }
 

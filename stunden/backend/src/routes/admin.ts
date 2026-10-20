@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { ollamaBasisUrl } from "../lib/ollamaEndpoint";
 import { verschluesseln } from "../lib/krypto";
 import { auditLog } from "../lib/audit";
 import { AuthRequest, authPflicht, rollePflicht } from "../middleware/auth";
@@ -71,6 +72,16 @@ adminRouter.put("/llm", async (req: AuthRequest, res: Response) => {
     return;
   }
   const d = parse.data;
+
+  // Endpoint-URL pruefen (nur http/https, keine Zugangsdaten/Query, ggf.
+  // Host-Allowlist) – der Server ruft sie spaeter selbst auf.
+  if (d.endpoint && d.endpoint.trim() && !ollamaBasisUrl(d.endpoint)) {
+    res.status(400).json({
+      fehler:
+        "Ungültige Endpoint-URL. Erlaubt ist z. B. http://localhost:11434 (ohne Zugangsdaten oder Parameter).",
+    });
+    return;
+  }
 
   // Bestehenden Wert laden, um den Key ggf. zu behalten.
   const vorhanden = await prisma.einstellung.findUnique({

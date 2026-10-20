@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
+import { csvFeld } from "../lib/csv.js";
 import { angemeldet, rolleErforderlich } from "../middleware/auth.js";
 import {
   KONTEN_MIT_STEUERCODE_00,
@@ -31,9 +32,11 @@ function datumBmd(d: Date): string {
   return `${j}${m}${t}`;
 }
 
-// Text BMD-konform: Tabs/Zeilenumbrüche raus (würden die Spalten zerstören)
+// Text BMD-konform: Tabs/Zeilenumbrüche raus (würden die Spalten zerstören);
+// führende Formelzeichen entschärfen, falls die Datei in Excel landet.
 function textSauber(s: string | null | undefined): string {
-  return (s ?? "").replace(/[\t\r\n]+/g, " ").trim();
+  const t = (s ?? "").replace(/[\t\r\n]+/g, " ").trim();
+  return /^[=+\-@]/.test(t) ? "'" + t : t;
 }
 
 // Datum -> "TT.MM.JJJJ" (für CSV/Excel)
@@ -43,14 +46,7 @@ function datumDeCsv(d: Date): string {
   return `${t}.${m}.${d.getFullYear()}`;
 }
 
-// CSV-Feld escapen (Semikolon-getrennt): bei Sonderzeichen in Anführungszeichen.
-function csvFeld(wert: string | number): string {
-  const s = String(wert ?? "");
-  if (s.includes(";") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
-}
+// CSV-Feld escapen inkl. Formel-Neutralisierung: siehe lib/csv.ts.
 
 // BMD-Buchungssatz-Export als Tab-getrennte .txt (Latin-1, CRLF).
 exportRouter.get(

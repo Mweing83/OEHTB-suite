@@ -19,7 +19,7 @@ export interface Benutzer {
 interface AuthContextTyp {
   benutzer: Benutzer | null;
   laedt: boolean;
-  abmelden: () => void;
+  abmelden: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextTyp | undefined>(undefined);
@@ -48,9 +48,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLaedt(false));
   }, []);
 
-  function abmelden() {
-    // Zentrales Logout liegt im Portal.
-    window.location.href = "/api/suite/auth/logout";
+  async function abmelden() {
+    // Zentrales Logout liegt im Portal und existiert nur als POST. Frueher
+    // wurde per GET-Navigation dorthin gesprungen – das endete im 404 und das
+    // Sitzungs-Cookie blieb gueltig (Security-Audit 2026-10).
+    try {
+      await fetch("/api/suite/auth/logout", { method: "POST", credentials: "include" });
+    } catch {
+      // Portal nicht erreichbar: trotzdem lokal abmelden und weiterleiten.
+    } finally {
+      setBenutzer(null);
+      zumPortal();
+    }
   }
 
   return (

@@ -2,7 +2,28 @@ import { useCallback, useEffect, useState, FormEvent } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
-import { bestaetigen } from "../components/dialog";
+import { bestaetigen, hinweis } from "../components/dialog";
+
+interface CodeAntwort {
+  einrichtungsCode: string;
+  einrichtungsCodeBis: string;
+}
+
+// Zeigt den Einrichtungscode EINMAL an. Er wird nicht gespeichert – geht er
+// verloren, stellt die Verwaltung einfach einen neuen aus.
+async function codeAnzeigen(benutzername: string, c: CodeAntwort) {
+  await hinweis(
+    `Einrichtungscode für ${benutzername}:
+
+${c.einrichtungsCode}
+
+` +
+      `Gültig bis ${datumZeitDe(c.einrichtungsCodeBis)}. Bitte persönlich ` +
+      `übergeben (nicht per unverschlüsselter Mail). Der Code wird nur jetzt ` +
+      `angezeigt; mit ihm legt die Person beim ersten Login ihr Passwort fest.`,
+    "Einrichtungscode",
+  );
+}
 
 interface ToolInfo {
   id: string;
@@ -81,10 +102,10 @@ export default function VerwaltungSeite() {
     }
   }
 
-  async function passwortZuruecksetzen(userId: string) {
+  async function passwortZuruecksetzen(userId: string, benutzername: string) {
     if (
       !(await bestaetigen(
-        "Der Benutzer muss beim nächsten Login ein neues Passwort festlegen.",
+        "Der Benutzer muss beim nächsten Login mit einem Einrichtungscode ein neues Passwort festlegen.",
         {
           titel: "Passwort zurücksetzen?",
           bestaetigenText: "Zurücksetzen",
@@ -95,8 +116,24 @@ export default function VerwaltungSeite() {
     }
     setMeldung(null);
     try {
-      await api.put(`/api/suite/admin/benutzer/${userId}`, { passwortReset: true });
+      const c = await api.put<CodeAntwort>(`/api/suite/admin/benutzer/${userId}`, {
+        passwortReset: true,
+      });
       laden();
+      await codeAnzeigen(benutzername, c);
+    } catch (err) {
+      setMeldung(err instanceof Error ? err.message : "Fehler.");
+    }
+  }
+
+  async function codeNeuAusstellen(userId: string, benutzername: string) {
+    setMeldung(null);
+    try {
+      const c = await api.post<CodeAntwort>(
+        `/api/suite/admin/benutzer/${userId}/einrichtungscode`,
+        {},
+      );
+      await codeAnzeigen(benutzername, c);
     } catch (err) {
       setMeldung(err instanceof Error ? err.message : "Fehler.");
     }
@@ -210,12 +247,21 @@ export default function VerwaltungSeite() {
                       {b.letzterLogin ? datumZeitDe(b.letzterLogin) : "–"}
                     </td>
                     <td className="py-2 whitespace-nowrap">
-                      <button
-                        onClick={() => passwortZuruecksetzen(b.id)}
-                        className="text-xs text-marke-600 hover:underline mr-3"
-                      >
-                        Passwort zurücksetzen
-                      </button>
+                      {b.passwortSetzen ? (
+                        <button
+                          onClick={() => codeNeuAusstellen(b.id, b.benutzername)}
+                          className="text-xs text-marke-600 hover:underline mr-3"
+                        >
+                          Neuer Einrichtungscode
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => passwortZuruecksetzen(b.id, b.benutzername)}
+                          className="text-xs text-marke-600 hover:underline mr-3"
+                        >
+                          Passwort zurücksetzen
+                        </button>
+                      )}
                       <button
                         onClick={() => loeschen(b.id, b.name)}
                         disabled={b.id === benutzer?.id}
@@ -263,12 +309,16 @@ function NeuerBenutzer({ onAngelegt }: { onAngelegt: () => void }) {
     setFehler(null);
     setSpeichert(true);
     try {
-      await api.post("/api/suite/admin/benutzer", { benutzername, name, email });
+      const neu = await api.post<CodeAntwort & { benutzername: string }>(
+        "/api/suite/admin/benutzer",
+        { benutzername, name, email },
+      );
       setBenutzername("");
       setName("");
       setEmail("");
       setZeigt(false);
       onAngelegt();
+      await codeAnzeigen(neu.benutzername, neu);
     } catch (err) {
       setFehler(err instanceof Error ? err.message : "Fehler beim Anlegen.");
     } finally {

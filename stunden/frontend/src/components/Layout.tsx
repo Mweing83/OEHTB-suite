@@ -55,7 +55,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <span className="text-marke-300">({benutzer?.rolle})</span>
             </span>
             <button
-              onClick={() => abmelden()}
+              onClick={() => void abmelden()}
               className="rounded-md bg-marke-800 px-3 py-1.5 font-medium hover:bg-marke-700"
             >
               Abmelden

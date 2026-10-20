@@ -6,7 +6,12 @@ import { api } from "../lib/api";
 // und API-Key (nur "gesetzt/nicht gesetzt" sichtbar, nie der Klartext) sowie
 // der Scan-Zeitplan (Wochentag + Stunde, an/aus).
 interface Einstellungen {
-  llm: { provider: "anthropic" | "openai" | "dummy"; modell: string; apiKeyGesetzt: boolean };
+  llm: {
+    provider: "anthropic" | "openai" | "dummy";
+    modell: string;
+    apiKeyGesetzt: boolean;
+    apiKeyAnbieter: string | null;
+  };
   scan: {
     ueberwachung: { aktiv: boolean; wochentag: number; stunde: number };
     entdeckung: { aktiv: boolean; tag: number; stunde: number };
@@ -46,6 +51,11 @@ export default function EinstellungenSeite() {
   const [eigenesModell, setEigenesModell] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [apiKeyGesetzt, setApiKeyGesetzt] = useState(false);
+  // Anbieter, fuer den der gespeicherte Key gilt; nach Anbieterwechsel wird er
+  // beim Speichern verworfen.
+  const [apiKeyAnbieter, setApiKeyAnbieter] = useState<string | null>(null);
+  const [apiKeyLoeschen, setApiKeyLoeschen] = useState(false);
+  const keyGiltHier = apiKeyGesetzt && apiKeyAnbieter === provider;
 
   // Ueberwachung: woechentlich; Entdeckung: monatlich (getrennte Zeitplaene,
   // weil die Entdeckung deutlich seltener laufen muss und Kosten verursacht).
@@ -69,6 +79,7 @@ export default function EinstellungenSeite() {
             !MODELLE[d.llm.provider].some((m) => m.wert === d.llm.modell)
         );
         setApiKeyGesetzt(d.llm.apiKeyGesetzt);
+        setApiKeyAnbieter(d.llm.apiKeyAnbieter);
         setUeAktiv(d.scan.ueberwachung.aktiv);
         setUeWochentag(d.scan.ueberwachung.wochentag);
         setUeStunde(d.scan.ueberwachung.stunde);
@@ -89,9 +100,17 @@ export default function EinstellungenSeite() {
         provider,
         modell: modell || undefined,
         apiKey: apiKey || undefined,
+        apiKeyLoeschen: apiKeyLoeschen || undefined,
       });
+      if (apiKey) {
+        setApiKeyGesetzt(true);
+        setApiKeyAnbieter(provider);
+      } else if (apiKeyLoeschen || !keyGiltHier) {
+        setApiKeyGesetzt(false);
+        setApiKeyAnbieter(null);
+      }
       setApiKey("");
-      if (apiKey) setApiKeyGesetzt(true);
+      setApiKeyLoeschen(false);
       setMeldung("LLM-Einstellungen gespeichert.");
     } catch (err) {
       setFehler((err as Error).message);
@@ -184,16 +203,31 @@ export default function EinstellungenSeite() {
             </label>
           )}
           <label className="text-sm text-gray-700">
-            API-Key {apiKeyGesetzt && <span className="text-erfolg-700">(gesetzt – leer lassen zum Behalten)</span>}
+            API-Key {keyGiltHier && !apiKeyLoeschen && <span className="text-erfolg-700">(gesetzt – leer lassen zum Behalten)</span>}
+            {apiKeyGesetzt && !keyGiltHier && (
+              <span className="block text-xs text-amber-700">
+                Der gespeicherte Key gehört zu einem anderen Anbieter und wird beim Speichern verworfen.
+              </span>
+            )}
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={apiKeyGesetzt ? "••••••••" : "API-Key eingeben"}
+              placeholder={keyGiltHier && !apiKeyLoeschen ? "••••••••" : "API-Key eingeben"}
               className={eingabeKlasse + " mt-1"}
               autoComplete="off"
             />
           </label>
+          {keyGiltHier && (
+            <label className="text-sm text-gray-700 inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={apiKeyLoeschen}
+                onChange={(e) => setApiKeyLoeschen(e.target.checked)}
+              />
+              Gespeicherten API-Key löschen
+            </label>
+          )}
         </div>
         <button type="submit" className="mt-4 rounded-md bg-marke-600 text-white px-4 py-2 text-sm font-medium hover:bg-marke-700">
           Speichern

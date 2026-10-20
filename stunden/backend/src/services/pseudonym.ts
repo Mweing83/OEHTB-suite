@@ -23,7 +23,7 @@ export interface PseudonymisierungErgebnis {
 
 // Erzeugt aus Vor- und Nachnamen die Suchvarianten, die in Mails vorkommen.
 // Beispiel: "Anna Mayer" -> ["Anna Mayer", "Mayer Anna", "Mayer", "Anna"]
-function namensVarianten(vorname: string, nachname: string): string[] {
+export function namensVarianten(vorname: string, nachname: string): string[] {
   const v = vorname.trim();
   const n = nachname.trim();
   const varianten = [
@@ -36,7 +36,7 @@ function namensVarianten(vorname: string, nachname: string): string[] {
 }
 
 // Escapet einen String fuer die Verwendung in einem regulaeren Ausdruck.
-function regexEscape(s: string): string {
+export function regexEscape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
@@ -44,9 +44,11 @@ function regexEscape(s: string): string {
 export async function pseudonymisieren(
   rohtext: string
 ): Promise<PseudonymisierungErgebnis> {
+  // Auch inaktive Mitarbeiter pseudonymisieren (Mails nennen oft ehemalige
+  // Kolleg:innen); nur bereits anonymisierte Datensaetze ausnehmen.
   const mitarbeiter = await prisma.mitarbeiter.findMany({
-    where: { aktiv: true },
-    select: { id: true, vorname: true, nachname: true },
+    where: { NOT: { personalnummer: { startsWith: "GELOESCHT-" } } },
+    select: { id: true, vorname: true, nachname: true, email: true },
   });
 
   let text = rohtext;
@@ -61,7 +63,8 @@ export async function pseudonymisieren(
   );
 
   for (const m of sortiert) {
-    const varianten = namensVarianten(m.vorname, m.nachname);
+    // E-Mail-Adresse zuerst (enthaelt oft den Nachnamen), dann Namen.
+    const varianten = [...(m.email ? [m.email] : []), ...namensVarianten(m.vorname, m.nachname)];
     for (const variante of varianten) {
       // Wortgrenzen, damit "Mayer" nicht in "Mayerhofer" trifft.
       const re = new RegExp(`\\b${regexEscape(variante)}\\b`, "gi");
@@ -86,5 +89,8 @@ export function reIdentifizieren(
   platzhalter: string,
   mapping: PseudonymMapping
 ): string | null {
-  return mapping[platzhalter] ?? null;
+  if (!/^PERSON_\d+$/.test(platzhalter)) return null;
+  if (!Object.prototype.hasOwnProperty.call(mapping, platzhalter)) return null;
+  const id = mapping[platzhalter];
+  return typeof id === "string" ? id : null;
 }

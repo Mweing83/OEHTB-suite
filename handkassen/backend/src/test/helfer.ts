@@ -7,6 +7,11 @@ import { SUITE_COOKIE, TOOL_SLUG, tokenSignieren } from "../lib/suiteAuth.js";
 // supertest-Agent-Typ ohne fragilen Tiefenimport ableiten.
 export type Agent = ReturnType<typeof request.agent>;
 
+// Feste Suite-ID eines Testbenutzers (siehe seedBasis/alsAgent).
+export function testSuiteId(benutzername: string): string {
+  return `suite-test-${benutzername}`;
+}
+
 // Einheitliches Testpasswort für alle erzeugten Konten.
 export const TEST_PW = "passwort123";
 
@@ -71,6 +76,9 @@ export async function seedBasis(): Promise<Basis> {
         rolle,
         passwortHash: mitPw ? hash : null,
         passwortSetzen: !mitPw,
+        // Wie im Echtbetrieb: provisionierte Benutzer sind mit ihrer Suite-ID
+        // verknuepft (feste ID je Name, damit Agents ein resetDb ueberleben).
+        suiteUserId: testSuiteId(benutzername),
       },
     });
 
@@ -115,18 +123,24 @@ export async function seedBasis(): Promise<Basis> {
 // Liefert einen supertest-Agent, der ein gueltiges Suite-SSO-Cookie fuer den
 // genannten Benutzer traegt. Login liegt seit der Suite-Integration im Portal;
 // die Tests faelschen daher – wie die anderen Tools – direkt ein signiertes
-// suite_token (gleiches JWT_SECRET wie das Backend). Die SSO-Middleware
-// verknuepft den gleichnamigen Bestandsnutzer aus seedBasis() ueber den
-// Benutzernamen, sodass req.benutzer.id auf dessen lokale Int-ID zeigt
-// (Kostenstellen-Freischaltungen bleiben gueltig).
+// suite_token (gleiches JWT_SECRET wie das Backend). Die Testzeile wird
+// vorher mit der Suite-ID verknuepft – wie ein provisionierter Benutzer im
+// Echtbetrieb –, sodass req.benutzer.id auf die lokale Int-ID zeigt und die
+// Kostenstellen-Freischaltungen gueltig bleiben. (Eine Verknuepfung erst ueber
+// den Benutzernamen wuerde die Freischaltungen bewusst entfernen, siehe
+// lib/altzeile.ts.)
 export async function alsAgent(benutzername: string): Promise<Agent> {
   const b = await prisma.benutzer.findUnique({ where: { benutzername } });
   if (!b) {
     throw new Error(`Testbenutzer '${benutzername}' nicht vorhanden – seedBasis() vergessen?`);
   }
+  const suiteId = b.suiteUserId ?? testSuiteId(b.benutzername);
+  if (!b.suiteUserId) {
+    await prisma.benutzer.update({ where: { id: b.id }, data: { suiteUserId: suiteId } });
+  }
   const jetzt = Date.now();
   const token = tokenSignieren({
-    sub: `suite-test-${b.id}`,
+    sub: suiteId,
     benutzername: b.benutzername,
     name: b.name,
     zugriff: { [TOOL_SLUG]: b.rolle },

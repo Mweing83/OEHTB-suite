@@ -237,6 +237,10 @@ model Beleg {
   dateipfad     String   // Pfad im lokalen uploads-Verzeichnis
   originalname  String
   hochgeladenAm DateTime @default(now())
+  // Lokale Benutzer-ID des Hochladenden. Nur diese Person darf den Beleg an
+  // eine Buchung haengen (sonst koennte jede/r fremde, noch unzugeordnete
+  // Belege uebernehmen). Altbestand ohne Wert ist nicht mehr zuordenbar.
+  hochgeladenVonId Int?
   buchung       Buchung?
 
   @@map("beleg")

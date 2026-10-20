@@ -67,6 +67,47 @@ laufend("Einstellungs-Routen", () => {
     expect(wert.modell).toBe("claude-opus-4-8");
   });
 
+  it("verwirft den Key beim Anbieterwechsel ohne neuen Key (Security-Audit 2026-10)", async () => {
+    const { ladeProviderKonfig } = await import("../services/llm/factory");
+    await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
+      provider: "anthropic", apiKey: "sk-ant-geheim",
+    });
+    await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({ provider: "openai" });
+    const res = await request(app).get("/api/einstellungen").set("Cookie", cookie);
+    expect(res.body.llm.apiKeyGesetzt).toBe(false);
+    expect((await ladeProviderKonfig()).apiKey).toBeUndefined();
+  });
+
+  it("nutzt einen Altbestand-Key nur fuer den eingestellten Anbieter", async () => {
+    const { ladeProviderKonfig } = await import("../services/llm/factory");
+    await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
+      provider: "anthropic", apiKey: "sk-ant-geheim",
+    });
+    // Altbestand simulieren: Feld apiKeyProvider fehlt, Anbieter manuell geaendert.
+    const zeile = await prisma.einstellung.findUniqueOrThrow({ where: { schluessel: "llm_konfig" } });
+    const wert = { ...(zeile.wert as Record<string, unknown>) };
+    delete wert.apiKeyProvider;
+    await prisma.einstellung.update({ where: { schluessel: "llm_konfig" }, data: { wert: wert as object } });
+    expect((await ladeProviderKonfig()).apiKey).toBe("sk-ant-geheim");
+
+    await prisma.einstellung.update({
+      where: { schluessel: "llm_konfig" },
+      data: { wert: { ...wert, provider: "openai", apiKeyProvider: "anthropic" } },
+    });
+    expect((await ladeProviderKonfig()).apiKey).toBeUndefined();
+  });
+
+  it("loescht den Key auf ausdruecklichen Wunsch", async () => {
+    await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
+      provider: "anthropic", apiKey: "sk-ant-geheim",
+    });
+    await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
+      provider: "anthropic", apiKeyLoeschen: true,
+    });
+    const res = await request(app).get("/api/einstellungen").set("Cookie", cookie);
+    expect(res.body.llm.apiKeyGesetzt).toBe(false);
+  });
+
   it("speichert Scan-Zeitplan (beide Arten) und validiert Grenzen", async () => {
     const ok = await request(app).put("/api/einstellungen/scan").set("Cookie", cookie).send({
       ueberwachung: { aktiv: true, wochentag: 1, stunde: 6 },

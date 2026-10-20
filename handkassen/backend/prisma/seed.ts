@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { passwortHashen } from "../src/lib/auth.js";
+import { passwortHashen, passwortPruefen } from "../src/lib/auth.js";
 
 const prisma = new PrismaClient();
 
@@ -28,6 +28,49 @@ const konten: { nummer: string; bezeichnung: string; beschreibung?: string; anme
   { nummer: "28970", bezeichnung: "Verr. Konto Dotationen Wohnen", beschreibung: "Ein-/Auszahlungen Dotationen" },
   { nummer: "50350", bezeichnung: "Werkzeug- & Geschirrsatz" },
 ];
+
+// Produktion: bereits frueher angelegte Demo-Konten unschaedlich machen
+// (erkannt am Demo-Passwort; Buchungen/Historie bleiben immer erhalten).
+// - Unverknuepfte Zeile: Freischaltungen entfernen, deaktivieren, Passwort-
+//   Hash loeschen.
+// - Mit Suite-Benutzer verknuepfte Zeile (z. B. der Suite-Admin): nur den
+//   lokalen Passwort-Hash loeschen (Login laeuft ohnehin ueber die Suite);
+//   hat sie noch Kostenstellen-Freischaltungen, wird gewarnt – ob die gewollt
+//   sind, entscheidet die Verwaltung.
+const DEMO_KONTEN: Record<string, string> = {
+  admin: "admin123",
+  leitung: "leitung123",
+  erfasser: "erfass123",
+};
+
+async function demoKontenEntschaerfen(): Promise<void> {
+  for (const [benutzername, demoPasswort] of Object.entries(DEMO_KONTEN)) {
+    const b = await prisma.benutzer.findUnique({ where: { benutzername } });
+    if (!b?.passwortHash) continue;
+    if (!(await passwortPruefen(demoPasswort, b.passwortHash))) continue;
+    if (b.suiteUserId) {
+      await prisma.benutzer.update({ where: { id: b.id }, data: { passwortHash: null } });
+      const freischaltungen = await prisma.benutzerKostenstelle.count({ where: { benutzerId: b.id } });
+      console.log(`Demo-Passwort des verknuepften Kontos '${benutzername}' entfernt.`);
+      if (freischaltungen > 0) {
+        console.warn(
+          `WARNUNG: '${benutzername}' ist mit einem Suite-Benutzer verknuepft und hat noch ${freischaltungen} ` +
+            "Kostenstellen-Freischaltung(en) aus den Demo-Daten. Bitte in der Handkassen-Administration pruefen " +
+            "und den Suite-Benutzer in der Verwaltung ggf. deaktivieren."
+        );
+      }
+      continue;
+    }
+    const entfernt = await prisma.benutzerKostenstelle.deleteMany({ where: { benutzerId: b.id } });
+    await prisma.benutzer.update({
+      where: { id: b.id },
+      data: { aktiv: false, passwortHash: null },
+    });
+    console.warn(
+      `Demo-Konto '${benutzername}' entschaerft: deaktiviert, Passwort entfernt, ${entfernt.count} Freischaltung(en) geloescht.`
+    );
+  }
+}
 
 async function main() {
   // Konten
@@ -88,64 +131,73 @@ async function main() {
   }
   console.log(`${kassenarten.length} Kassenarten angelegt/aktualisiert.`);
 
-  // Demo-Kostenstellen (fiktiv) – Bereich/Kassenart per Bezeichnung verknüpfen
-  const ks1 = await prisma.kostenstelle.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
-      nummer: "1260",
-      gegenkonto: "99957",
-      bezeichnung: "WG Beispielstraße 1",
-      bereich: { connect: { bezeichnung: "VBW" } },
-      kassenart: { connect: { bezeichnung: "einrichtung" } },
-    },
-  });
-  const ks2 = await prisma.kostenstelle.upsert({
-    where: { id: 2 },
-    update: {},
-    create: {
-      nummer: "1370",
-      gegenkonto: "99957",
-      bezeichnung: "Stützpunkt Musterplatz",
-      bereich: { connect: { bezeichnung: "GVB" } },
-      kassenart: { connect: { bezeichnung: "einrichtung" } },
-    },
-  });
-
-  // Demo-Benutzer (NUR für Entwicklung – vor Produktivbetrieb entfernen!)
-  // passwortSetzen=false, damit der Login mit dem Demo-Passwort sofort klappt.
-  const admin = await prisma.benutzer.upsert({
-    where: { benutzername: "admin" },
-    update: {},
-    create: { benutzername: "admin", name: "Administrator", rolle: "admin", passwortSetzen: false, passwortHash: await passwortHashen("admin123") },
-  });
-  const leitung = await prisma.benutzer.upsert({
-    where: { benutzername: "leitung" },
-    update: {},
-    create: { benutzername: "leitung", name: "Demo Leitung", rolle: "leitung", passwortSetzen: false, passwortHash: await passwortHashen("leitung123") },
-  });
-  const erfasser = await prisma.benutzer.upsert({
-    where: { benutzername: "erfasser" },
-    update: {},
-    create: { benutzername: "erfasser", name: "Demo Erfasser", rolle: "erfasser", passwortSetzen: false, passwortHash: await passwortHashen("erfass123") },
-  });
-
-  // Erfasser für beide Demo-Kostenstellen freischalten (Anf. P-02)
-  for (const ks of [ks1, ks2]) {
-    await prisma.benutzerKostenstelle.upsert({
-      where: { benutzerId_kostenstelleId: { benutzerId: erfasser.id, kostenstelleId: ks.id } },
+  // Demo-Daten (fiktive Kostenstellen 1260/1370, Benutzer admin/leitung/
+  // erfasser mit im Repository stehenden Passwoertern und Freischaltungen)
+  // NUR ausserhalb der Produktion. Das Dockerfile fuehrt diesen Seed bei jedem
+  // Produktionsstart aus – frueher landeten die Demo-Konten so im Echtbetrieb
+  // (Security-Audit 2026-10).
+  if (process.env.NODE_ENV !== "production") {
+    // Demo-Kostenstellen (fiktiv) – Bereich/Kassenart per Bezeichnung verknüpfen
+    const ks1 = await prisma.kostenstelle.upsert({
+      where: { id: 1 },
       update: {},
-      create: { benutzerId: erfasser.id, kostenstelleId: ks.id },
+      create: {
+        nummer: "1260",
+        gegenkonto: "99957",
+        bezeichnung: "WG Beispielstraße 1",
+        bereich: { connect: { bezeichnung: "VBW" } },
+        kassenart: { connect: { bezeichnung: "einrichtung" } },
+      },
     });
-    await prisma.benutzerKostenstelle.upsert({
-      where: { benutzerId_kostenstelleId: { benutzerId: leitung.id, kostenstelleId: ks.id } },
+    const ks2 = await prisma.kostenstelle.upsert({
+      where: { id: 2 },
       update: {},
-      create: { benutzerId: leitung.id, kostenstelleId: ks.id },
+      create: {
+        nummer: "1370",
+        gegenkonto: "99957",
+        bezeichnung: "Stützpunkt Musterplatz",
+        bereich: { connect: { bezeichnung: "GVB" } },
+        kassenart: { connect: { bezeichnung: "einrichtung" } },
+      },
     });
+
+    // Demo-Benutzer (NUR für Entwicklung – vor Produktivbetrieb entfernen!)
+    // passwortSetzen=false, damit der Login mit dem Demo-Passwort sofort klappt.
+    const admin = await prisma.benutzer.upsert({
+      where: { benutzername: "admin" },
+      update: {},
+      create: { benutzername: "admin", name: "Administrator", rolle: "admin", passwortSetzen: false, passwortHash: await passwortHashen("admin123") },
+    });
+    const leitung = await prisma.benutzer.upsert({
+      where: { benutzername: "leitung" },
+      update: {},
+      create: { benutzername: "leitung", name: "Demo Leitung", rolle: "leitung", passwortSetzen: false, passwortHash: await passwortHashen("leitung123") },
+    });
+    const erfasser = await prisma.benutzer.upsert({
+      where: { benutzername: "erfasser" },
+      update: {},
+      create: { benutzername: "erfasser", name: "Demo Erfasser", rolle: "erfasser", passwortSetzen: false, passwortHash: await passwortHashen("erfass123") },
+    });
+
+    // Erfasser für beide Demo-Kostenstellen freischalten (Anf. P-02)
+    for (const ks of [ks1, ks2]) {
+      await prisma.benutzerKostenstelle.upsert({
+        where: { benutzerId_kostenstelleId: { benutzerId: erfasser.id, kostenstelleId: ks.id } },
+        update: {},
+        create: { benutzerId: erfasser.id, kostenstelleId: ks.id },
+      });
+      await prisma.benutzerKostenstelle.upsert({
+        where: { benutzerId_kostenstelleId: { benutzerId: leitung.id, kostenstelleId: ks.id } },
+        update: {},
+        create: { benutzerId: leitung.id, kostenstelleId: ks.id },
+      });
+    }
+
+    console.log("Demo-Benutzer und Kostenstellen angelegt.");
+    console.log("  admin / admin123, leitung / leitung123, erfasser / erfass123");
+  } else {
+    await demoKontenEntschaerfen();
   }
-
-  console.log("Demo-Benutzer und Kostenstellen angelegt.");
-  console.log("  admin / admin123, leitung / leitung123, erfasser / erfass123");
 
   // Backup-Konfiguration sicherstellen (genau eine Zeile mit Standardwerten)
   const backupVorhanden = await prisma.backupKonfig.findFirst();

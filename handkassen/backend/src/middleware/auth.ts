@@ -9,8 +9,10 @@ import {
   suiteRefresh,
   tokenPruefen,
   tokenSignieren,
+  tokenIstAbsolutAbgelaufen,
   type SuiteToken,
 } from "../lib/suiteAuth.js";
+import { altzeileUebernehmen } from "../lib/altzeile.js";
 
 // ---------------------------------------------------------------------------
 // SSO-Middleware (OEHTB-Suite).
@@ -42,7 +44,8 @@ const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 15);
 
 // Stellt eine lokale Benutzer-Zeile fuer diesen Suite-Benutzer sicher und
 // liefert deren Int-ID. Verknuepft bei Bedarf einen gleichnamigen Bestands-
-// nutzer (z. B. wenn der Import noch nicht lief) und haelt Name/Rolle synchron.
+// nutzer (ohne dessen Kostenstellen-Freischaltungen, siehe lib/altzeile.ts)
+// und haelt Name/Rolle synchron.
 async function lokalenBenutzerSichern(
   token: SuiteToken,
   rolle: HkRolle
@@ -63,11 +66,14 @@ async function lokalenBenutzerSichern(
     where: { benutzername: token.benutzername },
   });
   if (gleich && !gleich.suiteUserId) {
-    const aktualisiert = await prisma.benutzer.update({
-      where: { id: gleich.id },
-      data: { suiteUserId: token.sub, name: token.name, rolle, aktiv: true },
-    });
-    return aktualisiert.id;
+    // Freischaltungen werden dabei entfernt und die Uebernahme protokolliert
+    // (siehe lib/altzeile.ts).
+    await altzeileUebernehmen(
+      gleich,
+      { suiteUserId: token.sub, name: token.name, rolle, aktiv: true },
+      "anmeldung"
+    );
+    return gleich.id;
   }
 
   const neu = await prisma.benutzer.create({
@@ -102,10 +108,25 @@ export async function angemeldet(
     res.clearCookie(SUITE_COOKIE, { path: "/" });
     return res.status(401).json({ fehler: "Sitzung abgelaufen (Inaktivität)." });
   }
+  if (tokenIstAbsolutAbgelaufen(inhalt)) {
+    res.clearCookie(SUITE_COOKIE, { path: "/" });
+    return res.status(401).json({ fehler: "Sitzung abgelaufen. Bitte neu anmelden." });
+  }
 
-  if (pruefungIstAbgelaufen(inhalt)) {
+  // Rechte zu alt? Beim Portal auffrischen. Lehnt das Portal verbindlich ab
+  // (geloescht/inaktiv), endet die Sitzung; ist es nur nicht erreichbar, geht
+  // es mit dem bisherigen Stand weiter (bekannte Benutzer bleiben arbeitsfaehig).
+  let bestaetigt = !pruefungIstAbgelaufen(inhalt);
+  if (!bestaetigt) {
     const frisch = await suiteRefresh(token);
-    if (frisch) inhalt = frisch;
+    if (frisch === "widerrufen") {
+      res.clearCookie(SUITE_COOKIE, { path: "/" });
+      return res.status(401).json({ fehler: "Sitzung beendet: Zugang wurde zentral entzogen." });
+    }
+    if (frisch) {
+      inhalt = frisch;
+      bestaetigt = true;
+    }
   }
 
   const rolleRoh = inhalt.zugriff[TOOL_SLUG];
@@ -113,6 +134,17 @@ export async function angemeldet(
     return res.status(403).json({ fehler: "Kein Zugriff auf dieses Tool." });
   }
   const rolle = rolleRoh as HkRolle;
+
+  // Unbekannte Benutzer nur anlegen/verknuepfen, wenn das Portal die Rechte
+  // in dieser Anfrage bestaetigt hat – nie allein aus alten Token-Claims.
+  if (!bestaetigt) {
+    const bekannt = await prisma.benutzer.findUnique({ where: { suiteUserId: inhalt.sub } });
+    if (!bekannt) {
+      return res.status(403).json({
+        fehler: "Zugang kann gerade nicht bestätigt werden. Bitte später erneut versuchen.",
+      });
+    }
+  }
 
   const lokaleId = await lokalenBenutzerSichern(inhalt, rolle);
 

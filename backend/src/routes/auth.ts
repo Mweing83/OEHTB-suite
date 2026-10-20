@@ -10,8 +10,10 @@ import {
   tokenPruefen,
   tokenSetzen,
   tokenSignieren,
+  tokenIstAbsolutAbgelaufen,
 } from "../lib/auth";
 import { angemeldet, AuthRequest, zugriffeLaden } from "../middleware/auth";
+import { einrichtungsCodePruefen } from "../lib/einrichtungscode";
 
 export const authRouter = Router();
 
@@ -104,6 +106,7 @@ authRouter.post("/login", loginLimit, async (req, res) => {
       benutzername: user.benutzername,
       name: user.name,
       zugriff,
+      tokenGeneration: user.tokenGeneration,
     })
   );
 
@@ -118,9 +121,14 @@ authRouter.post("/login", loginLimit, async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // POST /api/suite/auth/passwort-setzen  (Erstlogin, solange passwortSetzen)
+// Erfordert den einmaligen Einrichtungscode, den der Admin beim Anlegen/
+// Zuruecksetzen erhalten hat (Seed-Admin: Container-Log). Ohne gueltigen
+// Code kein Setzen – sonst koennte jeder, der den Benutzernamen kennt, das
+// Konto uebernehmen.
 // ---------------------------------------------------------------------------
 const setzenSchema = z.object({
   benutzername: z.string().min(1),
+  einrichtungsCode: z.string().min(1, "Bitte den Einrichtungscode eingeben."),
   neuesPasswort: z.string().min(8, "Mindestens 8 Zeichen."),
 });
 
@@ -132,19 +140,50 @@ authRouter.post("/passwort-setzen", loginLimit, async (req, res) => {
     });
     return;
   }
-  const { benutzername, neuesPasswort } = parse.data;
+  const { benutzername, einrichtungsCode, neuesPasswort } = parse.data;
 
   const user = await prisma.suiteUser.findUnique({ where: { benutzername } });
-  if (!user || !user.aktiv || !user.passwortSetzen) {
-    res.status(403).json({ fehler: "Passwort kann nicht gesetzt werden." });
+  if (
+    !user ||
+    !user.aktiv ||
+    !user.passwortSetzen ||
+    !einrichtungsCodePruefen(
+      einrichtungsCode,
+      user.einrichtungsCodeHash,
+      user.einrichtungsCodeBis
+    )
+  ) {
+    if (user) {
+      await auditLog({ userId: user.id, aktion: "PASSWORT_SETZEN_ABGELEHNT" });
+    }
+    res.status(403).json({
+      fehler:
+        "Passwort kann nicht gesetzt werden. Einrichtungscode falsch oder abgelaufen – bitte bei der Verwaltung einen neuen anfordern.",
+    });
     return;
   }
 
   const hash = await passwortHashen(neuesPasswort);
-  await prisma.suiteUser.update({
-    where: { id: user.id },
-    data: { passwortHash: hash, passwortSetzen: false },
+  // Bedingtes Update: nur solange der geprueste Code noch gespeichert ist –
+  // verhindert, dass zwei parallele Anfragen denselben Code doppelt nutzen.
+  const r = await prisma.suiteUser.updateMany({
+    where: {
+      id: user.id,
+      passwortSetzen: true,
+      einrichtungsCodeHash: user.einrichtungsCodeHash,
+    },
+    data: {
+      passwortHash: hash,
+      passwortSetzen: false,
+      einrichtungsCodeHash: null,
+      einrichtungsCodeBis: null,
+      tokenGeneration: { increment: 1 },
+    },
   });
+  if (r.count !== 1) {
+    res.status(403).json({ fehler: "Passwort kann nicht gesetzt werden." });
+    return;
+  }
   await auditLog({ userId: user.id, aktion: "PASSWORT_GESETZT" });
 
   res.json({ ok: true });
@@ -192,10 +231,16 @@ authRouter.post(
     }
 
     const hash = await passwortHashen(neuesPasswort);
-    await prisma.suiteUser.update({
+    // Generation erhoehen: alle anderen Sitzungen (z. B. auf einem fremden
+    // Geraet) werden ungueltig; diese Sitzung erhaelt ein neues Token.
+    const aktualisiert = await prisma.suiteUser.update({
       where: { id: user.id },
-      data: { passwortHash: hash, passwortSetzen: false },
+      data: { passwortHash: hash, passwortSetzen: false, tokenGeneration: { increment: 1 } },
     });
+    tokenSetzen(
+      res,
+      tokenSignieren({ ...req.benutzer!, tokenGeneration: aktualisiert.tokenGeneration })
+    );
     await auditLog({ userId: user.id, aktion: "PASSWORT_GEAENDERT" });
 
     res.json({ ok: true });
@@ -211,6 +256,12 @@ authRouter.post("/logout", async (req: AuthRequest, res) => {
     const token = req.cookies?.[SUITE_COOKIE];
     if (token) {
       const inhalt = tokenPruefen(token);
+      // Abmelden beendet ALLE Sitzungen dieses Benutzers (auch ein bereits
+      // kopiertes Token ist danach wertlos).
+      await prisma.suiteUser.updateMany({
+        where: { id: inhalt.sub, tokenGeneration: inhalt.tokenGeneration },
+        data: { tokenGeneration: { increment: 1 } },
+      });
       await auditLog({ userId: inhalt.sub, aktion: "LOGOUT" });
     }
   } catch {
@@ -257,6 +308,10 @@ authRouter.post("/refresh", async (req: AuthRequest, res: Response) => {
       res.status(401).json({ fehler: "Benutzer nicht (mehr) aktiv." });
       return;
     }
+    if (roh.tokenGeneration !== user.tokenGeneration || tokenIstAbsolutAbgelaufen(roh)) {
+      res.status(401).json({ fehler: "Sitzung beendet." });
+      return;
+    }
     const zugriff = await zugriffeLaden(user.id);
     const neues = tokenSignieren({
       sub: user.id,
@@ -264,6 +319,8 @@ authRouter.post("/refresh", async (req: AuthRequest, res: Response) => {
       name: user.name,
       zugriff,
       letzteAktivitaet: roh.letzteAktivitaet, // Aktivitaet erneuert das TOOL
+      authTime: roh.authTime,
+      tokenGeneration: user.tokenGeneration,
     });
     res.json({ token: neues });
   } catch {

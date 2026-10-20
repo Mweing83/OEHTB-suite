@@ -71,7 +71,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-3 text-sm">
             <span className="text-marke-200">{benutzer?.name ?? benutzer?.email}</span>
             <button
-              onClick={() => abmelden()}
+              onClick={() => void abmelden()}
               className="rounded-md bg-marke-800 px-3 py-1.5 font-medium hover:bg-marke-700"
             >
               Abmelden

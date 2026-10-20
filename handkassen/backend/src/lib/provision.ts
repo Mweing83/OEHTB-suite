@@ -1,5 +1,6 @@
 import { prisma } from "./db.js";
 import { SUITE_URL, TOOL_SLUG } from "./suiteAuth.js";
+import { altzeileUebernehmen } from "./altzeile.js";
 
 // ---------------------------------------------------------------------------
 // Empfangsseite der zentralen User-Provisionierung (Suite -> dieses Tool).
@@ -36,7 +37,12 @@ export function provisionSecret(): string {
 }
 
 // Legt den lokalen Spiegel an bzw. aktualisiert ihn (idempotent, per suiteUserId).
-export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
+// quelle "push": einzelner Auftrag aus der Outbox (kann veraltet sein).
+// quelle "snapshot": massgeblicher Gesamtstand beim Start (reconcile).
+export async function applyUpsert(
+  p: ProvisionUserPayload,
+  quelle: "push" | "snapshot" = "push"
+): Promise<void> {
   const gueltig = HK_ROLLEN.includes((p.rolle ?? "") as HkRolle);
   const rolle = (gueltig ? (p.rolle as HkRolle) : "erfasser") as HkRolle;
   // Ohne gueltige Rolle (Zugriff entzogen) oder zentral inaktiv -> gesperrt.
@@ -46,6 +52,13 @@ export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
     where: { suiteUserId: p.suiteUserId },
   });
   if (vorhanden) {
+    // Ein Tombstone wird durch einen (moeglicherweise veralteten) Push nicht
+    // zurueckgenommen – nur der massgebliche Snapshot beim Start darf das
+    // (Security-Audit 2026-10: veralteter UPSERT nach DELETE).
+    if (vorhanden.geloescht && quelle === "push") {
+      console.warn(`Provision: UPSERT fuer geloeschten Benutzer ${p.suiteUserId} ignoriert.`);
+      return;
+    }
     await prisma.benutzer.update({
       where: { id: vorhanden.id },
       data: { name: p.name, rolle, aktiv, geloescht: false },
@@ -58,16 +71,12 @@ export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
     where: { benutzername: p.benutzername },
   });
   if (gleich && !gleich.suiteUserId) {
-    await prisma.benutzer.update({
-      where: { id: gleich.id },
-      data: {
-        suiteUserId: p.suiteUserId,
-        name: p.name,
-        rolle,
-        aktiv,
-        geloescht: false,
-      },
-    });
+    // Ohne Kostenstellen-Freischaltungen, mit Audit-Eintrag (lib/altzeile.ts).
+    await altzeileUebernehmen(
+      gleich,
+      { suiteUserId: p.suiteUserId, name: p.name, rolle, aktiv, geloescht: false },
+      "provisionierung"
+    );
     return;
   }
 
@@ -86,10 +95,26 @@ export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
 
 // Tombstone: sperrt den Benutzer, erhaelt aber Buchungen/Audit-Historie.
 export async function applyDelete(suiteUserId: string): Promise<void> {
-  await prisma.benutzer.updateMany({
+  const r = await prisma.benutzer.updateMany({
     where: { suiteUserId },
     data: { aktiv: false, geloescht: true },
   });
+  // Unbekannter Benutzer: gesperrte Platzhalter-Zeile anlegen, damit ein
+  // spaeterer Zugriff mit einem alten Token nicht in den Create-Fallback der
+  // Middleware laeuft und den Benutzer aktiv anlegt (Security-Audit 2026-10).
+  if (r.count === 0) {
+    await prisma.benutzer.create({
+      data: {
+        suiteUserId,
+        benutzername: `geloescht:${suiteUserId}`,
+        name: "(zentral gelöscht)",
+        rolle: "erfasser",
+        passwortSetzen: false,
+        aktiv: false,
+        geloescht: true,
+      },
+    });
+  }
 }
 
 // Startup-Abgleich (Self-Heal): vollstaendige SOLL-Liste vom Portal holen und
@@ -128,7 +153,7 @@ async function reconcileEinmal(): Promise<void> {
   const daten = (await res.json()) as { users: ProvisionUserPayload[] };
   const sollIds = new Set<string>();
   for (const u of daten.users) {
-    await applyUpsert(u);
+    await applyUpsert(u, "snapshot");
     sollIds.add(u.suiteUserId);
   }
   // Lokale Suite-Nutzer, die nicht mehr in der SOLL-Liste sind -> deaktivieren.

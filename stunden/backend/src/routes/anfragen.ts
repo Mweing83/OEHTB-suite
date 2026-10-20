@@ -1,5 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
+import type { AnfrageStatus, Prisma } from "@prisma/client";
+import { AnfrageStatus as AnfrageStatusEnum } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { auditLog } from "../lib/audit";
 import { AuthRequest, authPflicht, rollePflicht } from "../middleware/auth";
@@ -108,19 +110,27 @@ anfragenRouter.post(
 // ?status=...: gezielt nach einem Status filtern.
 // ---------------------------------------------------------------------------
 anfragenRouter.get("/", async (req: AuthRequest, res: Response) => {
-  const status = req.query.status as string | undefined;
-  const verarbeitung = req.query.verarbeitung as string | undefined;
+  // Nur einfache Zeichenketten aus der festen Statusliste zulassen: der
+  // Query-Parser macht aus ?status[not]=X sonst ein Objekt, das ungeprueft als
+  // Prisma-Filter durchginge (Security-Audit 2026-10).
+  const statusRoh = req.query.status;
+  const verarbeitung = req.query.verarbeitung;
+  if (statusRoh !== undefined && (typeof statusRoh !== "string" || !ALLE_STATUS.includes(statusRoh as AnfrageStatus))) {
+    res.status(400).json({ fehler: "Ungültiger Status." });
+    return;
+  }
+  const status = statusRoh as AnfrageStatus | undefined;
 
-  let where: any;
+  let where: Prisma.AenderungsanfrageWhereInput;
   if (status) {
-    where = { status: status as any };
+    where = { status };
   } else if (verarbeitung === "offen") {
     // Arbeitsliste der Personalverrechnung: bestaetigt, aber noch nicht
     // in die externen Systeme uebertragen.
-    where = { status: "BESTAETIGT" as any };
+    where = { status: "BESTAETIGT" };
   } else {
     where = {
-      status: { in: ["NEU", "GEPARSED", "ZUR_BESTAETIGUNG", "FEHLER"] as any },
+      status: { in: ["NEU", "GEPARSED", "ZUR_BESTAETIGUNG", "FEHLER"] },
     };
   }
 
@@ -163,6 +173,12 @@ anfragenRouter.get("/", async (req: AuthRequest, res: Response) => {
 // POST /api/anfragen/:id/bestaetigen  – Aenderung uebernehmen
 // Optional koennen korrigierte Werte mitgegeben werden.
 // ---------------------------------------------------------------------------
+const ALLE_STATUS = Object.values(AnfrageStatusEnum) as AnfrageStatus[];
+
+// Erlaubte Ausgangszustaende (Statusmaschine der Aenderungsanfrage).
+const BESTAETIGBAR: AnfrageStatus[] = ["NEU", "GEPARSED", "ZUR_BESTAETIGUNG"];
+const ABLEHNBAR: AnfrageStatus[] = ["NEU", "GEPARSED", "ZUR_BESTAETIGUNG", "FEHLER"];
+
 const bestaetigenSchema = z.object({
   mitarbeiterId: z.string().min(1),
   wochenstunden: z.number().positive().max(168),
@@ -193,28 +209,39 @@ anfragenRouter.post(
       return;
     }
 
-    // Neuen Beschaeftigung-Eintrag anlegen (Historie).
-    await prisma.beschaeftigung.create({
-      data: {
-        mitarbeiterId: d.mitarbeiterId,
-        wochenstunden: d.wochenstunden,
-        ausmassProzent: d.ausmassProzent,
-        gueltigAb: new Date(d.gueltigAb + "T00:00:00.000Z"),
-        quelle: "MAIL_PASTE",
-        erfasstVon: req.benutzer?.userId ?? null,
-        aenderungsanfrageId: anfrage.id,
-        notiz: d.notiz || null,
-      },
+    // Nur offene Anfragen duerfen bestaetigt werden (Security-Audit 2026-10:
+    // bereits verrechnete/abgelehnte Anfragen liessen sich erneut bestaetigen
+    // und erzeugten doppelte Beschaeftigungs-Eintraege). Statuswechsel und
+    // neuer Eintrag passieren atomar; parallele Klicks bestaetigen nur einmal.
+    const ok = await prisma.$transaction(async (tx) => {
+      const r = await tx.aenderungsanfrage.updateMany({
+        where: { id: anfrage.id, status: { in: BESTAETIGBAR } },
+        data: {
+          status: "BESTAETIGT",
+          bearbeitetVon: req.benutzer?.userId ?? null,
+          bearbeitetAm: new Date(),
+        },
+      });
+      if (r.count !== 1) return false;
+      // Neuen Beschaeftigung-Eintrag anlegen (Historie).
+      await tx.beschaeftigung.create({
+        data: {
+          mitarbeiterId: d.mitarbeiterId,
+          wochenstunden: d.wochenstunden,
+          ausmassProzent: d.ausmassProzent,
+          gueltigAb: new Date(d.gueltigAb + "T00:00:00.000Z"),
+          quelle: "MAIL_PASTE",
+          erfasstVon: req.benutzer?.userId ?? null,
+          aenderungsanfrageId: anfrage.id,
+          notiz: d.notiz || null,
+        },
+      });
+      return true;
     });
-
-    await prisma.aenderungsanfrage.update({
-      where: { id: anfrage.id },
-      data: {
-        status: "BESTAETIGT",
-        bearbeitetVon: req.benutzer?.userId ?? null,
-        bearbeitetAm: new Date(),
-      },
-    });
+    if (!ok) {
+      res.status(409).json({ fehler: "Anfrage ist nicht mehr offen und kann nicht bestätigt werden." });
+      return;
+    }
 
     await auditLog({
       userId: req.benutzer?.userId,
@@ -237,8 +264,9 @@ anfragenRouter.post(
     const grund =
       typeof req.body?.grund === "string" ? req.body.grund : null;
 
-    const anfrage = await prisma.aenderungsanfrage.update({
-      where: { id: req.params.id },
+    // Nur offene (oder fehlgeschlagene) Anfragen duerfen abgelehnt werden.
+    const r = await prisma.aenderungsanfrage.updateMany({
+      where: { id: req.params.id, status: { in: ABLEHNBAR } },
       data: {
         status: "ABGELEHNT",
         ablehnungsgrund: grund,
@@ -246,11 +274,18 @@ anfragenRouter.post(
         bearbeitetAm: new Date(),
       },
     });
+    if (r.count !== 1) {
+      const gibts = await prisma.aenderungsanfrage.findUnique({ where: { id: req.params.id } });
+      res
+        .status(gibts ? 409 : 404)
+        .json({ fehler: gibts ? "Anfrage ist nicht mehr offen." : "Anfrage nicht gefunden." });
+      return;
+    }
 
     await auditLog({
       userId: req.benutzer?.userId,
       aktion: "ANFRAGE_ABGELEHNT",
-      details: { anfrageId: anfrage.id, grund },
+      details: { anfrageId: req.params.id, grund },
     });
 
     res.json({ ok: true });
@@ -371,30 +406,36 @@ async function uebernehmen(
   userId: string | null,
   automatisch: boolean
 ): Promise<void> {
-  if (!ergebnis.mitarbeiterId || ergebnis.neuStunden === null || !ergebnis.gueltigAb)
-    return;
+  // Gleiche Wertgrenzen wie beim manuellen Bestaetigen (istUebernahmefaehig).
+  if (!istUebernahmefaehig(ergebnis)) return;
+  const mitarbeiterId = ergebnis.mitarbeiterId!;
 
-  await prisma.beschaeftigung.create({
-    data: {
-      mitarbeiterId: ergebnis.mitarbeiterId,
-      wochenstunden: ergebnis.neuStunden,
-      ausmassProzent: ergebnis.ausmassProzent ?? 0,
-      gueltigAb: new Date(ergebnis.gueltigAb + "T00:00:00.000Z"),
-      quelle: "MAIL_PASTE",
-      erfasstVon: userId,
-      aenderungsanfrageId: anfrageId,
-      notiz: automatisch ? "Automatisch übernommen" : null,
-    },
+  // Atomar und nur aus offenem Zustand (wie beim manuellen Bestaetigen).
+  const ok = await prisma.$transaction(async (tx) => {
+    const r = await tx.aenderungsanfrage.updateMany({
+      where: { id: anfrageId, status: { in: BESTAETIGBAR } },
+      data: {
+        status: "BESTAETIGT",
+        bearbeitetVon: userId,
+        bearbeitetAm: new Date(),
+      },
+    });
+    if (r.count !== 1) return false;
+    await tx.beschaeftigung.create({
+      data: {
+        mitarbeiterId,
+        wochenstunden: ergebnis.neuStunden!,
+        ausmassProzent: ergebnis.ausmassProzent!,
+        gueltigAb: new Date(ergebnis.gueltigAb + "T00:00:00.000Z"),
+        quelle: "MAIL_PASTE",
+        erfasstVon: userId,
+        aenderungsanfrageId: anfrageId,
+        notiz: automatisch ? "Automatisch übernommen" : null,
+      },
+    });
+    return true;
   });
-
-  await prisma.aenderungsanfrage.update({
-    where: { id: anfrageId },
-    data: {
-      status: "BESTAETIGT",
-      bearbeitetVon: userId,
-      bearbeitetAm: new Date(),
-    },
-  });
+  if (!ok) return;
 
   await auditLog({
     userId,

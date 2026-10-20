@@ -9,6 +9,7 @@ import {
   suiteRefresh,
   tokenPruefen,
   tokenSignieren,
+  tokenIstAbsolutAbgelaufen,
 } from "../lib/suiteAuth";
 
 // ---------------------------------------------------------------------------
@@ -103,12 +104,28 @@ export async function authPflicht(
     res.status(401).json({ fehler: "Sitzung abgelaufen (Inaktivität)." });
     return;
   }
+  if (tokenIstAbsolutAbgelaufen(inhalt)) {
+    res.clearCookie(SUITE_COOKIE, { path: "/" });
+    res.status(401).json({ fehler: "Sitzung abgelaufen. Bitte neu anmelden." });
+    return;
+  }
 
   // Rechte zu alt? Beim Portal auffrischen (Rollenaenderung/Entzug wirkt so
   // zeitnah). Schlaegt das fehl, wird mit dem aktuellen Stand weitergemacht.
-  if (pruefungIstAbgelaufen(inhalt)) {
+  // Lehnt das Portal verbindlich ab (geloescht/inaktiv), endet die Sitzung;
+  // ist es nur nicht erreichbar, geht es mit dem bisherigen Stand weiter.
+  let bestaetigt = !pruefungIstAbgelaufen(inhalt);
+  if (!bestaetigt) {
     const frisch = await suiteRefresh(token);
-    if (frisch) inhalt = frisch;
+    if (frisch === "widerrufen") {
+      res.clearCookie(SUITE_COOKIE, { path: "/" });
+      res.status(401).json({ fehler: "Sitzung beendet: Zugang wurde zentral entzogen." });
+      return;
+    }
+    if (frisch) {
+      inhalt = frisch;
+      bestaetigt = true;
+    }
   }
 
   // toLowerCase: aeltere Tokens koennen die Rolle noch grossgeschrieben tragen
@@ -119,14 +136,19 @@ export async function authPflicht(
     return;
   }
 
-  // Token gleitend erneuern (Aktivitaet), gleiche Rechte-Pruefzeit behalten.
-  const neuesToken = tokenSignieren({
-    ...inhalt,
-    letzteAktivitaet: Date.now(),
-  });
-  res.cookie(SUITE_COOKIE, neuesToken, cookieOptionen());
-
   // Lokale User-Zeile sicherstellen; userId = LOKALE ID (fuer erfasstVon/Audit).
+  // Unbekannte Benutzer nur anlegen, wenn das Portal die Rechte in dieser
+  // Anfrage bestaetigt hat – nie allein aus alten Token-Claims.
+  if (!bestaetigt) {
+    const bekannt = await prisma.user.findUnique({ where: { suiteUserId: inhalt.sub } });
+    if (!bekannt) {
+      res.status(403).json({
+        fehler: "Zugang kann gerade nicht bestätigt werden. Bitte später erneut versuchen.",
+      });
+      return;
+    }
+  }
+
   const lokaleId = await lokalenBenutzerSichern(inhalt, rolleRoh as Rolle);
 
   // Zentrale Provisionierung ist massgeblich: zentral deaktivierte oder
@@ -136,6 +158,14 @@ export async function authPflicht(
     res.status(403).json({ fehler: "Zugang zu diesem Tool wurde entzogen." });
     return;
   }
+
+  // Token gleitend erneuern (Aktivitaet) – erst NACH der Spiegelpruefung,
+  // damit ein gesperrter Benutzer kein frisches Token erhaelt.
+  const neuesToken = tokenSignieren({
+    ...inhalt,
+    letzteAktivitaet: Date.now(),
+  });
+  res.cookie(SUITE_COOKIE, neuesToken, cookieOptionen());
 
   req.benutzer = {
     userId: lokaleId,

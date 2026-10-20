@@ -21,7 +21,14 @@ export async function ladeProviderKonfig(): Promise<ProviderKonfig> {
     provider: (wert.provider as ProviderKonfig["provider"]) ?? "dummy",
     modell: typeof wert.modell === "string" ? wert.modell : undefined,
   };
-  if (typeof wert.apiKeyVerschluesselt === "string" && wert.apiKeyVerschluesselt) {
+  // Key nur fuer den Anbieter verwenden, fuer den er eingegeben wurde
+  // (Altbestand ohne apiKeyProvider: gilt fuer den eingestellten Anbieter).
+  const keyAnbieter = (wert.apiKeyProvider as string | undefined) ?? konfig.provider;
+  if (
+    typeof wert.apiKeyVerschluesselt === "string" &&
+    wert.apiKeyVerschluesselt &&
+    keyAnbieter === konfig.provider
+  ) {
     try {
       konfig.apiKey = entschluesseln(wert.apiKeyVerschluesselt);
     } catch {

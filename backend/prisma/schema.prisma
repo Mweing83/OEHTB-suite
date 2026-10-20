@@ -26,6 +26,15 @@ model SuiteUser {
   passwortHash   String?
   // true = beim naechsten Login muss ein neues Passwort gesetzt werden.
   passwortSetzen Boolean   @default(true)
+  // Einmaliger Einrichtungscode fuer das Erst-/Neusetzen des Passworts
+  // (nur SHA-256-Hash gespeichert; Klartext sieht nur der ausstellende Admin
+  // bzw. das Container-Log beim Erststart). Ohne gueltigen Code kein
+  // passwort-setzen.
+  einrichtungsCodeHash String?
+  einrichtungsCodeBis  DateTime?
+  // Wird bei Passwortaenderung/-ruecksetzung und Logout erhoeht: alle zuvor
+  // ausgestellten Tokens dieses Benutzers werden damit ungueltig.
+  tokenGeneration Int @default(0)
   aktiv          Boolean   @default(true)
   letzterLogin   DateTime?
   erstelltAm     DateTime  @default(now())

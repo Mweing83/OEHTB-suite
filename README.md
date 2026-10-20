@@ -58,7 +58,8 @@ cd portal && npm install && npm run dev                       # http://localhost
 ```
 
 Anmeldung im Portal als `admin`: Der Seed legt den Admin **ohne Passwort** an –
-beim ersten Login wird eines vergeben (kein Standard-Passwort). Für die
+beim ersten Login wird eines vergeben (kein Standard-Passwort); dafür ist
+der Einrichtungscode nötig, den der Seed ins Terminal schreibt. Für die
 Entwicklung kann vorab ein Startpasswort gesetzt werden, indem beim Seed
 `ADMIN_INITIAL_PASSWORT=… npm run seed` gesetzt wird (auch dieses ist beim
 ersten Login zu ändern). Da Cookies auf `localhost` portübergreifend gelten,

@@ -28,6 +28,19 @@ export interface SuiteToken {
   zugriff: Record<string, string>;
   letzteAktivitaet: number;
   geprueftAm: number;
+  // Vom Portal gesetzt (Security-Audit 2026-10): Anmeldezeitpunkt (absolute
+  // Sitzungsdauer) und Token-Generation (prueft das Portal beim Refresh).
+  authTime?: number;
+  tokenGeneration?: number;
+}
+
+const ABSOLUT_MAX_MS = Number(process.env.SESSION_ABSOLUT_STUNDEN ?? 12) * 60 * 60 * 1000;
+
+// Absolute Sitzungsdauer ab Anmeldung ueberschritten? (Tokens ohne authTime
+// stammen aus der Zeit vor dieser Aenderung; sie lehnt das Portal beim
+// naechsten Rechte-Refresh ab.)
+export function tokenIstAbsolutAbgelaufen(t: SuiteToken): boolean {
+  return typeof t.authTime === "number" && Date.now() - t.authTime > ABSOLUT_MAX_MS;
 }
 
 export function jwtSecret(): string {
@@ -59,11 +72,18 @@ export function tokenPruefen(token: string): SuiteToken {
     zugriff: roh.zugriff ?? {},
     letzteAktivitaet: roh.letzteAktivitaet,
     geprueftAm: roh.geprueftAm,
+    authTime: roh.authTime,
+    tokenGeneration: roh.tokenGeneration,
   };
 }
 
 export function tokenSignieren(inhalt: SuiteToken): string {
-  return jwt.sign(inhalt, jwtSecret(), { expiresIn: "12h" });
+  // Ablauf nie ueber die absolute Hoechstdauer ab Anmeldung hinaus.
+  const restSek =
+    typeof inhalt.authTime === "number"
+      ? Math.max(1, Math.floor((inhalt.authTime + ABSOLUT_MAX_MS - Date.now()) / 1000))
+      : 12 * 60 * 60;
+  return jwt.sign(inhalt, jwtSecret(), { expiresIn: restSek });
 }
 
 export function pruefungIstAbgelaufen(token: SuiteToken): boolean {
@@ -75,13 +95,21 @@ export function pruefungIstAbgelaufen(token: SuiteToken): boolean {
 // nicht erreichbar), wird bewusst mit den ZULETZT bekannten Rechten
 // weitergearbeitet (fail-open) statt Nutzer bei einem kurzen Netzwerkfehler
 // auszusperren; der naechste Request versucht die Pruefung erneut.
-export async function suiteRefresh(token: string): Promise<SuiteToken | null> {
+// Ergebnis: frisches Token | "widerrufen" (Portal lehnt verbindlich ab:
+// Benutzer geloescht/inaktiv, Token ungueltig) | null (Portal nicht erreichbar
+// oder Serverfehler -> fail-open mit dem bisherigen Stand).
+// Security-Audit 2026-10: frueher wurde auch die 401 des Portals wie ein
+// Netzwerkfehler behandelt.
+export type RefreshErgebnis = SuiteToken | "widerrufen" | null;
+
+export async function suiteRefresh(token: string): Promise<RefreshErgebnis> {
   try {
     const res = await fetch(`${SUITE_URL}/api/suite/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     });
+    if (res.status === 401 || res.status === 403) return "widerrufen";
     if (!res.ok) return null;
     const daten = (await res.json()) as { token?: string };
     if (!daten.token) return null;

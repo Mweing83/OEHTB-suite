@@ -14,9 +14,36 @@ const execFileP = promisify(execFile);
 // Ablageort der lokalen Sicherungen: DB-Eintrag hat Vorrang, dann Umgebungsvariable,
 // dann Entwicklungs-Fallback.
 const BACKUP_PFAD_ENV = process.env.BACKUP_LOKAL_PFAD || path.resolve(process.cwd(), "..", "backups");
+// Wurzel des Sicherungsbereichs: Verzeichnis-Browser und gespeicherter
+// Lese-Pfad muessen darin liegen.
+const BACKUP_WURZEL = path.resolve(process.env.BACKUP_WURZEL || BACKUP_PFAD_ENV);
+
+async function echteWurzel(): Promise<string> {
+  try {
+    return await fs.realpath(BACKUP_WURZEL);
+  } catch {
+    return BACKUP_WURZEL;
+  }
+}
+
+// Liefert den (symlink-aufgeloesten) Pfad, wenn er innerhalb der Wurzel liegt,
+// sonst null. Nicht existierende Pfade gelten als ausserhalb.
+async function imBackupBereich(roh: string): Promise<string | null> {
+  let echt: string;
+  try {
+    echt = await fs.realpath(path.resolve(roh));
+  } catch {
+    return null;
+  }
+  const wurzel = await echteWurzel();
+  return echt === wurzel || echt.startsWith(wurzel + path.sep) ? echt : null;
+}
+
 async function backupPfadHolen(): Promise<string> {
   const k = await prisma.backupKonfig.findFirst({ orderBy: { id: "asc" }, select: { pfadLokal: true } });
-  return k?.pfadLokal || BACKUP_PFAD_ENV;
+  // Altbestand ausserhalb des Sicherungsbereichs wird ignoriert.
+  if (k?.pfadLokal && (await imBackupBereich(k.pfadLokal))) return k.pfadLokal;
+  return BACKUP_PFAD_ENV;
 }
 const BACKUP_UNTERORDNER = ["taeglich", "monatlich", "jaehrlich"] as const;
 const BACKUP_DATEI_REGEX = /^handkassen_\d{8}_\d{6}\.tar\.gz$/;
@@ -106,11 +133,41 @@ adminRouter.post("/kostenstellen", async (req, res) => {
 
 // Bearbeiten inkl. Anfangssaldo. Bei Änderung des Anfangssaldos wird der
 // laufende Saldo um die Differenz korrigiert (Startbestand verschiebt sich).
+// Bearbeiten: alle Felder optional, aber typgeprueft (vorher ungeprueft ->
+// 500er bei falschen Typen).
+const ksUpdateSchema = z.object({
+  nummer: z.string().min(1).optional(),
+  bezeichnung: z.string().min(1).optional(),
+  gegenkonto: z.string().optional(),
+  bereichId: z.number().int().positive().optional(),
+  kassenartId: z.number().int().positive().optional(),
+  anfangssaldoCent: z.number().int().optional(),
+  belegStartnummer: z.number().int().positive().nullable().optional(),
+  belegStartJahr: z.number().int().min(2000).max(2100).nullable().optional(),
+});
+
 adminRouter.put("/kostenstellen/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const { nummer, bezeichnung, gegenkonto, bereichId, kassenartId, anfangssaldoCent, belegStartnummer, belegStartJahr } = req.body ?? {};
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ fehler: "Ungültige Kostenstelle." });
+  const parse = ksUpdateSchema.safeParse(req.body ?? {});
+  if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
+  const { nummer, bezeichnung, gegenkonto, bereichId, kassenartId, anfangssaldoCent, belegStartnummer, belegStartJahr } = parse.data;
   const alt = await prisma.kostenstelle.findUnique({ where: { id } });
   if (!alt) return res.status(404).json({ fehler: "Nicht gefunden." });
+
+  // Der Anfangssaldo fliesst in Soll/Endsaldo aller Perioden ein. Nach der
+  // ersten Freigabe wuerde eine Aenderung abgeschlossene Monate nachtraeglich
+  // veraendern – daher dann gesperrt (Revisionssicherheit).
+  if (typeof anfangssaldoCent === "number" && anfangssaldoCent !== alt.anfangssaldoCent) {
+    const freigegeben = await prisma.abschluss.count({
+      where: { kostenstelleId: id, OR: [{ status: "freigegeben" }, { freigegebenAm: { not: null } }] },
+    });
+    if (freigegeben > 0) {
+      return res.status(409).json({
+        fehler: "Der Anfangssaldo kann nach der ersten Monatsfreigabe nicht mehr geändert werden.",
+      });
+    }
+  }
 
   // Falls die Nummer geändert wird: Eindeutigkeit prüfen.
   if (typeof nummer === "string" && nummer !== alt.nummer) {
@@ -136,12 +193,8 @@ adminRouter.put("/kostenstellen/:id", async (req, res) => {
       kassenartId: typeof kassenartId === "number" ? kassenartId : alt.kassenartId,
       anfangssaldoCent: neuerAnfang,
       saldoCent: { increment: differenz },
-      belegStartnummer:
-        belegStartnummer === undefined ? alt.belegStartnummer
-        : (belegStartnummer === null || belegStartnummer === "" ? null : Number(belegStartnummer)),
-      belegStartJahr:
-        belegStartJahr === undefined ? alt.belegStartJahr
-        : (belegStartJahr === null || belegStartJahr === "" ? null : Number(belegStartJahr)),
+      belegStartnummer: belegStartnummer === undefined ? alt.belegStartnummer : belegStartnummer,
+      belegStartJahr: belegStartJahr === undefined ? alt.belegStartJahr : belegStartJahr,
     },
   });
   await audit({ benutzerId: req.benutzer!.id, aktion: "kostenstelle.bearbeitet", entitaet: "kostenstelle", entitaetId: id, alteWerte: alt, neueWerte: ks });
@@ -404,6 +457,14 @@ const backupSchema = z.object({
 adminRouter.put("/backup", async (req, res) => {
   const parse = backupSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
+  // Lese-Pfad nur innerhalb des Sicherungsbereichs (null = Server-Standard).
+  if (parse.data.pfadLokal) {
+    const geprueft = await imBackupBereich(parse.data.pfadLokal);
+    if (!geprueft) {
+      return res.status(400).json({ fehler: "Der Pfad muss im Sicherungsbereich des Servers liegen." });
+    }
+    parse.data.pfadLokal = geprueft;
+  }
   const k = await backupKonfigHolen();
   const aktualisiert = await prisma.backupKonfig.update({
     where: { id: k.id },
@@ -500,22 +561,15 @@ adminRouter.post("/backup/pruefen", async (req, res) => {
 //  VERZEICHNIS-BROWSER (für Pfad-Auswahl im Admin-Bereich)
 // ============================================================
 
+// Der Browser ist auf den Backup-Bereich des Servers beschränkt (Security-
+// Audit 2026-10: vorher ließ sich das ganze Container-Dateisystem auflisten).
+// Ohne Pfad startet er im Backup-Bereich; nach oben geht es nur bis dorthin.
 adminRouter.get("/verzeichnis", async (req, res) => {
   const angefragt = typeof req.query.pfad === "string" ? req.query.pfad.trim() : "";
-
-  // Auf Windows ohne Pfad: alle verfügbaren Laufwerke zurückgeben
-  if (!angefragt && process.platform === "win32") {
-    const buchstaben = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-    const ergebnisse = await Promise.allSettled(
-      buchstaben.map((b) => fs.access(`${b}:\\`).then(() => `${b}:\\`))
-    );
-    const laufwerke = ergebnisse
-      .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
-      .map((r) => r.value);
-    return res.json({ pfad: "", ordner: laufwerke, elternpfad: null });
+  const ziel = await imBackupBereich(angefragt || BACKUP_WURZEL);
+  if (!ziel) {
+    return res.status(400).json({ fehler: "Nur Ordner im Sicherungsbereich des Servers sind auswählbar." });
   }
-
-  const ziel = angefragt || "/";
   try {
     const eintraege = await fs.readdir(ziel, { withFileTypes: true });
     const ordner = eintraege
@@ -524,13 +578,11 @@ adminRouter.get("/verzeichnis", async (req, res) => {
       .filter((n) => !n.startsWith("."))
       .sort((a, b) => a.localeCompare(b));
 
-    const eltern = path.dirname(ziel);
-    // path.dirname("C:\\") === "C:\\" auf Windows – dann zurück zur Laufwerksliste
-    const elternpfad = eltern !== ziel ? eltern : (process.platform === "win32" ? "" : null);
-
+    const wurzel = await echteWurzel();
+    const elternpfad = ziel === wurzel ? null : path.dirname(ziel);
     res.json({ pfad: ziel, ordner, elternpfad });
-  } catch (e) {
-    res.status(400).json({ fehler: `Verzeichnis nicht lesbar: ${(e as Error).message}` });
+  } catch {
+    res.status(400).json({ fehler: "Verzeichnis nicht lesbar." });
   }
 });
 

@@ -23,6 +23,10 @@ einstellungenRouter.get("/", async (_req: AuthRequest, res: Response) => {
       provider: llmWert.provider ?? "dummy",
       modell: llmWert.modell ?? "",
       apiKeyGesetzt: Boolean(llmWert.apiKeyVerschluesselt),
+      // Fuer welchen Anbieter der Key eingegeben wurde (Altbestand: aktueller).
+      apiKeyAnbieter: llmWert.apiKeyVerschluesselt
+        ? ((llmWert.apiKeyProvider as string | undefined) ?? llmWert.provider ?? null)
+        : null,
     },
     // ladeScanKonfig versteht auch das alte flache Format (Migration).
     scan: await ladeScanKonfig(),
@@ -33,6 +37,8 @@ const llmSchema = z.object({
   provider: z.enum(["anthropic", "openai", "dummy"]),
   modell: z.string().max(100).optional(),
   apiKey: z.string().max(500).optional(),
+  // true = gespeicherten Key ausdruecklich loeschen.
+  apiKeyLoeschen: z.boolean().optional(),
 });
 
 einstellungenRouter.put("/llm", async (req: AuthRequest, res: Response) => {
@@ -44,15 +50,25 @@ einstellungenRouter.put("/llm", async (req: AuthRequest, res: Response) => {
   const d = parse.data;
   const alt = await prisma.einstellung.findUnique({ where: { schluessel: LLM_SCHLUESSEL } });
   const alterWert = (alt?.wert as Record<string, unknown>) ?? {};
+  // Ein Key gehoert zu genau einem Anbieter. Wechselt der Anbieter ohne neuen
+  // Key, wird der alte verworfen – sonst ginge z. B. der Anthropic-Key an
+  // OpenAI (Security-Audit 2026-10). Altbestand ohne apiKeyProvider gilt als
+  // Key des bisher eingestellten Anbieters.
+  const alterKeyAnbieter =
+    (alterWert.apiKeyProvider as string | undefined) ?? (alterWert.provider as string | undefined);
+  const neuerKey = d.apiKey && d.apiKey.trim().length > 0 ? d.apiKey.trim() : null;
+  const behalten = !d.apiKeyLoeschen && alterKeyAnbieter === d.provider;
   const neuerWert: Record<string, unknown> = {
     provider: d.provider,
     modell: d.modell ?? "",
-    // Ohne neuen Key den gespeicherten behalten.
-    apiKeyVerschluesselt: alterWert.apiKeyVerschluesselt ?? null,
+    apiKeyVerschluesselt: behalten ? (alterWert.apiKeyVerschluesselt ?? null) : null,
+    apiKeyProvider: behalten && alterWert.apiKeyVerschluesselt ? d.provider : null,
   };
-  if (d.apiKey && d.apiKey.trim().length > 0) {
-    neuerWert.apiKeyVerschluesselt = verschluesseln(d.apiKey.trim());
+  if (neuerKey) {
+    neuerWert.apiKeyVerschluesselt = verschluesseln(neuerKey);
+    neuerWert.apiKeyProvider = d.provider;
   }
+  const keyVerworfen = Boolean(alterWert.apiKeyVerschluesselt) && !neuerWert.apiKeyVerschluesselt;
   await prisma.einstellung.upsert({
     where: { schluessel: LLM_SCHLUESSEL },
     update: { wert: neuerWert as object },
@@ -61,7 +77,12 @@ einstellungenRouter.put("/llm", async (req: AuthRequest, res: Response) => {
   await auditLog({
     userId: req.benutzer!.userId,
     aktion: "EINSTELLUNG_LLM",
-    details: { provider: d.provider, modell: d.modell },
+    details: {
+      provider: d.provider,
+      modell: d.modell,
+      apiKeyGeaendert: Boolean(neuerKey),
+      apiKeyVerworfen: keyVerworfen,
+    },
   });
   res.json({ ok: true });
 });

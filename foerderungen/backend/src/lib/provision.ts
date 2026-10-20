@@ -35,7 +35,12 @@ export function provisionSecret(): string {
 }
 
 // Legt den lokalen Spiegel an bzw. aktualisiert ihn (idempotent, per suiteUserId).
-export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
+// quelle "push": einzelner Auftrag aus der Outbox (kann veraltet sein).
+// quelle "snapshot": massgeblicher Gesamtstand beim Start (reconcile).
+export async function applyUpsert(
+  p: ProvisionUserPayload,
+  quelle: "push" | "snapshot" = "push"
+): Promise<void> {
   const gueltig = FQ_ROLLEN.includes((p.rolle ?? "") as FqRolle);
   // Einzige Tool-Rolle ist nutzer; ohne gueltige Rolle -> gesperrt.
   const rolle = "nutzer" as const;
@@ -45,6 +50,13 @@ export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
     where: { suiteUserId: p.suiteUserId },
   });
   if (vorhanden) {
+    // Ein Tombstone wird durch einen (moeglicherweise veralteten) Push nicht
+    // zurueckgenommen – nur der massgebliche Snapshot beim Start darf das
+    // (Security-Audit 2026-10: veralteter UPSERT nach DELETE).
+    if (vorhanden.geloescht && quelle === "push") {
+      console.warn(`Provision: UPSERT fuer geloeschten Benutzer ${p.suiteUserId} ignoriert.`);
+      return;
+    }
     await prisma.user.update({
       where: { id: vorhanden.id },
       data: { name: p.name, email: p.email, rolle, aktiv, geloescht: false },
@@ -66,10 +78,18 @@ export async function applyUpsert(p: ProvisionUserPayload): Promise<void> {
 
 // Tombstone: sperrt den Benutzer, erhaelt aber die Historie.
 export async function applyDelete(suiteUserId: string): Promise<void> {
-  await prisma.user.updateMany({
+  const r = await prisma.user.updateMany({
     where: { suiteUserId },
     data: { aktiv: false, geloescht: true },
   });
+  // Unbekannter Benutzer: gesperrte Platzhalter-Zeile anlegen, damit ein
+  // spaeterer Zugriff mit einem alten Token nicht in den Create-Fallback der
+  // Middleware laeuft und den Benutzer aktiv anlegt (Security-Audit 2026-10).
+  if (r.count === 0) {
+    await prisma.user.create({
+      data: { suiteUserId, aktiv: false, geloescht: true },
+    });
+  }
 }
 
 // Startup-Abgleich (Self-Heal): vollstaendige SOLL-Liste vom Portal holen und
@@ -107,7 +127,7 @@ async function reconcileEinmal(): Promise<void> {
   const daten = (await res.json()) as { users: ProvisionUserPayload[] };
   const sollIds = new Set<string>();
   for (const u of daten.users) {
-    await applyUpsert(u);
+    await applyUpsert(u, "snapshot");
     sollIds.add(u.suiteUserId);
   }
   const lokale = await prisma.user.findMany({

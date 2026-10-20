@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { auditLog } from "../lib/audit";
 import { passwortHashen } from "../lib/auth";
+import { einrichtungsCodeErzeugen } from "../lib/einrichtungscode";
 import {
   provisionUpsert,
   provisionUpsertAlleTools,
@@ -104,12 +105,17 @@ adminRouter.post("/benutzer", async (req: AuthRequest, res: Response) => {
     return;
   }
 
+  // Benutzer setzt sein Passwort beim Erstlogin – mit dem Einrichtungscode,
+  // den der Admin hier einmalig angezeigt bekommt und persoenlich uebergibt.
+  const code = einrichtungsCodeErzeugen();
   const user = await prisma.suiteUser.create({
     data: {
       benutzername: d.benutzername.toLowerCase(),
       name: d.name,
       email: d.email || null,
-      passwortSetzen: true, // Benutzer setzt Passwort beim Erstlogin
+      passwortSetzen: true,
+      einrichtungsCodeHash: code.hash,
+      einrichtungsCodeBis: code.bis,
     },
     select: { id: true, benutzername: true, name: true },
   });
@@ -120,7 +126,11 @@ adminRouter.post("/benutzer", async (req: AuthRequest, res: Response) => {
     details: { neuerBenutzer: user.id },
   });
 
-  res.status(201).json(user);
+  res.status(201).json({
+    ...user,
+    einrichtungsCode: code.klartext,
+    einrichtungsCodeBis: code.bis,
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -154,12 +164,20 @@ adminRouter.put("/benutzer/:id", async (req: AuthRequest, res: Response) => {
   if (d.name !== undefined) daten.name = d.name;
   if (d.email !== undefined) daten.email = d.email || null;
   if (d.aktiv !== undefined) daten.aktiv = d.aktiv;
+  let code: ReturnType<typeof einrichtungsCodeErzeugen> | null = null;
   if (d.passwortReset) {
+    code = einrichtungsCodeErzeugen();
     daten.passwortHash = null;
     daten.passwortSetzen = true;
+    daten.einrichtungsCodeHash = code.hash;
+    daten.einrichtungsCodeBis = code.bis;
+    daten.tokenGeneration = { increment: 1 }; // laufende Sitzungen beenden
   } else if (d.passwort) {
     daten.passwortHash = await passwortHashen(d.passwort);
     daten.passwortSetzen = false;
+    daten.einrichtungsCodeHash = null;
+    daten.einrichtungsCodeBis = null;
+    daten.tokenGeneration = { increment: 1 };
   }
 
   const user = await prisma.suiteUser.update({
@@ -177,8 +195,46 @@ adminRouter.put("/benutzer/:id", async (req: AuthRequest, res: Response) => {
   // Stammdaten/Status an alle Tools mit Zugriff verteilen (kein Drift).
   await provisionUpsertAlleTools(user.id);
 
-  res.json(user);
+  res.json(
+    code
+      ? { ...user, einrichtungsCode: code.klartext, einrichtungsCodeBis: code.bis }
+      : user
+  );
 });
+
+// ---------------------------------------------------------------------------
+// POST /api/suite/admin/benutzer/:id/einrichtungscode – neuen Einrichtungscode
+// fuer ein Konto ausstellen, das sein Passwort noch setzen muss (Code verloren
+// oder abgelaufen). Der alte Code wird dadurch ungueltig.
+// ---------------------------------------------------------------------------
+adminRouter.post(
+  "/benutzer/:id/einrichtungscode",
+  async (req: AuthRequest, res: Response) => {
+    const ziel = await prisma.suiteUser.findUnique({ where: { id: req.params.id } });
+    if (!ziel) {
+      res.status(404).json({ fehler: "Benutzer nicht gefunden." });
+      return;
+    }
+    if (!ziel.passwortSetzen) {
+      res.status(409).json({
+        fehler:
+          "Der Benutzer hat bereits ein Passwort. Für einen Neustart „Passwort zurücksetzen“ verwenden.",
+      });
+      return;
+    }
+    const code = einrichtungsCodeErzeugen();
+    await prisma.suiteUser.update({
+      where: { id: ziel.id },
+      data: { einrichtungsCodeHash: code.hash, einrichtungsCodeBis: code.bis },
+    });
+    await auditLog({
+      userId: req.benutzer?.sub,
+      aktion: "EINRICHTUNGSCODE_AUSGESTELLT",
+      details: { betroffenerBenutzer: ziel.id },
+    });
+    res.json({ einrichtungsCode: code.klartext, einrichtungsCodeBis: code.bis });
+  }
+);
 
 // ---------------------------------------------------------------------------
 // PUT /api/suite/admin/benutzer/:id/zugriff – Zugriffsmatrix einer Person.

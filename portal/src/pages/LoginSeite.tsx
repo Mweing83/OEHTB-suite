@@ -13,6 +13,7 @@ export default function LoginSeite() {
   const [passwortSetzenFuer, setPasswortSetzenFuer] = useState<string | null>(
     null
   );
+  const [einrichtungsCode, setEinrichtungsCode] = useState("");
   const [neuesPasswort, setNeuesPasswort] = useState("");
   const [neuesPasswortWdh, setNeuesPasswortWdh] = useState("");
 
@@ -44,6 +45,7 @@ export default function LoginSeite() {
     try {
       await api.post("/api/suite/auth/passwort-setzen", {
         benutzername: passwortSetzenFuer,
+        einrichtungsCode,
         neuesPasswort,
       });
       // Direkt anmelden mit dem neuen Passwort.
@@ -64,9 +66,24 @@ export default function LoginSeite() {
           </h1>
           <p className="text-sm text-gray-500 mb-6">
             Erste Anmeldung für <strong>{passwortSetzenFuer}</strong> – bitte
-            ein neues Passwort vergeben.
+            den Einrichtungscode von der Verwaltung eingeben und ein neues
+            Passwort vergeben.
           </p>
           <form onSubmit={passwortFestlegen} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Einrichtungscode
+              </label>
+              <input
+                value={einrichtungsCode}
+                onChange={(e) => setEinrichtungsCode(e.target.value)}
+                placeholder="XXXX-XXXX-XXXX"
+                autoComplete="one-time-code"
+                autoFocus
+                className="w-full border border-gray-300 rounded px-3 py-2 font-mono tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-marke-500"
+                required
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Neues Passwort
@@ -109,6 +126,7 @@ export default function LoginSeite() {
               type="button"
               onClick={() => {
                 setPasswortSetzenFuer(null);
+                setEinrichtungsCode("");
                 setFehler(null);
               }}
               className="w-full text-sm text-gray-500 hover:underline"

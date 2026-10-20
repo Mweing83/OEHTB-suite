@@ -8,6 +8,7 @@ import {
   tokenPruefen,
   tokenSetzen,
   tokenSignieren,
+  tokenIstAbsolutAbgelaufen,
 } from "../lib/auth";
 
 export interface AuthRequest extends Request {
@@ -50,6 +51,11 @@ export async function angemeldet(
       res.status(401).json({ fehler: "Sitzung abgelaufen (Inaktivität)." });
       return;
     }
+    if (tokenIstAbsolutAbgelaufen(roh)) {
+      tokenLoeschen(res);
+      res.status(401).json({ fehler: "Sitzung abgelaufen. Bitte neu anmelden." });
+      return;
+    }
 
     // Benutzer + Rechte frisch lesen: Deaktivierung/Entzug wirkt sofort.
     const user = await prisma.suiteUser.findUnique({
@@ -58,6 +64,12 @@ export async function angemeldet(
     if (!user || !user.aktiv) {
       tokenLoeschen(res);
       res.status(401).json({ fehler: "Benutzer nicht (mehr) aktiv." });
+      return;
+    }
+    // Passwortwechsel/-ruecksetzung oder Logout seit Ausstellung -> ungueltig.
+    if (roh.tokenGeneration !== user.tokenGeneration) {
+      tokenLoeschen(res);
+      res.status(401).json({ fehler: "Sitzung beendet. Bitte neu anmelden." });
       return;
     }
     const zugriff = await zugriffeLaden(user.id);
@@ -69,6 +81,8 @@ export async function angemeldet(
       zugriff,
       letzteAktivitaet: Date.now(),
       geprueftAm: Date.now(),
+      authTime: roh.authTime, // absolute Dauer bleibt ab Anmeldung gerechnet
+      tokenGeneration: user.tokenGeneration,
     };
     tokenSetzen(res, tokenSignieren(frisch));
 

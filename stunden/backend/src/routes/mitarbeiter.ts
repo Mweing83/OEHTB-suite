@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { personAusAnfragenEntfernen } from "../services/personLoeschen";
 import { auditLog } from "../lib/audit";
 import { AuthRequest, authPflicht, rollePflicht } from "../middleware/auth";
 import {
@@ -29,9 +30,18 @@ mitarbeiterRouter.get("/", async (req: AuthRequest, res: Response) => {
 // CSV-Hilfen (deutsches Excel-Format: Trennzeichen ";", Dezimalkomma,
 // UTF-8-BOM, damit Excel-DE die Datei sauber oeffnet).
 // ---------------------------------------------------------------------------
-function csvFeld(s: string): string {
-  // Bei ; " oder Zeilenumbruch: in Anfuehrungszeichen setzen, " verdoppeln.
-  if (/[;"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+// Zellen, die eine Tabellenkalkulation als Formel auswerten wuerde (= + - @
+// am Anfang, auch nach Tab/CR/Leerzeichen), werden mit Apostroph entschaerft
+// und immer gequotet (Security-Audit 2026-10: CSV-Formel-Injektion). Reine
+// Zahlen wie "38,5" oder "-1,5" bleiben unveraendert numerisch.
+const ZAHL = /^-?\d+(?:,\d+)?$/;
+export function csvFeld(wert: string): string {
+  const s0 = String(wert ?? "").replace(/[\t\r\n]+/g, " ");
+  const t = s0.trimStart();
+  const formel = /^[=+\-@]/.test(t) && !ZAHL.test(t);
+  const s = formel ? "'" + t : s0;
+  // Bei Formel, ; oder ": in Anfuehrungszeichen setzen, " verdoppeln.
+  if (formel || /[;"]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
 
@@ -329,7 +339,9 @@ const beschaeftigungSchema = z.object({
 
 mitarbeiterRouter.post(
   "/:id/beschaeftigung",
-  rollePflicht("admin", "sachbearbeiter"),
+  // Personalverrechnung darf Beschaeftigungen ebenfalls direkt anlegen
+  // (fachliche Entscheidung 10/2026; vorher nur ueber den Anfragen-Umweg).
+  rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const parse = beschaeftigungSchema.safeParse(req.body);
     if (!parse.success) {
@@ -504,36 +516,48 @@ mitarbeiterRouter.delete(
     }
 
     if (hart) {
-      // Vollstaendige Loeschung (Cascade entfernt Beschaeftigungen).
-      await prisma.mitarbeiter.delete({ where: { id: m.id } });
+      // Vollstaendige Loeschung (Cascade entfernt Beschaeftigungen) – samt
+      // allen Kopien in den Aenderungsanfragen (Klartext, Mapping).
+      const bereinigt = await prisma.$transaction(async (tx) => {
+        const n = await personAusAnfragenEntfernen(tx, m);
+        await tx.mitarbeiter.delete({ where: { id: m.id } });
+        return n;
+      });
+      // Audit-Log ist unveraenderlich: nur die interne ID, keine Personalnummer.
       await auditLog({
         userId: req.benutzer?.userId,
         aktion: "MITARBEITER_HART_GELOESCHT",
         betroffenerMitarbeiterId: m.id,
-        details: { personalnummer: m.personalnummer },
+        details: { anfragenBereinigt: bereinigt },
       });
       res.json({ ok: true, modus: "hart" });
       return;
     }
 
     // Standard: Stammdaten anonymisieren, Person deaktivieren, Verlauf
-    // (entpersonalisiert) bleibt fuer Aufbewahrungsfristen erhalten.
-    await prisma.mitarbeiter.update({
-      where: { id: m.id },
-      data: {
-        vorname: "Geloescht",
-        nachname: "Geloescht",
-        email: null,
-        aktiv: false,
-        // Personalnummer bleibt als technischer Schluessel, ggf. anonymisiert:
-        personalnummer: `GELOESCHT-${m.id.slice(0, 8)}`,
-      },
+    // (entpersonalisiert) bleibt fuer Aufbewahrungsfristen erhalten. Kopien in
+    // den Aenderungsanfragen werden ebenfalls entpersonalisiert.
+    const bereinigt = await prisma.$transaction(async (tx) => {
+      const n = await personAusAnfragenEntfernen(tx, m);
+      await tx.mitarbeiter.update({
+        where: { id: m.id },
+        data: {
+          vorname: "Geloescht",
+          nachname: "Geloescht",
+          email: null,
+          aktiv: false,
+          // Personalnummer bleibt als technischer Schluessel, ggf. anonymisiert:
+          personalnummer: `GELOESCHT-${m.id.slice(0, 8)}`,
+        },
+      });
+      return n;
     });
 
     await auditLog({
       userId: req.benutzer?.userId,
       aktion: "MITARBEITER_ANONYMISIERT",
       betroffenerMitarbeiterId: m.id,
+      details: { anfragenBereinigt: bereinigt },
     });
 
     res.json({ ok: true, modus: "anonymisiert" });
