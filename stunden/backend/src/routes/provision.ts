@@ -49,6 +49,6 @@ provisionRouter.put("/user", async (req: Request, res: Response) => {
 });
 
 provisionRouter.delete("/user/:suiteUserId", async (req: Request, res: Response) => {
-  await applyDelete(req.params.suiteUserId);
+  await applyDelete(String(req.params.suiteUserId));
   res.json({ ok: true });
 });

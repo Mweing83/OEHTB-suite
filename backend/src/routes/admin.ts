@@ -155,7 +155,7 @@ adminRouter.put("/benutzer/:id", async (req: AuthRequest, res: Response) => {
   const d = parse.data;
 
   // Selbst-Deaktivierung verhindern.
-  if (d.aktiv === false && req.params.id === req.benutzer?.sub) {
+  if (d.aktiv === false && String(req.params.id) === req.benutzer?.sub) {
     res.status(409).json({ fehler: "Sie können sich nicht selbst deaktivieren." });
     return;
   }
@@ -181,7 +181,7 @@ adminRouter.put("/benutzer/:id", async (req: AuthRequest, res: Response) => {
   }
 
   const user = await prisma.suiteUser.update({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
     data: daten,
     select: { id: true, benutzername: true, name: true, aktiv: true },
   });
@@ -210,7 +210,7 @@ adminRouter.put("/benutzer/:id", async (req: AuthRequest, res: Response) => {
 adminRouter.post(
   "/benutzer/:id/einrichtungscode",
   async (req: AuthRequest, res: Response) => {
-    const ziel = await prisma.suiteUser.findUnique({ where: { id: req.params.id } });
+    const ziel = await prisma.suiteUser.findUnique({ where: { id: String(req.params.id) } });
     if (!ziel) {
       res.status(404).json({ fehler: "Benutzer nicht gefunden." });
       return;
@@ -252,7 +252,7 @@ adminRouter.put(
       res.status(400).json({ fehler: "Ungültige Eingabe." });
       return;
     }
-    const userId = req.params.id;
+    const userId = String(req.params.id);
 
     const user = await prisma.suiteUser.findUnique({ where: { id: userId } });
     if (!user) {
@@ -353,7 +353,7 @@ adminRouter.put(
 adminRouter.delete(
   "/benutzer/:id",
   async (req: AuthRequest, res: Response) => {
-    const zielId = req.params.id;
+    const zielId = String(req.params.id);
     if (zielId === req.benutzer?.sub) {
       res.status(409).json({ fehler: "Sie können sich nicht selbst löschen." });
       return;

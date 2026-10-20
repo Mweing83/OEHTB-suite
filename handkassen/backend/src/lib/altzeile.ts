@@ -1,4 +1,4 @@
-import type { Rolle } from "@prisma/client";
+import type { Rolle } from "../generated/prisma/enums.js";
 import { prisma } from "./db.js";
 
 // ---------------------------------------------------------------------------

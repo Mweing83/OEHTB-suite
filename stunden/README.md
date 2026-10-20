@@ -29,13 +29,10 @@ npx prisma migrate dev --name init
 > ausführen. Diese Befehle müssen im Ordner `backend/` laufen, nicht im
 > Projekt-Root.
 >
-> **ARM64-Hinweis 2 (Engine-Inkompatibilität):** Auf Windows ARM64
-> (Snapdragon/Copilot+ PC) lädt Prisma sonst die x64-Engine und stürzt beim
-> Start mit "query_engine-windows.dll.node is not a valid Win32 application"
-> ab. Gelöst durch `engineType = "binary"` und `binaryTargets = ["native",
-> "windows"]` im `schema.prisma` (Binary-Engine läuft per Emulation). Falls
-> der Fehler doch auftritt: `node_modules\.prisma` löschen und
-> `npx prisma generate` (bei gestopptem Backend) erneut ausführen.
+> **ARM64-Hinweis 2:** Seit Prisma 7 gibt es keine native Query-Engine mehr
+> (Verbindung über den Treiber-Adapter `@prisma/adapter-pg`). Die früheren
+> Windows-ARM64-Probleme mit der x64-Engine und der `engineType`-Workaround
+> entfallen damit. Der Client wird nach `src/generated/prisma` erzeugt.
 
 Testdaten + Admin-Benutzer anlegen:
 ```

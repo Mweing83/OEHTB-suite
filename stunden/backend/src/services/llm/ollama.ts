@@ -68,8 +68,10 @@ export class OllamaProvider implements LLMProvider {
       // Details nur ins Server-Log; die Meldung landet sichtbar fuer alle
       // Rollen in der Anfrage und enthaelt daher weder URL noch Fehlertext.
       console.error("Ollama nicht erreichbar:", this.endpoint, err);
+      // cause nur fuer Server-Logs/Debugging; gespeichert wird allein message.
       throw new Error(
-        "Ollama nicht erreichbar. Läuft der Ollama-Dienst und ist die Endpoint-URL in der Administration korrekt?"
+        "Ollama nicht erreichbar. Läuft der Ollama-Dienst und ist die Endpoint-URL in der Administration korrekt?",
+        { cause: err }
       );
     }
 

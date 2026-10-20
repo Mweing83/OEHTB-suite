@@ -1,10 +1,13 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
 
 // Initialkatalog der oesterreichischen Foerderlandschaft fuer das OEHTB.
 // Idempotent: Abgleich ueber den Namen; bestehende Zeilen werden NICHT
 // ueberschrieben (Redaktion im Werkzeug hat Vorrang vor dem Seed).
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 type Eintrag = {
   name: string;

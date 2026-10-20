@@ -1,7 +1,10 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client.js";
 import { passwortHashen, passwortPruefen } from "../src/lib/auth.js";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 // Kontenplan aus dem Lastenheft (VBW & GVB, Leistungsstufe 5–8).
 const konten: { nummer: string; bezeichnung: string; beschreibung?: string; anmerkung?: string }[] = [

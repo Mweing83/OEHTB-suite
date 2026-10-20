@@ -53,7 +53,7 @@ quellenRouter.get("/", async (req: AuthRequest, res: Response) => {
 
 quellenRouter.get("/:id", async (req: AuthRequest, res: Response) => {
   const quelle = await prisma.foerderquelle.findUnique({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
     include: { ausschreibungen: { orderBy: [{ frist: "asc" }] } },
   });
   if (!quelle) {
@@ -86,7 +86,7 @@ quellenRouter.patch("/:id", async (req: AuthRequest, res: Response) => {
     res.status(400).json({ fehler: "Ungültige Eingabe." });
     return;
   }
-  const vorhanden = await prisma.foerderquelle.findUnique({ where: { id: req.params.id } });
+  const vorhanden = await prisma.foerderquelle.findUnique({ where: { id: String(req.params.id) } });
   if (!vorhanden) {
     res.status(404).json({ fehler: "Foerderquelle nicht gefunden." });
     return;

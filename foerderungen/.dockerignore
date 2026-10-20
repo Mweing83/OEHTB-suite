@@ -7,3 +7,6 @@ postgres-data
 **/.env.*
 !**/.env.example
 **/*.bak
+
+# Prisma 7: generierter Client wird im Image neu erzeugt
+**/src/generated

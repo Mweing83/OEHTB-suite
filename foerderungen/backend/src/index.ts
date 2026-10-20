@@ -1,6 +1,5 @@
 // Muss vor den Router-Importen stehen: patcht Express so, dass auch Fehler aus
 // asynchronen Handlern beim zentralen Error-Handler landen. Muster: stunden.
-import "express-async-errors";
 import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
@@ -105,7 +104,7 @@ if (STATIC_DIR && fs.existsSync(STATIC_DIR)) {
   });
 }
 
-// Zentrale Fehlerbehandlung (faengt dank express-async-errors auch async).
+// Zentrale Fehlerbehandlung (Express 5 leitet auch Fehler aus async-Handlern weiter).
 app.use(
   (
     err: unknown,

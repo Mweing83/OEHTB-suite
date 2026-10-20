@@ -6,11 +6,11 @@
 # Build-Kontext = Projekt-Stammverzeichnis "stunden" (docker-compose der Suite:
 # build.context = ../stunden, dockerfile = backend/Dockerfile).
 #
-# Basis node:20-slim (Debian, nicht alpine): Prisma erkennt dort OpenSSL 3
+# Basis node:24-slim (Debian, nicht alpine): Prisma erkennt dort OpenSSL 3
 # zuverlaessig (auf alpine sonst "failed to detect libssl").
 
 # ---- Stufe 1: Frontend bauen (mit Pfad-Praefix /stunden/) ----
-FROM node:20-slim AS frontend
+FROM node:24-slim AS frontend
 WORKDIR /fe
 COPY frontend/package*.json ./
 RUN npm ci
@@ -20,19 +20,21 @@ RUN npm run build
 # Ergebnis: /fe/dist (statische SPA, Assets unter /stunden/)
 
 # ---- Stufe 2: Backend bauen (TypeScript -> dist) ----
-FROM node:20-slim AS backend
+FROM node:24-slim AS backend
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/prisma ./prisma
+# Prisma 7: Konfiguration (URL/Migrationen) liegt in prisma.config.ts.
+COPY backend/prisma.config.ts ./
 RUN npx prisma generate
 COPY backend/tsconfig.json ./
 COPY backend/src ./src
 RUN npm run build
 
 # ---- Stufe 3: Laufzeit-Image ----
-FROM node:20-slim AS runtime
+FROM node:24-slim AS runtime
 # Nur die im Lockfile festgelegten Versionen installieren (npm ci), im
 # Laufzeit-Image ohne Entwicklungspakete; die App laeuft nicht als root
 # (Haertung nach Security-Audit 2026-10).
@@ -42,6 +44,8 @@ ENV NODE_ENV=production
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 COPY backend/prisma ./prisma
+# Prisma 7: Konfiguration (URL/Migrationen) liegt in prisma.config.ts.
+COPY backend/prisma.config.ts ./
 RUN npx prisma generate
 COPY --from=backend /app/dist ./dist
 # Gebautes Frontend fuer die statische Auslieferung (STATIC_DIR).

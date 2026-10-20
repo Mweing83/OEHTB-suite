@@ -2,15 +2,19 @@
 // Datenmodell siehe docs/superpowers/specs/2026-07-16-foerderungen-design.md
 
 generator client {
-  provider = "prisma-client-js"
-  // Windows ARM64 + Produktions-Container: Muster stunden/backend/prisma/schema.prisma
-  engineType    = "binary"
-  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
+  // Prisma 7: Client wird ins Projekt generiert (kein node_modules/.prisma mehr)
+  // und kommt ohne native Query-Engine aus (Treiber-Adapter @prisma/adapter-pg).
+  // Damit entfallen auch die frueheren Windows-ARM64-/binaryTargets-Sonderwege.
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  // .js-Endungen: tsc uebernimmt die Import-Pfade unveraendert nach dist/.
+  importFileExtension = "js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // URL steht seit Prisma 7 in prisma.config.ts.
 }
 
 // ---------------------------------------------------------------------------

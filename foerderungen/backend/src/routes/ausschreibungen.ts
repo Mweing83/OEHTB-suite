@@ -92,7 +92,7 @@ ausschreibungenRouter.patch("/:id", async (req: AuthRequest, res: Response) => {
     res.status(400).json({ fehler: "Ungültige Eingabe." });
     return;
   }
-  const vorhanden = await prisma.ausschreibung.findUnique({ where: { id: req.params.id } });
+  const vorhanden = await prisma.ausschreibung.findUnique({ where: { id: String(req.params.id) } });
   if (!vorhanden) {
     res.status(404).json({ fehler: "Ausschreibung nicht gefunden." });
     return;

@@ -46,7 +46,9 @@ docker compose up -d suite-db
 
 # 2. Suite-Backend
 cd backend && npm install && cp .env.example .env
-npx prisma migrate deploy && npm run seed && npm run dev      # http://localhost:3000
+npx prisma generate && npx prisma migrate deploy && npm run seed && npm run dev   # http://localhost:3000
+# (Prisma 7: der Client wird nach src/generated/ erzeugt – nach Schema-Aenderungen
+#  und frischem Checkout immer zuerst "npx prisma generate" ausfuehren.)
 
 # 3. Portal-Frontend (zweites Terminal)
 cd portal && npm install && npm run dev                       # http://localhost:5175

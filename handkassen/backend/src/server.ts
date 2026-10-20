@@ -1,4 +1,3 @@
-import "express-async-errors";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -112,7 +111,7 @@ if (STATIC_DIR && fs.existsSync(STATIC_DIR)) {
   });
 }
 
-// Zentrale Fehlerbehandlung: fängt dank "express-async-errors" auch Fehler aus
+// Zentrale Fehlerbehandlung: fängt (Express 5 leitet Fehler aus async-Handlern selbst weiter) auch Fehler aus
 // asynchronen Handlern und antwortet sauber, statt den Request hängen zu lassen.
 // Interne Details werden nicht nach außen gegeben.
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

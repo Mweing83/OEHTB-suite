@@ -2,20 +2,19 @@
 // Datenmodell siehe PLAN.md, Abschnitt 2.
 
 generator client {
-  provider = "prisma-client-js"
-  // --- Windows ARM64 (Snapdragon/Copilot+ PC) ---
-  // Prisma erkennt ARM64-Windows nicht als eigene Zielplattform und laedt
-  // sonst die x64-Engine ("not a valid Win32 application").
-  // engineType = "binary" erzwingt die Query-Engine als separaten Prozess,
-  // der unter ARM64 per Emulation laeuft.
-  // debian-openssl-3.0.x: fuer den Produktions-Container (node:20-slim, Suite).
-  engineType    = "binary"
-  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
+  // Prisma 7: Client wird ins Projekt generiert (kein node_modules/.prisma mehr)
+  // und kommt ohne native Query-Engine aus (Treiber-Adapter @prisma/adapter-pg).
+  // Damit entfallen auch die frueheren Windows-ARM64-/binaryTargets-Sonderwege.
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  // .js-Endungen: tsc uebernimmt die Import-Pfade unveraendert nach dist/.
+  importFileExtension = "js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // URL steht seit Prisma 7 in prisma.config.ts.
 }
 
 // ---------------------------------------------------------------------------

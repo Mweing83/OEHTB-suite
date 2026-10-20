@@ -2,24 +2,18 @@
 // Geldbeträge IMMER in Cent (Int). Niemals Float.
 
 generator client {
-  provider      = "prisma-client-js"
-  // Architektur wird automatisch erkannt: "native" baut die Query-Engine
-  // jeweils fuer die Maschine, auf der `prisma generate` laeuft – also passend
-  // fuer x64 UND ARM64, ohne manuelle Umstellung. Der binary-Engine-Typ
-  // funktioniert auf beiden Architekturen (u. a. zuverlaessig unter Windows on
-  // ARM64). Wichtig: `prisma generate` muss auf jeder Zielmaschine laufen
-  // (lokal wie im Server-/Docker-Build) – dann wird automatisch die richtige
-  // Engine geholt.
-  // debian-openssl-3.0.x zusaetzlich explizit: reproduzierbarer Produktions-
-  // Container (node:20-slim) – konsistent mit Portal & Stunden. "native" deckt
-  // weiterhin die Entwicklungsmaschine (u. a. Windows ARM64) ab.
-  engineType    = "binary"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  // Prisma 7: Client wird ins Projekt generiert (kein node_modules/.prisma mehr)
+  // und kommt ohne native Query-Engine aus (Treiber-Adapter @prisma/adapter-pg).
+  // Damit entfallen auch die frueheren Windows-ARM64-/binaryTargets-Sonderwege.
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // URL steht seit Prisma 7 in prisma.config.ts.
 }
 
 enum Rolle {

@@ -2,7 +2,8 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
 import bcrypt from "bcryptjs";
 
 // ---------------------------------------------------------------------------
@@ -38,7 +39,9 @@ const STUNDEN_URL =
   process.env.STUNDEN_DATABASE_URL ||
   "postgresql://stunden:stunden_dev_passwort@localhost:5433/stunden";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 // Demo-Konten aus handkassen/backend/prisma/seed.ts (Passwoerter stehen im
 // Repository). Werden NIE uebernommen – sonst waeren sie gueltige Suite-Logins.

@@ -30,3 +30,6 @@ backend/uploads
 *.log
 .DS_Store
 Thumbs.db
+
+# Prisma 7: generierter Client wird im Image neu erzeugt
+**/src/generated

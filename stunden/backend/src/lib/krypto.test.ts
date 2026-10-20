@@ -6,12 +6,12 @@ beforeAll(() => {
 
 describe("krypto (AES-256-GCM)", () => {
   it("verschluesselt und entschluesselt", async () => {
-    const { verschluesseln, entschluesseln } = await import("./krypto");
+    const { verschluesseln, entschluesseln } = await import("./krypto.js");
     expect(entschluesseln(verschluesseln("geheim"))).toBe("geheim");
   });
 
   it("lehnt gekuerzte Auth-Tags ab", async () => {
-    const { verschluesseln, entschluesseln } = await import("./krypto");
+    const { verschluesseln, entschluesseln } = await import("./krypto.js");
     const [iv, tag, daten] = verschluesseln("geheim").split(":");
     const kurz = Buffer.from(tag, "base64").subarray(0, 4).toString("base64");
     expect(() => entschluesseln([iv, kurz, daten].join(":"))).toThrow();

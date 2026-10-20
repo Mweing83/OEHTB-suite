@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: npm install
       - name: Drift-Check (duplizierte Sicherheits-Guards konsistent)
         run: npm run drift-check
@@ -68,12 +68,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - run: npm install
       - name: Prisma-Client erzeugen
         run: npx prisma generate
       - name: Testschema anlegen
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push
       - name: Typpruefung
         run: npx tsc --noEmit
       - name: Integrationstests

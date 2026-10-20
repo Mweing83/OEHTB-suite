@@ -1,7 +1,8 @@
 import { Router, Response } from "express";
 import { z } from "zod";
-import type { AnfrageStatus, Prisma } from "@prisma/client";
-import { AnfrageStatus as AnfrageStatusEnum } from "@prisma/client";
+import type { Prisma } from "../generated/prisma/client";
+import { AnfrageStatus as AnfrageStatusEnum } from "../generated/prisma/enums";
+type AnfrageStatus = AnfrageStatusEnum;
 import { prisma } from "../lib/prisma";
 import { auditLog } from "../lib/audit";
 import { AuthRequest, authPflicht, rollePflicht } from "../middleware/auth";
@@ -202,7 +203,7 @@ anfragenRouter.post(
     const d = parse.data;
 
     const anfrage = await prisma.aenderungsanfrage.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
     });
     if (!anfrage) {
       res.status(404).json({ fehler: "Anfrage nicht gefunden." });
@@ -266,7 +267,7 @@ anfragenRouter.post(
 
     // Nur offene (oder fehlgeschlagene) Anfragen duerfen abgelehnt werden.
     const r = await prisma.aenderungsanfrage.updateMany({
-      where: { id: req.params.id, status: { in: ABLEHNBAR } },
+      where: { id: String(req.params.id), status: { in: ABLEHNBAR } },
       data: {
         status: "ABGELEHNT",
         ablehnungsgrund: grund,
@@ -275,7 +276,7 @@ anfragenRouter.post(
       },
     });
     if (r.count !== 1) {
-      const gibts = await prisma.aenderungsanfrage.findUnique({ where: { id: req.params.id } });
+      const gibts = await prisma.aenderungsanfrage.findUnique({ where: { id: String(req.params.id) } });
       res
         .status(gibts ? 409 : 404)
         .json({ fehler: gibts ? "Anfrage ist nicht mehr offen." : "Anfrage nicht gefunden." });
@@ -285,7 +286,7 @@ anfragenRouter.post(
     await auditLog({
       userId: req.benutzer?.userId,
       aktion: "ANFRAGE_ABGELEHNT",
-      details: { anfrageId: req.params.id, grund },
+      details: { anfrageId: String(req.params.id), grund },
     });
 
     res.json({ ok: true });
@@ -306,7 +307,7 @@ anfragenRouter.post(
       typeof req.body?.notiz === "string" ? req.body.notiz : null;
 
     const anfrage = await prisma.aenderungsanfrage.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
     });
     if (!anfrage) {
       res.status(404).json({ fehler: "Anfrage nicht gefunden." });
@@ -354,7 +355,7 @@ anfragenRouter.post(
       typeof req.body?.grund === "string" ? req.body.grund : null;
 
     const anfrage = await prisma.aenderungsanfrage.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
     });
     if (!anfrage) {
       res.status(404).json({ fehler: "Anfrage nicht gefunden." });

@@ -68,7 +68,7 @@ laufend("Einstellungs-Routen", () => {
   });
 
   it("verwirft den Key beim Anbieterwechsel ohne neuen Key (Security-Audit 2026-10)", async () => {
-    const { ladeProviderKonfig } = await import("../services/llm/factory");
+    const { ladeProviderKonfig } = await import("../services/llm/factory.js");
     await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
       provider: "anthropic", apiKey: "sk-ant-geheim",
     });
@@ -79,7 +79,7 @@ laufend("Einstellungs-Routen", () => {
   });
 
   it("nutzt einen Altbestand-Key nur fuer den eingestellten Anbieter", async () => {
-    const { ladeProviderKonfig } = await import("../services/llm/factory");
+    const { ladeProviderKonfig } = await import("../services/llm/factory.js");
     await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
       provider: "anthropic", apiKey: "sk-ant-geheim",
     });

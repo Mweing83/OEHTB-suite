@@ -1,4 +1,4 @@
-// Flache ESLint-Konfiguration (ESLint 9) fuer die gesamte Suite.
+// Flache ESLint-Konfiguration (ESLint 10) fuer die gesamte Suite.
 // Bewusst NICHT typ-aware (kein tsconfig-Projektbezug): schnell, ohne die drei
 // Teilprojekte verketten zu muessen. Ziel ist ein sinnvolles Grundnetz gegen
 // echte Fehler – kein Stil-Kleinkrieg (das uebernimmt Prettier).
@@ -16,6 +16,8 @@ export default tseslint.config(
       "**/public/**",
       "**/coverage/**",
       "**/prisma/migrations/**",
+      // Prisma 7: generierter Client
+      "**/src/generated/**",
       "scripts/**",
     ],
   },

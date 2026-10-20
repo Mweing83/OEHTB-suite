@@ -5,12 +5,12 @@
 # WICHTIG: Der Build-Kontext ist das Projekt-Stammverzeichnis (siehe
 # docker-compose.yml: build.context = ".", dockerfile = "backend/Dockerfile").
 #
-# Basis: node:20-slim (Debian). Bewusst NICHT alpine, weil Prisma dort die
+# Basis: node:24-slim (Debian). Bewusst NICHT alpine, weil Prisma dort die
 # OpenSSL-3-Version nicht zuverlaessig erkennt ("failed to detect libssl" ->
 # Schema-Engine-Absturz). Debian + installiertes openssl funktioniert stabil.
 
 # ---- Stufe 1: Frontend bauen (mit Pfad-Praefix /handkassen/) ----
-FROM node:20-slim AS frontend
+FROM node:24-slim AS frontend
 WORKDIR /fe
 COPY frontend/package*.json ./
 RUN npm ci
@@ -20,12 +20,14 @@ RUN npm run build
 # Ergebnis: /fe/dist (statische SPA, Assets unter /handkassen/)
 
 # ---- Stufe 2: Backend bauen (TypeScript -> dist) ----
-FROM node:20-slim AS backend
+FROM node:24-slim AS backend
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/prisma ./prisma
+# Prisma 7: Konfiguration (URL/Migrationen) liegt in prisma.config.ts.
+COPY backend/prisma.config.ts ./
 RUN npx prisma generate
 COPY backend/tsconfig.json ./
 COPY backend/src ./src
@@ -33,7 +35,7 @@ RUN npm run build
 # Ergebnis: /app/dist (kompilierte API)
 
 # ---- Stufe 3: Laufzeit-Image ----
-FROM node:20-slim
+FROM node:24-slim
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
@@ -43,6 +45,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 COPY backend/prisma ./prisma
+# Prisma 7: Konfiguration (URL/Migrationen) liegt in prisma.config.ts.
+COPY backend/prisma.config.ts ./
 RUN npx prisma generate
 
 # Kompiliertes Backend + gebautes Frontend uebernehmen

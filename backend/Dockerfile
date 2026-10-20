@@ -1,9 +1,9 @@
 # Mehrstufiger Build: Portal-SPA + Suite-Backend in EINEM Image.
 # Build-Kontext = OEHTB-Suite-Wurzel (docker-compose: build.context = ".",
-# dockerfile = "backend/Dockerfile"). Basis node:20-slim (Debian) wegen Prisma.
+# dockerfile = "backend/Dockerfile"). Basis node:24-slim (Debian) wegen Prisma.
 
 # ---- Stufe 1: Portal-Frontend bauen ----
-FROM node:20-slim AS portal
+FROM node:24-slim AS portal
 WORKDIR /fe
 COPY portal/package*.json ./
 RUN npm ci
@@ -12,19 +12,21 @@ RUN npm run build
 # Ergebnis: /fe/dist (statische SPA, unter "/")
 
 # ---- Stufe 2: Backend bauen ----
-FROM node:20-slim AS backend
+FROM node:24-slim AS backend
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/prisma ./prisma
+# Prisma 7: Konfiguration (URL/Migrationen) liegt in prisma.config.ts.
+COPY backend/prisma.config.ts ./
 RUN npx prisma generate
 COPY backend/tsconfig.json ./
 COPY backend/src ./src
 RUN npm run build
 
 # ---- Stufe 3: Laufzeit ----
-FROM node:20-slim AS runtime
+FROM node:24-slim AS runtime
 # Nur die im Lockfile festgelegten Versionen installieren (npm ci), im
 # Laufzeit-Image ohne Entwicklungspakete; die App laeuft nicht als root
 # (Haertung nach Security-Audit 2026-10).
@@ -34,6 +36,8 @@ ENV NODE_ENV=production
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 COPY backend/prisma ./prisma
+# Prisma 7: Konfiguration (URL/Migrationen) liegt in prisma.config.ts.
+COPY backend/prisma.config.ts ./
 RUN npx prisma generate
 COPY --from=backend /app/dist ./dist
 # Seed-Skript verfuegbar halten (idempotent, upsert). tsx ist eine regulaere

@@ -170,7 +170,7 @@ mitarbeiterRouter.get(
 // ---------------------------------------------------------------------------
 mitarbeiterRouter.get("/:id", async (req: AuthRequest, res: Response) => {
   const m = await prisma.mitarbeiter.findUnique({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
     include: {
       beschaeftigungen: { orderBy: { gueltigAb: "desc" } },
     },
@@ -289,14 +289,14 @@ mitarbeiterRouter.put(
       const kollision = await prisma.mitarbeiter.findUnique({
         where: { personalnummer: d.personalnummer },
       });
-      if (kollision && kollision.id !== req.params.id) {
+      if (kollision && kollision.id !== String(req.params.id)) {
         res.status(409).json({ fehler: "Personalnummer bereits vergeben." });
         return;
       }
     }
 
     const m = await prisma.mitarbeiter.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: {
         ...(d.vorname !== undefined ? { vorname: d.vorname } : {}),
         ...(d.nachname !== undefined ? { nachname: d.nachname } : {}),
@@ -353,7 +353,7 @@ mitarbeiterRouter.post(
     const d = parse.data;
 
     const m = await prisma.mitarbeiter.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
     });
     if (!m) {
       res.status(404).json({ fehler: "Mitarbeiter nicht gefunden." });
@@ -417,7 +417,7 @@ mitarbeiterRouter.get(
   rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
     const m = await prisma.mitarbeiter.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: { beschaeftigungen: { orderBy: { gueltigAb: "asc" } } },
     });
     if (!m) {
@@ -508,7 +508,7 @@ mitarbeiterRouter.delete(
   async (req: AuthRequest, res: Response) => {
     const hart = req.query.hart === "1";
     const m = await prisma.mitarbeiter.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
     });
     if (!m) {
       res.status(404).json({ fehler: "Mitarbeiter nicht gefunden." });

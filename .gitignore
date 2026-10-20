@@ -35,3 +35,6 @@ backend/import-mapping.json
 
 # TypeScript inkrementelle Build-Info (Artefakt)
 *.tsbuildinfo
+
+# Prisma 7: generierter Client (wird bei "prisma generate" erzeugt)
+**/src/generated/

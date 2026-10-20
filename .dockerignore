@@ -13,3 +13,6 @@ node_modules
 docs
 handkassen/backups*
 handkassen/backend/uploads
+
+# Prisma 7: generierter Client wird im Image neu erzeugt
+**/src/generated

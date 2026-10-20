@@ -74,9 +74,17 @@ run("Anfragen: Statusmaschine (Stunden, Integration)", () => {
     const ok = await request(app).get("/api/anfragen?status=VERARBEITET").set("Cookie", cookie);
     expect(ok.status).toBe(200);
     expect(ok.body).toHaveLength(1);
-    for (const q of ["status[not]=NEU", "status[in][]=NEU", "status=QUATSCH"]) {
+    const quatsch = await request(app).get("/api/anfragen?status=QUATSCH").set("Cookie", cookie);
+    expect(quatsch.status).toBe(400);
+    // Verschachtelte Filter duerfen nie als Prisma-Objekt durchgehen. Express 5
+    // parst sie gar nicht mehr (einfacher Query-Parser) -> Standardliste ohne
+    // die verarbeitete Anfrage; ein 400 waere ebenso sicher.
+    for (const q of ["status[not]=NEU", "status[in][]=VERARBEITET"]) {
       const r = await request(app).get(`/api/anfragen?${q}`).set("Cookie", cookie);
-      expect(r.status).toBe(400);
+      expect([200, 400]).toContain(r.status);
+      if (r.status === 200) {
+        expect(r.body.some((x: { status: string }) => x.status === "VERARBEITET")).toBe(false);
+      }
     }
   });
 
