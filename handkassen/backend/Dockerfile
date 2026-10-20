@@ -13,7 +13,7 @@
 FROM node:20-slim AS frontend
 WORKDIR /fe
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm ci
 COPY frontend/ ./
 ENV VITE_BASE=/handkassen/
 RUN npm run build
@@ -24,7 +24,7 @@ FROM node:20-slim AS backend
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY backend/package*.json ./
-RUN npm install
+RUN npm ci
 COPY backend/prisma ./prisma
 RUN npx prisma generate
 COPY backend/tsconfig.json ./
@@ -37,9 +37,11 @@ FROM node:20-slim
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Abhaengigkeiten (inkl. Prisma-CLI fuer "migrate deploy" beim Start)
+# Abhaengigkeiten aus dem Lockfile (npm ci), ohne Entwicklungspakete
+# (Haertung nach Security-Audit 2026-10). Prisma-CLI fuer "migrate deploy" und
+# tsx fuer den Seed kommen als regulaere Abhaengigkeiten mit.
 COPY backend/package*.json ./
-RUN npm install
+RUN npm ci --omit=dev
 COPY backend/prisma ./prisma
 RUN npx prisma generate
 
@@ -51,7 +53,8 @@ COPY --from=frontend /fe/dist ./public
 # wird ueber tsx ausgefuehrt. Ohne src schluege "npm run seed" fehl.
 COPY backend/src ./src
 
-RUN mkdir -p /app/uploads
+RUN mkdir -p /app/uploads && chown node:node /app/uploads
+COPY backend/docker-start.sh /app/docker-start.sh
 
 # Produktivbetrieb: secure-Cookies an, SPA aus /app/public ausliefern.
 ENV NODE_ENV=production
@@ -65,4 +68,6 @@ EXPOSE 3001
 #   ab, statt in eine enge Crash-Loop zu laufen.
 # - "exec node": node wird PID 1, damit Dockers SIGTERM den Prozess erreicht
 #   (sauberes Herunterfahren).
-CMD ["sh", "-c", "n=0; until npx prisma migrate deploy; do n=$((n+1)); if [ $n -ge 6 ]; then echo 'Migration nach 6 Versuchen fehlgeschlagen - Abbruch'; exit 1; fi; echo \"Migration fehlgeschlagen (Versuch $n/6) - erneuter Versuch in 10s...\"; sleep 10; done && (npm run seed || echo 'Seed uebersprungen') && exec node dist/server.js"]
+# Start ueber docker-start.sh: korrigiert als root einmalig die Besitzrechte
+# des Beleg-Volumes und laeuft danach als Benutzer "node" (siehe Skript).
+CMD ["sh", "/app/docker-start.sh"]

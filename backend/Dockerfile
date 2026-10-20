@@ -6,7 +6,7 @@
 FROM node:20-slim AS portal
 WORKDIR /fe
 COPY portal/package*.json ./
-RUN npm install
+RUN npm ci
 COPY portal/ ./
 RUN npm run build
 # Ergebnis: /fe/dist (statische SPA, unter "/")
@@ -16,7 +16,7 @@ FROM node:20-slim AS backend
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY backend/package*.json ./
-RUN npm install
+RUN npm ci
 COPY backend/prisma ./prisma
 RUN npx prisma generate
 COPY backend/tsconfig.json ./
@@ -25,11 +25,14 @@ RUN npm run build
 
 # ---- Stufe 3: Laufzeit ----
 FROM node:20-slim AS runtime
+# Nur die im Lockfile festgelegten Versionen installieren (npm ci), im
+# Laufzeit-Image ohne Entwicklungspakete; die App laeuft nicht als root
+# (Haertung nach Security-Audit 2026-10).
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 COPY backend/package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 COPY backend/prisma ./prisma
 RUN npx prisma generate
 COPY --from=backend /app/dist ./dist
@@ -40,6 +43,7 @@ COPY backend/prisma/seed.ts ./prisma/seed.ts
 COPY --from=portal /fe/dist ./static
 
 EXPOSE 3000
+USER node
 # Beim Start: Schema migrieren, Tool-Registry + Admin sicherstellen (idempotent),
 # dann Server starten. STATIC_DIR liefert die Portal-SPA aus.
 # - Migration mit Backoff (bis 6 Versuche, 10s Pause): faengt kurze DB-Aussetzer
