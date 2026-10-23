@@ -47,9 +47,39 @@ export default function Berichte({ kostenstelleId }: Props) {
   const [bmdJahr, setBmdJahr] = useState(heute.getFullYear());
   const [bmdMonat, setBmdMonat] = useState(heute.getMonth() + 1);
 
-  function bmdExport() {
-    const u = apiUrl(`/export/bmd?jahr=${bmdJahr}&monat=${bmdMonat}`);
-    window.open(u, "_blank", "noopener,noreferrer");
+  const [bmdLaedt, setBmdLaedt] = useState<"" | "bmd" | "bmd-zip">("");
+  const [bmdFehler, setBmdFehler] = useState("");
+
+  // BMD-CSV oder ZIP (CSV + Belegdateien) herunterladen. Per fetch, damit eine
+  // Fehlermeldung des Servers (z. B. fehlendes Gegenkonto) angezeigt werden kann.
+  async function bmdExport(art: "bmd" | "bmd-zip") {
+    setBmdFehler("");
+    setBmdLaedt(art);
+    try {
+      const res = await fetch(apiUrl(`/export/${art}?jahr=${bmdJahr}&monat=${bmdMonat}`), {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const daten = await res.json().catch(() => ({}));
+        setBmdFehler(daten.fehler || "Export fehlgeschlagen.");
+        return;
+      }
+      const name =
+        /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ??
+        `bmd_ka_${bmdJahr}_${String(bmdMonat).padStart(2, "0")}.${art === "bmd" ? "csv" : "zip"}`;
+      const href = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch {
+      setBmdFehler("Export fehlgeschlagen.");
+    } finally {
+      setBmdLaedt("");
+    }
   }
 
   // CSV über alle Kassen des gewählten Monats herunterladen.
@@ -134,7 +164,8 @@ export default function Berichte({ kostenstelleId }: Props) {
           <h3 className="font-semibold text-marke-900 mb-1">Export über alle Kassen (Buchhaltung)</h3>
           <p className="text-xs text-slate-500 mb-3">
             Für den gewählten Monat über <strong>alle</strong> Kostenstellen:
-            die Buchungssatz-Datei (.txt) für den BMD-Import oder eine CSV-Tabelle (Excel).
+            die Buchungssatz-Datei (CSV) für den BMD-Import, wahlweise als ZIP zusammen mit
+            allen Belegdateien, oder eine CSV-Tabelle (Excel).
           </p>
           <div className="flex flex-wrap gap-3 items-end">
             <div>
@@ -147,15 +178,20 @@ export default function Berichte({ kostenstelleId }: Props) {
               <input type="number" min={1} max={12} className="border rounded-sm px-3 py-2 w-24"
                 value={bmdMonat} onChange={(e) => setBmdMonat(Number(e.target.value))} />
             </div>
-            <button onClick={bmdExport}
-              className="bg-slate-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-slate-800">
-              BMD-Datei herunterladen
+            <button onClick={() => bmdExport("bmd")} disabled={bmdLaedt !== ""}
+              className="bg-slate-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-slate-800 disabled:opacity-50">
+              {bmdLaedt === "bmd" ? "Wird erstellt …" : "BMD-CSV"}
+            </button>
+            <button onClick={() => bmdExport("bmd-zip")} disabled={bmdLaedt !== ""}
+              className="bg-slate-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-slate-800 disabled:opacity-50">
+              {bmdLaedt === "bmd-zip" ? "Wird erstellt …" : "BMD-ZIP (CSV + Belege)"}
             </button>
             <button onClick={csvAlleHerunterladen}
               className="bg-green-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-green-800">
               CSV (alle Kassen)
             </button>
           </div>
+          {bmdFehler && <p className="text-sm text-red-700 mt-3">{bmdFehler}</p>}
         </div>
       )}
     </div>

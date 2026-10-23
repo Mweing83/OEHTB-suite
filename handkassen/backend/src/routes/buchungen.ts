@@ -9,12 +9,11 @@ import { buchungValidieren, saldoWirkung, belegnummerFormat, buchungFuerAusgabe,
 import { monatGesperrt } from "../lib/sperre.js";
 import { belegPflichtAktiv } from "../lib/einstellungen.js";
 import { pruefeKontenFreigabe } from "../lib/kontoFreigabe.js";
+import { UPLOAD_DIR } from "../lib/uploads.js";
 
 export const buchungRouter = Router();
 
-// --- Beleg-Upload ins lokale Dateisystem ---
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.resolve("uploads");
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// --- Beleg-Upload ins lokale Dateisystem (Verzeichnis: lib/uploads.ts) ---
 
 // Sichere Dateiendung ausschließlich aus dem MIME-Typ ableiten (NICHT aus dem
 // vom Client gelieferten Dateinamen). Das verhindert, dass z. B. eine als Bild

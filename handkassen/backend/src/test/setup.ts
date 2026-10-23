@@ -1,5 +1,7 @@
 // Vitest-Setup: läuft VOR den Testdateien (also bevor lib/db.ts den Prisma-Client
 // mit DATABASE_URL erzeugt). Hier stellen wir den Testbetrieb sicher.
+import os from "node:os";
+import path from "node:path";
 
 // Testbetrieb: server.ts startet keinen Listener; cookieOptionen() liefert
 // secure:false, sodass supertest über HTTP das Cookie behält.
@@ -14,3 +16,6 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret-nur-fuer-integra
 if (process.env.TEST_DATABASE_URL) {
   process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 }
+
+// Belegdateien aus Tests nie in den echten Upload-Ordner schreiben.
+process.env.UPLOAD_DIR = path.join(os.tmpdir(), "handkassen-test-uploads");

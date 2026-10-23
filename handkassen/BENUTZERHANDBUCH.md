@@ -272,8 +272,13 @@ oder gedruckt werden.
 Im unteren Abschnitt – nur für Finanzen und Admin sichtbar – gibt es den
 monatsweisen Export **über alle Kostenstellen**:
 
-- **BMD-Datei** – Buchungssatz-Datei (.txt) für den Import in die
-  Buchhaltungssoftware BMD.
+- **BMD-CSV** – Buchungssatz-Datei (CSV, Semikolon) für den Import in die
+  Buchhaltungssoftware BMD. Die Spalte „dokument“ nennt die Belegdatei der
+  Buchung (Belegnummer + Endung, z. B. `2026-1370-01.jpg`).
+- **BMD-ZIP (CSV + Belege)** – dieselbe CSV zusammen mit allen Belegdateien
+  des Monats in einer ZIP-Datei. Die Dateien heißen genau so wie in der Spalte
+  „dokument“. Fehlt eine Belegdatei am Server, bleibt „dokument“ leer und die
+  Belegnummer steht in `FEHLENDE_BELEGE.txt` im ZIP.
 - **CSV (alle Kassen)** – dieselben Daten als Excel-Tabelle, zusätzlich mit
   Kostenstelle und Bereich je Zeile.
 

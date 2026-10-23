@@ -25,15 +25,13 @@ export const BMD_KOST_ZU_GKONTO: Record<string, { ausgabe: string; einlage: stri
   // Beispiel: "1260": { ausgabe: "99957", einlage: "99955" },
 };
 
-// 3) Steuercode-Zuordnung: Konten in dieser Liste bekommen "00", alle anderen "02".
-//    Beobachtung aus der Musterdatei (bitte mit Buchhaltung bestätigen).
-export const KONTEN_MIT_STEUERCODE_00: Set<string> = new Set([
-  "22991",
-  "268016",
-  "28970",
-  "97000",
-  "99900",
-]);
+// 3) Buchungs- und Steuercodes (mit der Buchhaltung abgestimmt). In der Kassa
+//    gibt es nur Ausgaben (Soll, Vorsteuer) und Einnahmen inkl. Dotierung und
+//    Gutschriften (Haben, Umsatzsteuer).
+export const BMD_CODES = {
+  ausgang: { buchcode: "1", steuercode: "2" }, // Soll, Vorsteuer
+  eingang: { buchcode: "2", steuercode: "1" }, // Haben, Umsatzsteuer
+} as const;
 
 // 4) Fixwerte (aus der Musterdatei abgeleitet, in der Regel unverändert)
 export const BMD_FIX = {
