@@ -135,7 +135,7 @@ services:
       NODE_ENV: production
       TRUST_PROXY: "1"
       COOKIE_INSECURE: ${COOKIE_INSECURE:-}
-      SESSION_TIMEOUT_MINUTEN: ${SESSION_TIMEOUT_MINUTEN:-15}
+      SESSION_TIMEOUT_MINUTEN: ${SESSION_TIMEOUT_MINUTEN:-60}
       STATIC_DIR: /app/static
     healthcheck:
       # Node hat ab v18 globales fetch – kein curl/wget im Slim-Image noetig.
@@ -190,6 +190,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${HK_DB_USER:-handkassen}:${HK_DB_PASSWORD:-handkassen}@handkassen-db:5432/${HK_DB_NAME:-handkassen}
       JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      SESSION_TIMEOUT_MINUTEN: ${SESSION_TIMEOUT_MINUTEN:-60}
       PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
       PORT: 3001
       NODE_ENV: production
@@ -279,6 +280,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${STUNDEN_DB_USER:-stunden}:${STUNDEN_DB_PASSWORD:-stunden_dev_passwort}@stunden-db:5432/${STUNDEN_DB_NAME:-stunden}
       JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      SESSION_TIMEOUT_MINUTEN: ${SESSION_TIMEOUT_MINUTEN:-60}
       ENCRYPTION_KEY: ${STUNDEN_ENCRYPTION_KEY:-bitte-32-zeichen-schluessel-setzen}
       PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
       PORT: 3002
@@ -340,6 +342,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${FOERDERUNGEN_DB_USER:-foerderungen}:${FOERDERUNGEN_DB_PASSWORD:-foerderungen_dev_passwort}@foerderungen-db:5432/${FOERDERUNGEN_DB_NAME:-foerderungen}
       JWT_SECRET: ${JWT_SECRET:-bitte-aendern}
+      SESSION_TIMEOUT_MINUTEN: ${SESSION_TIMEOUT_MINUTEN:-60}
       ENCRYPTION_KEY: ${FOERDERUNGEN_ENCRYPTION_KEY:-bitte-aendern-32-zeichen-genau!!}
       PROVISION_SECRET: ${PROVISION_SECRET:-bitte-aendern-provision}
       PORT: 3003

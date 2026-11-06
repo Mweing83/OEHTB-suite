@@ -33,7 +33,7 @@ export interface SuiteToken {
   tokenGeneration: number;
 }
 
-export const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 15);
+export const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 60);
 export const ABSOLUT_MAX_MS =
   Number(process.env.SESSION_ABSOLUT_STUNDEN ?? 12) * 60 * 60 * 1000;
 

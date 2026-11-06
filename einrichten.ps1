@@ -67,7 +67,7 @@ PROVISION_SECRET=$provision
 # werden mit secure-Flag gesetzt; COOKIE_INSECURE bleibt daher LEER.
 # Nur fuer reinen HTTP-Betrieb im abgeschotteten LAN auf 1 setzen.
 # COOKIE_INSECURE=
-SESSION_TIMEOUT_MINUTEN=15
+SESSION_TIMEOUT_MINUTEN=60
 
 # ==== Tailscale (optionaler HTTPS-Fernzugriff) ====
 # Auth-Key EINMALIG in der Tailscale-Admin-Konsole erzeugen und hier eintragen,

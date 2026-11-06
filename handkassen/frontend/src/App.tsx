@@ -77,7 +77,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               Sitzung läuft bald ab
             </h3>
             <p className="text-sm text-slate-600 mb-4">
-              Sie werden wegen Inaktivität in etwa einer Minute automatisch abgemeldet.
+              Sie werden wegen Inaktivität in etwa fünf Minuten automatisch abgemeldet.
               Möchten Sie angemeldet bleiben?
             </p>
             <div className="flex gap-2">

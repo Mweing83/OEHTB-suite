@@ -37,7 +37,7 @@ export interface AuthRequest extends Request {
   benutzer?: TokenInhalt;
 }
 
-const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 15);
+const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 60);
 
 // Stellt sicher, dass es zu diesem Suite-Benutzer eine LOKALE User-Zeile gibt
 // (fuer erfasstVon-/Audit-Referenzen und die Namensauflaesung). Legt sie bei

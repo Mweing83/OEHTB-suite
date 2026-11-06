@@ -40,7 +40,7 @@ declare global {
 
 const GUELTIGE_ROLLEN = ["erfasser", "leitung", "finanzen", "admin"] as const;
 type HkRolle = (typeof GUELTIGE_ROLLEN)[number];
-const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 15);
+const TIMEOUT_MINUTEN = Number(process.env.SESSION_TIMEOUT_MINUTEN ?? 60);
 
 // Stellt eine lokale Benutzer-Zeile fuer diesen Suite-Benutzer sicher und
 // liefert deren Int-ID. Verknuepft bei Bedarf einen gleichnamigen Bestands-

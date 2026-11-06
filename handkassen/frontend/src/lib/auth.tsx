@@ -18,8 +18,11 @@ interface AuthKontext {
 const Kontext = createContext<AuthKontext>(null as unknown as AuthKontext);
 
 // Zeiten für den automatischen Logout bei Inaktivität
-const TIMEOUT_MS = 15 * 60 * 1000; // 15 Minuten bis Abmeldung
-const WARNUNG_MS = 14 * 60 * 1000; // Warnung 1 Minute vorher
+const TIMEOUT_MS = 60 * 60 * 1000; // 60 Minuten bis Abmeldung
+const WARNUNG_MS = 55 * 60 * 1000; // Warnung 5 Minuten vorher
+// Aktivität ohne Serveranfrage (z. B. Tippen im Formular) höchstens alle
+// 5 Minuten an den Server melden, damit dessen Inaktivitätsfenster mitläuft.
+const PING_MS = 5 * 60 * 1000;
 
 // Anmeldung erfolgt seit der Suite-Integration zentral im Portal (Wurzel "/").
 // Bei fehlender Sitzung / Abmeldung wird dorthin geleitet.
@@ -57,8 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let warnTimer: ReturnType<typeof setTimeout>;
     let logoutTimer: ReturnType<typeof setTimeout>;
+    let letzterPing = Date.now();
 
     const zuruecksetzen = () => {
+      if (Date.now() - letzterPing > PING_MS) {
+        letzterPing = Date.now();
+        api.get("/auth/me").catch(() => {});
+      }
       clearTimeout(warnTimer);
       clearTimeout(logoutTimer);
       setInaktivWarnung(false);
