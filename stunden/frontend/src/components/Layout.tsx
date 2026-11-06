@@ -50,6 +50,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {benutzer?.rolle === "admin" && navLink("/admin", "Verwaltung")}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
+            <span className="text-xs text-marke-300" title="Version">Stunden v{__APP_VERSION__}</span>
             <span className="text-marke-200">
               {benutzer?.name ?? benutzer?.email}{" "}
               <span className="text-marke-300">({benutzer?.rolle})</span>

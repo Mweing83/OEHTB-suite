@@ -22,6 +22,8 @@ jobs:
       - run: npm install
       - name: Drift-Check (duplizierte Sicherheits-Guards konsistent)
         run: npm run drift-check
+      - name: Versions-Check (Suite und Teilprogramme konsistent)
+        run: npm run versions-check
       - name: ESLint
         run: npm run lint
       - name: Prettier (informativ, nicht blockierend)

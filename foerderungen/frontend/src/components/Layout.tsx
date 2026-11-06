@@ -69,6 +69,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {navLink("/einstellungen", "Einstellungen")}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
+            <span className="text-xs text-marke-300" title="Version">Förderungen v{__APP_VERSION__}</span>
             <span className="text-marke-200">{benutzer?.name ?? benutzer?.email}</span>
             <button
               onClick={() => void abmelden()}
