@@ -35,3 +35,25 @@ export async function pruefeKontenFreigabe(
   }
   return { ok: true };
 }
+
+// Konten mit fixem Steuersatz (z. B. Dotation 0 %): jede Position auf einem
+// solchen Konto muss genau diesen Satz tragen (Key-User-Feedback 2026-11).
+export async function pruefeFixSteuersaetze(
+  positionen: { kontoId: number; steuersatz: number }[]
+): Promise<{ ok: true } | { ok: false; fehler: string }> {
+  const konten = await prisma.konto.findMany({
+    where: { id: { in: [...new Set(positionen.map((p) => p.kontoId))] }, fixSteuersatz: { not: null } },
+    select: { id: true, nummer: true, fixSteuersatz: true },
+  });
+  const fix = new Map(konten.map((k) => [k.id, k]));
+  for (const p of positionen) {
+    const k = fix.get(p.kontoId);
+    if (k && Number(k.fixSteuersatz) !== p.steuersatz) {
+      return {
+        ok: false,
+        fehler: `Konto ${k.nummer} hat den fixen Steuersatz ${Number(k.fixSteuersatz)} %.`,
+      };
+    }
+  }
+  return { ok: true };
+}

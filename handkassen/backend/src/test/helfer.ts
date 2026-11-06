@@ -20,7 +20,7 @@ export const TEST_PW = "passwort123";
 export async function resetDb() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
-      audit_log, buchungsposition, buchung, beleg, abschluss,
+      audit_log, buchungsposition, buchung, beleg, abschluss, freie_belegnummer,
       benutzer_kostenstelle, monats_sperre, kostenstelle,
       bereich_konto, bereich, kassenart, konto, steuersatz, benutzer,
       backup_konfig, allgemein_konfig
@@ -158,6 +158,7 @@ export function buchungEingabe(kostenstelleId: number, kontoId: number, override
     betragCent: 1000,
     belegdatum: "2026-05-15",
     typ: "ausgang",
+    beschreibung: "Testbuchung",
     kostenstelleId,
     positionen: [{ betragCent: 1000, steuersatz: 20, kontoId }],
     ...overrides,

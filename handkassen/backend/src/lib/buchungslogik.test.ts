@@ -11,6 +11,7 @@ function basis(overrides: Partial<BuchungEingabe> = {}): BuchungEingabe {
     betragCent: 1000,
     belegdatum: "2026-05-01",
     typ: "ausgang",
+    beschreibung: "Testbuchung",
     kostenstelleId: 1,
     positionen: [{ betragCent: 1000, steuersatz: 20, kontoId: 1 }],
     ...overrides,
@@ -71,10 +72,26 @@ describe("buchungValidieren", () => {
       betragCent: 1000,
       belegdatum: "2026-05-15",
       typ: "ausgang" as const,
+      beschreibung: "Testbuchung",
       kostenstelleId: 1,
       positionen: [{ betragCent: 1000, steuersatz: 4.9, kontoId: 1 }],
     };
     expect(buchungValidieren(eingabe, [0, 4.9, 20]).ok).toBe(true);
+  });
+});
+
+describe("Pflichtfelder (Key-User-Feedback 2026-11)", () => {
+  it("verlangt eine Beschreibung", () => {
+    expect(buchungValidieren(basis({ beschreibung: undefined })).ok).toBe(false);
+    expect(buchungValidieren(basis({ beschreibung: "   " })).ok).toBe(false);
+  });
+
+  it("lehnt ungültige Kalendertage ab (31.09., 30.02.)", () => {
+    expect(buchungValidieren(basis({ belegdatum: "2026-09-31" })).ok).toBe(false);
+    expect(buchungValidieren(basis({ belegdatum: "2026-02-30" })).ok).toBe(false);
+    expect(buchungValidieren(basis({ belegdatum: "14.09.2026" })).ok).toBe(false);
+    expect(buchungValidieren(basis({ belegdatum: "2026-09-30" })).ok).toBe(true);
+    expect(buchungValidieren(basis({ belegdatum: "2028-02-29" })).ok).toBe(true);
   });
 });
 

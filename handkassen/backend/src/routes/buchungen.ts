@@ -3,12 +3,13 @@ import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
 import { prisma } from "../lib/db.js";
+import type { Prisma } from "../generated/prisma/client.js";
 import { audit } from "../lib/audit.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
 import { buchungValidieren, saldoWirkung, belegnummerFormat, buchungFuerAusgabe, type BuchungEingabe } from "../lib/buchungslogik.js";
 import { monatGesperrt } from "../lib/sperre.js";
 import { belegPflichtAktiv } from "../lib/einstellungen.js";
-import { pruefeKontenFreigabe } from "../lib/kontoFreigabe.js";
+import { pruefeKontenFreigabe, pruefeFixSteuersaetze } from "../lib/kontoFreigabe.js";
 import { UPLOAD_DIR } from "../lib/uploads.js";
 
 export const buchungRouter = Router();
@@ -191,8 +192,90 @@ async function fachlichPruefen(eingabe: BuchungEingabe): Promise<{ ok: true } | 
     eingabe.positionen.map((p) => p.kontoId)
   );
   if (!freigabe.ok) return { ok: false, fehler: freigabe.fehler };
+  const fix = await pruefeFixSteuersaetze(eingabe.positionen);
+  if (!fix.ok) return { ok: false, fehler: fix.fehler };
   return { ok: true };
 }
+
+// Alle Vorgänge, die Buchungs- oder Belegnummern vergeben bzw. freigeben
+// (Anlegen, Löschen), laufen nacheinander: transaktionsgebundene Advisory-Sperre.
+// So kann keine Nummer doppelt vergeben werden (vorher MAX+1 ohne Sperre).
+async function nummernSperre(tx: Prisma.TransactionClient) {
+  await tx.$queryRawUnsafe("SELECT 1 FROM pg_advisory_xact_lock(727001)");
+}
+
+// Nächste Belegnummer einer Kostenstelle im Jahr. Zuerst die niedrigste durch
+// Löschen frei gewordene Nummer DESSELBEN Monats, sonst MAX + 1 über vergebene
+// und frei gewordene Nummern (mindestens die manuelle Start-Belegnummer im
+// Umstellungsjahr). Genutzt beim Anlegen und für die Vorschau im Formular.
+type Db = Pick<typeof prisma, "kostenstelle" | "buchung" | "freieBelegnummer">;
+async function naechsteBelegnummer(
+  db: Db,
+  kostenstelleId: number,
+  belegJahr: number,
+  monat: number
+): Promise<{ laufnummer: number; belegnummer: string; freiId: number | null }> {
+  const frei = await db.freieBelegnummer.findFirst({
+    where: { kostenstelleId, belegJahr, monat },
+    orderBy: { belegLaufnummer: "asc" },
+  });
+  if (frei) return { laufnummer: frei.belegLaufnummer, belegnummer: frei.belegnummer, freiId: frei.id };
+
+  const ks = await db.kostenstelle.findUniqueOrThrow({
+    where: { id: kostenstelleId },
+    select: { nummer: true, belegStartnummer: true, belegStartJahr: true },
+  });
+  const [maxLauf, maxFrei] = await Promise.all([
+    db.buchung.aggregate({ where: { kostenstelleId, belegJahr }, _max: { belegLaufnummer: true } }),
+    // Frei gewordene Nummern anderer Monate bleiben reserviert (nie über die Monatsgrenze).
+    db.freieBelegnummer.aggregate({ where: { kostenstelleId, belegJahr }, _max: { belegLaufnummer: true } }),
+  ]);
+  let basis = Math.max(maxLauf._max.belegLaufnummer ?? 0, maxFrei._max.belegLaufnummer ?? 0);
+  // Manuelle Start-Belegnummer nur im Umstellungsjahr; hebt die Untergrenze an.
+  if (ks.belegStartJahr === belegJahr && ks.belegStartnummer != null) {
+    basis = Math.max(basis, ks.belegStartnummer - 1);
+  }
+  const laufnummer = basis + 1;
+  // Volle Belegnummer (z. B. "2026-1260-48").
+  return { laufnummer, belegnummer: belegnummerFormat(belegJahr, ks.nummer, laufnummer), freiId: null };
+}
+
+// Kostenstelle/Jahr/Monat aus der Query prüfen.
+function periodeAusQuery(q: Record<string, unknown>): { kostenstelleId: number; jahr: number; monat: number } | null {
+  const kostenstelleId = Number(q.kostenstelle);
+  const jahr = Number(q.jahr);
+  const monat = Number(q.monat);
+  if (!Number.isInteger(kostenstelleId) || kostenstelleId <= 0) return null;
+  if (!Number.isInteger(jahr) || jahr < 2000 || jahr > 2100) return null;
+  if (!Number.isInteger(monat) || monat < 1 || monat > 12) return null;
+  return { kostenstelleId, jahr, monat };
+}
+
+// --- Vorschau: voraussichtliche nächste Belegnummer (verbindlich erst beim Speichern) ---
+buchungRouter.get("/naechste-belegnummer", angemeldet, async (req, res) => {
+  const p = periodeAusQuery(req.query);
+  if (!p) return res.status(400).json({ fehler: "kostenstelle, jahr und monat erforderlich." });
+  if (!(await darfKostenstelle(req.benutzer!, p.kostenstelleId))) {
+    return res.status(403).json({ fehler: "Kein Zugriff auf diese Kostenstelle." });
+  }
+  const { belegnummer } = await naechsteBelegnummer(prisma, p.kostenstelleId, p.jahr, p.monat);
+  res.json({ belegnummer });
+});
+
+// --- Frei gewordene (noch offene) Belegnummern eines Monats: Hinweis vor Abschluss ---
+buchungRouter.get("/freie-belegnummern", angemeldet, async (req, res) => {
+  const p = periodeAusQuery(req.query);
+  if (!p) return res.status(400).json({ fehler: "kostenstelle, jahr und monat erforderlich." });
+  if (!(await darfKostenstelle(req.benutzer!, p.kostenstelleId))) {
+    return res.status(403).json({ fehler: "Kein Zugriff auf diese Kostenstelle." });
+  }
+  const frei = await prisma.freieBelegnummer.findMany({
+    where: { kostenstelleId: p.kostenstelleId, belegJahr: p.jahr, monat: p.monat },
+    orderBy: { belegLaufnummer: "asc" },
+    select: { belegnummer: true, freiSeit: true },
+  });
+  res.json(frei);
+});
 
 // --- Buchungen einer Kostenstelle auflisten ---
 buchungRouter.get("/", angemeldet, async (req, res) => {
@@ -264,30 +347,21 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
 
   // 4) Transaktional speichern: Nummern vergeben, Buchung + Positionen, Saldo, Audit
   const ergebnis = await prisma.$transaction(async (tx) => {
+    await nummernSperre(tx);
     // Buchungsnummer bleibt global fortlaufend.
     const maxNummer = await tx.buchung.aggregate({ _max: { buchungsnummer: true } });
     const naechsteNummer = (maxNummer._max.buchungsnummer ?? 0) + 1;
 
     // Belegnummer läuft JE Kostenstelle UND Jahr fortlaufend (Jahr aus Belegdatum).
     const belegJahr = beleg.getFullYear();
-    // Kostenstelle inkl. optionaler Start-Belegnummer laden.
-    const ks = await tx.kostenstelle.findUnique({
-      where: { id: eingabe.kostenstelleId },
-      select: { nummer: true, belegStartnummer: true, belegStartJahr: true },
-    });
-    const maxLauf = await tx.buchung.aggregate({
-      where: { kostenstelleId: eingabe.kostenstelleId, belegJahr },
-      _max: { belegLaufnummer: true },
-    });
-    let basis = maxLauf._max.belegLaufnummer ?? 0;
-    // Manuelle Start-Belegnummer nur im Umstellungsjahr; hebt die Untergrenze an.
-    if (ks!.belegStartJahr === belegJahr && ks!.belegStartnummer != null) {
-      basis = Math.max(basis, ks!.belegStartnummer - 1);
-    }
-    const naechsteLaufnummer = basis + 1;
-
-    // Volle Belegnummer (z. B. "2026-1260-48").
-    const belegnummer = belegnummerFormat(belegJahr, ks!.nummer, naechsteLaufnummer);
+    const { laufnummer: naechsteLaufnummer, belegnummer, freiId } = await naechsteBelegnummer(
+      tx,
+      eingabe.kostenstelleId,
+      belegJahr,
+      beleg.getMonth() + 1
+    );
+    // Wiederverwendete Nummer ist nicht mehr frei.
+    if (freiId != null) await tx.freieBelegnummer.delete({ where: { id: freiId } });
 
     const buchung = await tx.buchung.create({
       data: {
@@ -374,6 +448,84 @@ buchungRouter.post("/:id/storno", angemeldet, async (req, res) => {
   });
 
   res.json({ ok: true });
+});
+
+// --- Löschen (z. B. doppelt erfasster Beleg), nur in offener Periode ---
+// Die Belegnummer wird frei und von der nächsten neuen Buchung desselben
+// Monats wiederverwendet. Wer wann was gelöscht hat, steht vollständig im
+// Audit-Log (alte Werte inkl. Positionen und Beleg).
+buchungRouter.delete("/:id", angemeldet, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ fehler: "Ungültige ID." });
+  const buchung = await prisma.buchung.findUnique({
+    where: { id },
+    include: { positionen: true, beleg: true, _count: { select: { korrekturen: true } } },
+  });
+  if (!buchung) return res.status(404).json({ fehler: "Nicht gefunden." });
+  if (!(await darfKostenstelle(req.benutzer!, buchung.kostenstelleId))) {
+    return res.status(403).json({ fehler: "Kein Zugriff." });
+  }
+  if (buchung.gesperrt) return res.status(409).json({ fehler: "Buchung ist gesperrt." });
+
+  const jahr = buchung.belegdatum.getFullYear();
+  const monat = buchung.belegdatum.getMonth() + 1;
+  const abschluss = await prisma.abschluss.findUnique({
+    where: { kostenstelleId_jahr_monat: { kostenstelleId: buchung.kostenstelleId, jahr, monat } },
+  });
+  if (abschluss && (abschluss.status === "freigegeben" || abschluss.freigegebenAm)) {
+    return res.status(409).json({ fehler: "Periode ist freigegeben und gesperrt." });
+  }
+  if (req.benutzer!.rolle !== "admin" && (await monatGesperrt(buchung.kostenstelleId, jahr, monat))) {
+    return res.status(409).json({
+      fehler: "Dieser Monat ist gesperrt. Nur Administratoren können hier noch löschen.",
+    });
+  }
+  if (buchung._count.korrekturen > 0) {
+    return res.status(409).json({ fehler: "Auf diese Buchung verweist eine Korrekturbuchung; sie kann nicht gelöscht werden." });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await nummernSperre(tx);
+    await tx.buchung.delete({ where: { id } }); // Positionen per Cascade
+    if (buchung.belegId != null) await tx.beleg.delete({ where: { id: buchung.belegId } });
+    // Stornierte Buchungen haben ihre Saldo-Wirkung bereits zurückgenommen.
+    if (!buchung.storniert) {
+      await tx.kostenstelle.update({
+        where: { id: buchung.kostenstelleId },
+        data: { saldoCent: { increment: -saldoWirkung(buchung.typ, buchung.betragCent) } },
+      });
+    }
+    await tx.freieBelegnummer.create({
+      data: {
+        kostenstelleId: buchung.kostenstelleId,
+        belegJahr: buchung.belegJahr,
+        belegLaufnummer: buchung.belegLaufnummer,
+        belegnummer: buchung.belegnummer,
+        monat,
+      },
+    });
+  });
+
+  // Belegdatei erst nach erfolgreichem Löschen entfernen (best effort).
+  if (buchung.beleg) {
+    try {
+      const pfad = path.join(UPLOAD_DIR, path.basename(buchung.beleg.dateipfad));
+      if (fs.existsSync(pfad)) fs.unlinkSync(pfad);
+    } catch (e) {
+      console.error("Belegdatei der gelöschten Buchung konnte nicht entfernt werden:", e);
+    }
+  }
+
+  const { _count, ...alteWerte } = buchung;
+  await audit({
+    benutzerId: req.benutzer!.id,
+    aktion: "buchung.geloescht",
+    entitaet: "buchung",
+    entitaetId: id,
+    alteWerte,
+  });
+
+  res.json({ ok: true, freieBelegnummer: buchung.belegnummer });
 });
 
 // --- Bearbeiten (direkt, ohne Storno) ---

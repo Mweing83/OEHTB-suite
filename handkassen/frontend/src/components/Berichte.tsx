@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../lib/auth.js";
-import { apiUrl } from "../lib/api.js";
+import { api, apiUrl } from "../lib/api.js";
 import DatumFeld from "./DatumFeld.js";
+import FreieNummernHinweis from "./FreieNummernHinweis.js";
 
 interface Props {
   kostenstelleId: number;
@@ -49,6 +50,16 @@ export default function Berichte({ kostenstelleId }: Props) {
 
   const [bmdLaedt, setBmdLaedt] = useState<"" | "bmd" | "bmd-zip">("");
   const [bmdFehler, setBmdFehler] = useState("");
+  const [freieNummern, setFreieNummern] = useState<string[]>([]);
+
+  // Vor dem Export auf frei gewordene, offene Belegnummern hinweisen (Lücke nach NTCS).
+  useEffect(() => {
+    if (!darfBmd || !(bmdMonat >= 1 && bmdMonat <= 12) || !bmdJahr) { setFreieNummern([]); return; }
+    api
+      .get<{ belegnummer: string }[]>(`/export/freie-belegnummern?jahr=${bmdJahr}&monat=${bmdMonat}`)
+      .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
+      .catch(() => setFreieNummern([]));
+  }, [darfBmd, bmdJahr, bmdMonat]);
 
   // BMD-CSV oder ZIP (CSV + Belegdateien) herunterladen. Per fetch, damit eine
   // Fehlermeldung des Servers (z. B. fehlendes Gegenkonto) angezeigt werden kann.
@@ -192,6 +203,11 @@ export default function Berichte({ kostenstelleId }: Props) {
             </button>
           </div>
           {bmdFehler && <p className="text-sm text-red-700 mt-3">{bmdFehler}</p>}
+          <FreieNummernHinweis
+            nummern={freieNummern}
+            className="mt-3"
+            zusatz="Diese Lücke ist im Export enthalten. Sie wird nur geschlossen, wenn in diesem Monat noch gebucht wird."
+          />
         </div>
       )}
     </div>

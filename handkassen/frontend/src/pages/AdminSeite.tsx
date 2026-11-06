@@ -565,28 +565,38 @@ function SteuersaetzeTab() {
 //  TAB: Kontenplan
 // ============================================================
 
-interface Konto { id: number; nummer: string; bezeichnung: string; beschreibung?: string; anmerkung?: string; aktiv: boolean; bereichIds: number[]; }
+interface Konto { id: number; nummer: string; bezeichnung: string; beschreibung?: string; anmerkung?: string; aktiv: boolean; bereichIds: number[]; fixSteuersatz: number | null; }
+
+// Fixer Steuersatz im Formular: "" = frei wählbar, sonst der Prozentwert als Text.
+function fixAusText(t: string): number | null {
+  return t === "" ? null : Number(t);
+}
 
 function KontenTab() {
   const [liste, setListe] = useState<Konto[]>([]);
   const [bereiche, setBereiche] = useState<Stammwert[]>([]);
   const [fehler, setFehler] = useState("");
-  const [neu, setNeu] = useState<{ nummer: string; bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[] }>({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [] });
+  const [steuersaetze, setSteuersaetze] = useState<{ id: number; prozent: number; aktiv: boolean }[]>([]);
+  const [neu, setNeu] = useState<{ nummer: string; bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[]; fix: string }>({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
   // Inline-Bearbeitung
   const [bearbeiteId, setBearbeiteId] = useState<number | null>(null);
-  const [entwurf, setEntwurf] = useState<{ bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[] }>({ bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [] });
+  const [entwurf, setEntwurf] = useState<{ bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[]; fix: string }>({ bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
 
   function laden() {
     api.get<Konto[]>("/admin/konten").then(setListe).catch(() => {});
     api.get<Stammwert[]>("/admin/bereiche").then(setBereiche).catch(() => {});
+    api.get<{ id: number; prozent: number | string; aktiv: boolean }[]>("/admin/steuersaetze")
+      .then((l) => setSteuersaetze(l.map((x) => ({ ...x, prozent: Number(x.prozent) }))))
+      .catch(() => {});
   }
   useEffect(laden, []);
 
   async function anlegen() {
     setFehler("");
     try {
-      await api.post("/admin/konten", neu);
-      setNeu({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [] });
+      const { fix, ...daten } = neu;
+      await api.post("/admin/konten", { ...daten, fixSteuersatz: fixAusText(fix) });
+      setNeu({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
       laden();
     } catch (e) {
       setFehler((e as Error).message);
@@ -599,7 +609,7 @@ function KontenTab() {
   function bearbeitenStarten(k: Konto) {
     setFehler("");
     setBearbeiteId(k.id);
-    setEntwurf({ bezeichnung: k.bezeichnung, beschreibung: k.beschreibung ?? "", anmerkung: k.anmerkung ?? "", bereichIds: k.bereichIds });
+    setEntwurf({ bezeichnung: k.bezeichnung, beschreibung: k.beschreibung ?? "", anmerkung: k.anmerkung ?? "", bereichIds: k.bereichIds, fix: k.fixSteuersatz == null ? "" : String(k.fixSteuersatz) });
   }
   async function bearbeitenSpeichern(id: number) {
     setFehler("");
@@ -609,6 +619,7 @@ function KontenTab() {
         beschreibung: entwurf.beschreibung,
         anmerkung: entwurf.anmerkung,
         bereichIds: entwurf.bereichIds,
+        fixSteuersatz: fixAusText(entwurf.fix),
       });
       setBearbeiteId(null);
       laden();
@@ -618,6 +629,18 @@ function KontenTab() {
   }
 
   const aktiveBereiche = bereiche.filter((b) => b.aktiv);
+  // Auswahl fixer Steuersatz: aktive Sätze plus ein evtl. bereits gesetzter inaktiver.
+  function fixAuswahl(wert: string, onChange: (w: string) => void, klasse: string) {
+    const saetze = steuersaetze.filter((s) => s.aktiv || String(s.prozent) === wert);
+    return (
+      <select className={klasse} value={wert} onChange={(e) => onChange(e.target.value)}>
+        <option value="">frei wählbar</option>
+        {saetze.map((s) => (
+          <option key={s.id} value={String(s.prozent)}>fix {formatProzent(s.prozent)} %</option>
+        ))}
+      </select>
+    );
+  }
   function toggle(ids: number[], id: number): number[] {
     return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
   }
@@ -642,6 +665,10 @@ function KontenTab() {
             <input className="w-full border rounded-sm px-3 py-2" value={neu.beschreibung}
               onChange={(e) => setNeu({ ...neu, beschreibung: e.target.value })} />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Steuersatz</label>
+            {fixAuswahl(neu.fix, (fix) => setNeu({ ...neu, fix }), "w-full border rounded-sm px-3 py-2")}
+          </div>
           <div className="col-span-5">
             <label className="block text-sm font-medium mb-1">Freigegeben für Bereiche</label>
             <div className="flex flex-wrap gap-3">
@@ -662,7 +689,7 @@ function KontenTab() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-slate-500 border-b">
-              <th className="py-2">Nummer</th><th>Bezeichnung</th><th>Beschreibung</th><th>Bereiche</th><th>Status</th><th></th>
+              <th className="py-2">Nummer</th><th>Bezeichnung</th><th>Beschreibung</th><th>Steuersatz</th><th>Bereiche</th><th>Status</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -682,6 +709,11 @@ function KontenTab() {
                     <input className={zelleInput} value={entwurf.beschreibung}
                       onChange={(e) => setEntwurf({ ...entwurf, beschreibung: e.target.value })} />
                   ) : (k.beschreibung || "–")}
+                </td>
+                <td className="text-slate-500 whitespace-nowrap">
+                  {imEdit
+                    ? fixAuswahl(entwurf.fix, (fix) => setEntwurf({ ...entwurf, fix }), zelleInput)
+                    : k.fixSteuersatz == null ? "frei" : `fix ${formatProzent(k.fixSteuersatz)} %`}
                 </td>
                 <td className="text-slate-500">
                   {imEdit ? (

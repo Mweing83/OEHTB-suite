@@ -44,6 +44,7 @@ export const api = {
     anfrage<T>(pfad, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   put: <T>(pfad: string, body?: unknown) =>
     anfrage<T>(pfad, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
+  delete: <T>(pfad: string) => anfrage<T>(pfad, { method: "DELETE" }),
 
   // Beleg-Upload (multipart, daher ohne JSON-Header)
   belegHochladen: async (datei: File): Promise<{ belegId: number }> => {

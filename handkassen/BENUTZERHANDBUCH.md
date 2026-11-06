@@ -5,10 +5,11 @@ arbeiten: beim Erfassen von Buchungen, beim Monatsabschluss, beim Prüfen und
 Freigeben sowie bei der Verwaltung. Es beschreibt die Bedienung der Anwendung –
 die technische Einrichtung des Servers steht in der Suite-Anleitung `INSTALL.md`.
 
-> Das System ist eine **revisionssichere** Handkasse: Buchungen werden nie
-> gelöscht. Solange der Monat noch nicht freigegeben ist, lassen sie sich
-> bearbeiten oder stornieren; jede Änderung wird mit altem und neuem Stand im
-> Protokoll festgehalten. Nach der Freigabe sind sie unveränderlich.
+> Das System ist eine **revisionssichere** Handkasse: Solange der Monat noch
+> nicht freigegeben ist, lassen sich Buchungen bearbeiten, stornieren oder (z. B.
+> bei doppelt erfassten Belegen) löschen; jede Änderung und jede Löschung wird
+> mit dem vollständigen alten Stand im Protokoll festgehalten. Nach der Freigabe
+> sind Buchungen unveränderlich.
 
 ---
 
@@ -45,8 +46,8 @@ der Handkasse. Erstes Passwort und Passwortänderung laufen dort; bei Fragen an
 die Administration (Menüpunkt **Kontakt**).
 
 ### Automatische Abmeldung
-Aus Sicherheitsgründen wird man nach **15 Minuten ohne Aktivität** automatisch
-abgemeldet. Eine Minute vorher erscheint ein Hinweis mit der Möglichkeit,
+Aus Sicherheitsgründen wird man nach **60 Minuten ohne Aktivität** automatisch
+abgemeldet. Fünf Minuten vorher erscheint ein Hinweis mit der Möglichkeit,
 **angemeldet zu bleiben**. Jede Maus- oder Tastatureingabe setzt die Zeit
 zurück.
 
@@ -93,34 +94,54 @@ Rechts oben stehen der eigene Name samt Rolle sowie der Link **Abmelden**.
 
 Der Menüpunkt **Buchungen** ist die zentrale Arbeitsfläche.
 
-### Kostenstelle wählen
-Ganz oben wird die **Kostenstelle** ausgewählt. Rechts daneben wird laufend der
-aktuelle **Kassenstand** dieser Kostenstelle angezeigt.
+### Kostenstelle und Monat wählen
+Ganz oben wird die **Kostenstelle** ausgewählt, darunter bei **Monat** das
+**Jahr** und der **Monat** (zwei getrennte Auswahlfelder). Rechts wird laufend
+der aktuelle **Kassenstand** der Kostenstelle angezeigt. Die Buchungsliste zeigt
+die Buchungen des gewählten Monats; neue Buchungen werden in diesen Monat
+erfasst.
 
 ### Eine neue Buchung anlegen
-Im Block **Neue Buchung** werden folgende Angaben gemacht:
+Im Block **Neue Buchung** werden die Felder in dieser Reihenfolge ausgefüllt.
+Alle Felder außer dem Beleg sind Pflichtfelder (mit * markiert); gespeichert
+werden kann erst, wenn alles ausgefüllt ist. Unter dem Knopf steht, was noch
+fehlt.
 
-- **Belegdatum** – im Format TT.MM.JJJJ. Über das Kalendersymbol lässt sich ein
-  Kalender öffnen. Die Eingabe ist immer deutsch, unabhängig von den
-  Windows-Einstellungen.
-- **Typ** – **Ausgang** (Geld verlässt die Kasse) oder **Eingang** (Geld kommt
-  herein). Standard ist Ausgang.
-- **Beschreibung** (optional) – kurzer Text, was gekauft/eingenommen wurde.
-- **Positionen** – mindestens eine Zeile mit **Betrag**, **Steuersatz** und
-  **Konto**:
-  - Der **Betrag** wird in Euro mit Komma eingegeben (z. B. `12,50`).
-  - Der **Steuersatz** wird je Position gewählt (z. B. 20 %, 10 %, 0 %).
-  - Das **Konto** ordnet die Position dem Kontenplan zu.
-- **Beleg** – optional ein Foto/Scan/PDF (siehe Abschnitt 5).
+1. **Tag** – nur der Tag des Belegs, z. B. `14` für den 14.09.2026, wenn oben
+   2026 / 09 gewählt ist. Monat und Jahr kommen aus der Auswahl oben; ein Datum
+   außerhalb des gewählten Monats lässt sich daher nicht erfassen, ungültige
+   Tage (z. B. 31.09.) werden abgelehnt. Vorgeschlagen wird der Tag des zuletzt
+   erfassten Belegs.
+2. **Belegnummer** – wird automatisch und fortlaufend vergeben und hier als
+   voraussichtliche Nummer angezeigt (siehe Abschnitt 6, Löschen).
+3. **Typ** – **Ausgang** (Geld verlässt die Kasse) oder **Eingang** (Geld kommt
+   herein). Vorschlag ist Ausgang.
+4. **Splitbuchung** – **nein** (Vorschlag) oder **ja**, siehe unten.
+5. **Konto** – ordnet die Buchung dem Kontenplan zu.
+6. **Betrag** – brutto in Euro mit Komma (z. B. `12,50`).
+7. **Steuersatz** – wird **nicht** vorbelegt und muss bewusst gewählt werden.
+   Hat das Konto einen **fixen Steuersatz** (z. B. 0 % bei Dotationen), wird
+   dieser automatisch übernommen und lässt sich nicht ändern.
+8. **Beschreibung** – kurzer Text, was gekauft/eingenommen wurde.
+9. **Beleg** – optional ein Foto/Scan/PDF (siehe Abschnitt 5).
 
-Rechts wird laufend die **Summe** aller Positionen angezeigt.
+Mit der **Enter-Taste** springt man jeweils zum nächsten Feld; Enter im letzten
+Feld (Beschreibung) speichert die Buchung. Rechts wird laufend die **Summe**
+angezeigt.
 
-### Mehrere Steuersätze in einer Buchung (Split)
-Wenn ein einzelner Beleg Positionen mit **unterschiedlichen Steuersätzen**
-enthält (z. B. Lebensmittel mit 10 % und Non-Food mit 20 %), klickt man auf
-**+ Position** und trägt jede Position mit ihrem eigenen Betrag, Steuersatz und
-Konto ein. Die Summe ergibt den Gesamtbetrag des Belegs. Eine überflüssige
-Position lässt sich mit dem **✕** wieder entfernen.
+### Splitbuchung (mehrere Konten oder Steuersätze auf einem Beleg)
+Enthält ein Beleg Positionen mit **unterschiedlichen Konten oder Steuersätzen**
+(z. B. Lebensmittel mit 10 % und Non-Food mit 20 %), bei **Splitbuchung „ja“**
+wählen:
+
+- Zuerst den **Gesamtbetrag laut Beleg** (brutto) eingeben.
+- Danach je Position **Konto → Betrag → Steuersatz**. Die Kassa zeigt laufend,
+  welcher Betrag **noch aufzuteilen** ist, und schlägt diesen Restbetrag bei
+  jeder weiteren Position als Betrag vor.
+- **Enter** im Steuersatz der letzten Position legt bei offenem Restbetrag eine
+  neue Position an; ist der Rest 0,00 €, geht es weiter bzw. wird gespeichert.
+- Gespeichert werden kann erst, wenn der Restbetrag **0,00 €** ist. Eine
+  überflüssige Position lässt sich mit dem **✕** entfernen.
 
 ### Speichern
 Mit **Buchung speichern** wird die Buchung festgeschrieben. Anschließend
@@ -163,11 +184,10 @@ mit der Buchung gespeichert.
 
 ---
 
-## 6. Buchungen bearbeiten und stornieren
+## 6. Buchungen bearbeiten, stornieren und löschen
 
-Weil das System revisionssicher ist, werden Buchungen **nicht gelöscht**. Es
-gibt stattdessen zwei Wege, die in der Buchungsliste rechts je Zeile angeboten
-werden (solange der Monat noch nicht freigegeben ist):
+In der Buchungsliste werden rechts je Zeile drei Aktionen angeboten (solange der
+Monat noch nicht freigegeben bzw. gesperrt ist):
 
 ### Bearbeiten
 **Bearbeiten** übernimmt die Werte der Buchung ins Formular (oben); die Zeile
@@ -189,9 +209,23 @@ sichtbar.
 Sicherheitsabfrage). Stornierte Buchungen bleiben durchgestrichen in der Liste
 sichtbar und fließen nicht mehr in den Kassenstand ein.
 
+### Löschen
+**Löschen** entfernt eine Buchung samt Beleg vollständig, z. B. wenn ein Beleg
+doppelt erfasst wurde (nach einer kurzen Sicherheitsabfrage). Im Hintergrund
+wird protokolliert, welche Buchung wann und von wem gelöscht wurde.
+
+Bereits vergebene Belegnummern ändern sich dadurch **nie**. Die Nummer der
+gelöschten Buchung wird frei und von der **nächsten neuen Buchung desselben
+Monats** wiederverwendet; bei mehreren Löschungen der Reihe nach, die niedrigste
+zuerst, danach läuft die Nummerierung normal weiter. Über die Monatsgrenze wird
+eine frei gewordene Nummer nicht weitergegeben. Solange eine Nummer frei ist,
+weisen Buchungsliste, Monatsabschluss und BMD-Export darauf hin (Lücke); wird
+im Monat nichts mehr gebucht, bleibt die Lücke bestehen.
+
 ### Gesperrte Buchungen
 Buchungen aus einem bereits **freigegebenen** Monat sind **gesperrt** und tragen
-den Vermerk „gesperrt". Sie können weder bearbeitet noch storniert werden.
+den Vermerk „gesperrt". Sie können weder bearbeitet, storniert noch gelöscht
+werden.
 
 ---
 
@@ -202,7 +236,6 @@ sofort und lassen sich beliebig kombinieren:
 
 - **Suche** – durchsucht Beschreibung, Kontonummer sowie Buchungs- und
   Belegnummer.
-- **Von / Bis** – schränkt auf einen Datumsbereich ein.
 - **Konto** – zeigt nur Buchungen mit einem bestimmten Konto.
 - **Typ** – Eingang oder Ausgang.
 - **Stornierte anzeigen** – blendet auch stornierte Buchungen ein.
@@ -306,6 +339,10 @@ vier Oberbereiche mit Unterreitern gegliedert.
   sind.
 - **Kassenarten** – die Arten von Kassen.
 - **Kontenplan** – die Konten, auf die gebucht wird (Nummer und Bezeichnung).
+  In der Spalte **Steuersatz** lässt sich je Konto ein **fixer Steuersatz**
+  hinterlegen (z. B. 0 % bei Dotationen); er wird bei der Buchung automatisch
+  übernommen und ist dort nicht änderbar. „frei wählbar“ heißt: Der Steuersatz
+  wird bei jeder Buchung bewusst gewählt.
 - **Steuersätze** – die wählbaren MwSt-Sätze.
 
 ### Benutzer
@@ -341,12 +378,14 @@ kann sich nicht mehr anmelden. Es gibt Filter nach Rolle und Status.
 - **Beleg / Belegnummer** – der Nachweis zur Buchung; die Belegnummer verbindet
   Papierbeleg und digitale Buchung.
 - **Storno** – das Ungültigmachen einer Buchung (sie bleibt sichtbar).
+- **Löschen** – eine Buchung in einem offenen Monat entfernen; ihre Belegnummer
+  wird im selben Monat wiederverwendet, die Löschung steht im Protokoll.
 - **Bearbeiten** – eine Buchung in einem offenen Monat direkt ändern; Nummern
   bleiben, alter und neuer Stand stehen im Protokoll.
 - **Zählliste** – der real gezählte Bargeldbestand beim Monatsabschluss.
 - **Soll / Ist** – rechnerischer Stand (Soll) gegenüber gezähltem Stand (Ist).
-- **Revisionssicher** – Vorgänge werden nicht gelöscht; Änderungen und Stornos
-  sind im Protokoll nachvollziehbar, freigegebene Monate sind unveränderlich.
+- **Revisionssicher** – Änderungen, Stornos und Löschungen sind mit dem alten
+  Stand im Protokoll nachvollziehbar, freigegebene Monate sind unveränderlich.
 
 ---
 
@@ -358,16 +397,16 @@ es bei einer Fehlermeldung oder fehlt die Kachel „Handkassen", an die
 Administration wenden (Menüpunkt Kontakt).
 
 **Ich habe mich vertippt – die Buchung ist schon gespeichert.**
-Die Buchung **bearbeiten** (Werte werden übernommen und direkt geändert) oder
-**stornieren**. Löschen ist bewusst nicht möglich.
+Die Buchung **bearbeiten** (Werte werden übernommen und direkt geändert),
+**stornieren** oder – z. B. bei einem doppelt erfassten Beleg – **löschen**.
 
 **Ich finde die Aktionen „Bearbeiten/Storno" nicht.**
 Die Buchung gehört vermutlich zu einem bereits **freigegebenen** Monat und ist
 **gesperrt**. Gesperrte Buchungen sind unveränderlich.
 
 **Ein Beleg hatte mehrere Steuersätze – wie buche ich das?**
-Über **+ Position** mehrere Zeilen anlegen, jede mit eigenem Betrag, Steuersatz
-und Konto. Die Summe ergibt den Gesamtbetrag.
+**Splitbuchung „ja“** wählen, den Gesamtbetrag eingeben und danach die
+Positionen mit Konto, Betrag und Steuersatz, bis der Restbetrag 0,00 € ist.
 
 **Beim Abschluss wird eine Differenz angezeigt.**
 Der gezählte Kassenstand weicht vom rechnerischen Soll ab. Bargeld erneut zählen
@@ -375,7 +414,7 @@ und Buchungen prüfen. Der Abschluss kann mit Differenz eingereicht werden; die
 Klärung erfolgt im Prüf-/Freigabeprozess.
 
 **Ich wurde plötzlich abgemeldet.**
-Nach 15 Minuten ohne Aktivität meldet das System automatisch ab. Einfach erneut
+Nach 60 Minuten ohne Aktivität meldet das System automatisch ab. Einfach erneut
 anmelden; eine Minute vorher kann man „angemeldet bleiben" wählen.
 
 **Wo bekomme ich Hilfe?**

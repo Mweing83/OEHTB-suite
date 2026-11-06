@@ -89,6 +89,7 @@ model Kostenstelle {
   buchungen   Buchung[]
   abschluesse Abschluss[]
   monatsSperren MonatsSperre[]
+  freieBelegnummern FreieBelegnummer[]
 
   @@index([bereichId])
   @@index([kassenartId])
@@ -150,6 +151,9 @@ model Konto {
   beschreibung String?
   anmerkung   String?
   aktiv       Boolean @default(true)
+  // Fixer Steuersatz (z. B. 0 bei Dotationen): wird bei der Buchung
+  // automatisch gesetzt und ist nicht änderbar. null = frei wählbar.
+  fixSteuersatz Decimal? @db.Decimal(5, 1)
 
   positionen  BuchungsPosition[]
   bereiche    BereichKonto[]
@@ -224,6 +228,25 @@ model BuchungsPosition {
 
   @@index([buchungId])
   @@map("buchungsposition")
+}
+
+// Durch Löschen frei gewordene Belegnummer. Wird nur von der nächsten neuen
+// Buchung DESSELBEN Monats wiederverwendet (niedrigste zuerst), damit nach NTCS
+// keine Lücke gelangt; über die Monatsgrenze hinweg nie. Bleibt sie offen,
+// wird vor Abschluss/Export darauf hingewiesen.
+model FreieBelegnummer {
+  id              Int          @id @default(autoincrement())
+  kostenstelleId  Int
+  kostenstelle    Kostenstelle @relation(fields: [kostenstelleId], references: [id])
+  belegJahr       Int
+  belegLaufnummer Int
+  belegnummer     String
+  monat           Int          // 1–12, Monat des gelöschten Belegs
+  freiSeit        DateTime     @default(now())
+
+  @@unique([kostenstelleId, belegJahr, belegLaufnummer])
+  @@index([kostenstelleId, belegJahr, monat])
+  @@map("freie_belegnummer")
 }
 
 model Beleg {

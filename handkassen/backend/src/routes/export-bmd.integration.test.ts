@@ -58,7 +58,7 @@ run("BMD-Export: CSV und ZIP mit Belegen (Integration)", () => {
     expect(zeilen[0].split(";")).toHaveLength(14);
     expect(zeilen[0]).toMatch(/;buchsymbol;dokument$/);
     expect(zeilen[1]).toBe(`0;50000;99950;20260515;${belegnummer};1000;20;2;1;8,33;1,67;Netzteil;KA;${datei}`);
-    expect(zeilen[2]).toMatch(/^0;50000;99950;20260515;2026-1000-02;1000;0;1;2;250,00;0,00;;KA;$/);
+    expect(zeilen[2]).toMatch(/^0;50000;99950;20260515;2026-1000-02;1000;0;1;2;250,00;0,00;Testbuchung;KA;$/);
   });
 
   it("ZIP: enthält die CSV und jede Belegdatei unter genau dem Namen aus der CSV", async () => {

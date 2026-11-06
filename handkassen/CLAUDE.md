@@ -60,13 +60,20 @@ Handkassen-System", Version 1.0.
 - Monatsabschluss-Status: offen -> eingereicht -> geprüft -> freigegeben.
   Solange die Periode nicht freigegeben ist, werden Buchungen direkt bearbeitet
   (PUT /buchungen/:id; alte/neue Werte im audit_log, Nummern bleiben). Nach
-  Freigabe ist die Periode gesperrt (weder Bearbeiten noch Storno).
+  Freigabe ist die Periode gesperrt (weder Bearbeiten noch Storno noch Löschen).
+- Löschen (DELETE /buchungen/:id) nur in offener, nicht gesperrter Periode; die
+  Belegnummer landet in `freie_belegnummer` und wird NUR von der nächsten neuen
+  Buchung desselben Monats wiederverwendet (niedrigste zuerst), nie über die
+  Monatsgrenze. Offene Lücken sind nur ein Hinweis (Buchungsliste, Abschluss,
+  Export), keine Sperre. Nummernvergabe läuft unter pg_advisory_xact_lock.
 
 ## Revisionssicherheit
 
 - Jede datenändernde Aktion schreibt einen Eintrag ins `audit_log`
   (wer, wann, Aktion, betroffener Datensatz, alte/neue Werte).
 - Das audit_log wird nur angehängt, nie verändert oder gelöscht.
+- Gelöschte Buchungen stehen vollständig (inkl. Positionen und Beleg) als
+  alteWerte im audit_log (`buchung.geloescht`).
 
 ## Rollen
 

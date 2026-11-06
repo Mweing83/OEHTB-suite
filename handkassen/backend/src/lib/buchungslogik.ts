@@ -67,8 +67,13 @@ export function buchungValidieren(
     );
   }
 
-  if (!b.belegdatum || isNaN(Date.parse(b.belegdatum))) {
+  if (!datumGueltig(b.belegdatum)) {
     fehler.push("Gültiges Belegdatum erforderlich.");
+  }
+
+  // Beschreibung ist Pflicht (Key-User-Feedback 2026-11).
+  if (typeof b.beschreibung !== "string" || b.beschreibung.trim() === "") {
+    fehler.push("Beschreibung ist erforderlich.");
   }
 
   if (b.typ !== "eingang" && b.typ !== "ausgang") {
@@ -76,6 +81,17 @@ export function buchungValidieren(
   }
 
   return { ok: fehler.length === 0, fehler };
+}
+
+// Belegdatum "JJJJ-MM-TT" (optional mit Uhrzeit) mit echtem Kalendertag:
+// lehnt z. B. den 31.09. ab, den Date.parse still auf den 01.10. schieben würde.
+export function datumGueltig(wert: unknown): boolean {
+  if (typeof wert !== "string") return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(wert);
+  if (!m || isNaN(Date.parse(wert))) return false;
+  const [j, mo, t] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(Date.UTC(j, mo - 1, t));
+  return d.getUTCFullYear() === j && d.getUTCMonth() === mo - 1 && d.getUTCDate() === t;
 }
 
 // Saldo-Wirkung einer Buchung auf die Kostenstelle (in Cent).

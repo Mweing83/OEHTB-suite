@@ -98,6 +98,25 @@ async function bmdDatenLaden(jahr: number, monat: number): Promise<BmdDaten> {
   return { csv, dateiname, belege: Array.from(belege.values()), fehlend };
 }
 
+// Durch Löschen frei gewordene, noch offene Belegnummern des Monats über alle
+// Kostenstellen: Hinweis vor dem Export, damit keine Lücke unbemerkt nach NTCS
+// gelangt (blockiert den Export nicht).
+exportRouter.get(
+  "/freie-belegnummern",
+  angemeldet,
+  rolleErforderlich("finanzen", "admin"),
+  async (req, res) => {
+    const m = monatAusQuery(req.query);
+    if (!m) return res.status(400).json({ fehler: "jahr und monat erforderlich." });
+    const frei = await prisma.freieBelegnummer.findMany({
+      where: { belegJahr: m.jahr, monat: m.monat },
+      orderBy: [{ kostenstelleId: "asc" }, { belegLaufnummer: "asc" }],
+      select: { belegnummer: true, kostenstelle: { select: { nummer: true, bezeichnung: true } } },
+    });
+    res.json(frei);
+  }
+);
+
 // BMD-Buchungssatz-Datei als CSV (Semikolon, Latin-1, CRLF).
 exportRouter.get(
   "/bmd",

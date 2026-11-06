@@ -219,9 +219,25 @@ adminRouter.get("/konten", async (_req, res) => {
     include: { bereiche: { select: { bereichId: true } } },
   });
   res.json(
-    konten.map(({ bereiche, ...k }) => ({ ...k, bereichIds: bereiche.map((b) => b.bereichId) }))
+    konten.map(({ bereiche, ...k }) => ({
+      ...kontoFuerAusgabe(k),
+      bereichIds: bereiche.map((b) => b.bereichId),
+    }))
   );
 });
+
+// Decimal -> number (sonst kaeme der fixe Steuersatz als String im JSON an).
+function kontoFuerAusgabe<T extends { fixSteuersatz: unknown }>(k: T) {
+  return { ...k, fixSteuersatz: k.fixSteuersatz == null ? null : Number(k.fixSteuersatz) };
+}
+
+// Fixer Steuersatz: null = frei waehlbar, sonst 0–100 mit max. einer Nachkommastelle.
+const fixSteuersatzSchema = z
+  .number()
+  .min(0)
+  .max(100)
+  .transform((v) => Math.round(v * 10) / 10)
+  .nullable();
 
 const kontoSchema = z.object({
   nummer: z.string().min(1),
@@ -229,6 +245,7 @@ const kontoSchema = z.object({
   beschreibung: z.string().optional(),
   anmerkung: z.string().optional(),
   bereichIds: z.array(z.number().int()).optional(),
+  fixSteuersatz: fixSteuersatzSchema.optional(),
 });
 
 adminRouter.post("/konten", async (req, res) => {
@@ -248,16 +265,23 @@ adminRouter.post("/konten", async (req, res) => {
     return k;
   });
   await audit({ benutzerId: req.benutzer!.id, aktion: "konto.erstellt", entitaet: "konto", entitaetId: konto.id, neueWerte: { ...konto, bereichIds: bereichIds ?? [] } });
-  res.status(201).json({ ...konto, bereichIds: bereichIds ?? [] });
+  res.status(201).json({ ...kontoFuerAusgabe(konto), bereichIds: bereichIds ?? [] });
 });
 
 adminRouter.put("/konten/:id", async (req, res) => {
   const id = Number(req.params.id);
   const { bezeichnung, beschreibung, anmerkung, bereichIds } = req.body ?? {};
+  // fixSteuersatz nur aendern, wenn mitgeschickt (null = Fixierung aufheben).
+  let fixSteuersatz: number | null | undefined;
+  if (req.body && "fixSteuersatz" in req.body) {
+    const fix = fixSteuersatzSchema.safeParse(req.body.fixSteuersatz);
+    if (!fix.success) return res.status(400).json({ fehler: "Ungültiger fixer Steuersatz." });
+    fixSteuersatz = fix.data;
+  }
   const konto = await prisma.$transaction(async (tx) => {
     const k = await tx.konto.update({
       where: { id },
-      data: { bezeichnung, beschreibung, anmerkung },
+      data: { bezeichnung, beschreibung, anmerkung, fixSteuersatz },
     });
     if (Array.isArray(bereichIds)) {
       // Freigabemenge vollstaendig neu setzen.
@@ -271,7 +295,7 @@ adminRouter.put("/konten/:id", async (req, res) => {
     return k;
   });
   await audit({ benutzerId: req.benutzer!.id, aktion: "konto.bearbeitet", entitaet: "konto", entitaetId: id, neueWerte: { ...konto, bereichIds } });
-  res.json({ ...konto, bereichIds: Array.isArray(bereichIds) ? bereichIds : undefined });
+  res.json({ ...kontoFuerAusgabe(konto), bereichIds: Array.isArray(bereichIds) ? bereichIds : undefined });
 });
 
 adminRouter.post("/konten/:id/aktiv", async (req, res) => {

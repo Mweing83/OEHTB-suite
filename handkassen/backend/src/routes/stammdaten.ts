@@ -38,7 +38,7 @@ stammdatenRouter.get("/konten", angemeldet, async (req, res) => {
     where: { aktiv: true, bereiche: { some: { bereichId: ks.bereichId } } },
     orderBy: { nummer: "asc" },
   });
-  res.json(konten);
+  res.json(konten.map((k) => ({ ...k, fixSteuersatz: k.fixSteuersatz == null ? null : Number(k.fixSteuersatz) })));
 });
 
 // --- Aktive Steuersätze (für die Buchungsmaske) ---

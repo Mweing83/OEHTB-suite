@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { api, apiUrl } from "../lib/api.js";
 import { formatCent, formatProzent, summeSteuerCent } from "../lib/geld.js";
 import BuchungsFormular, { type BearbeitenVorlage } from "../components/BuchungsFormular.js";
-import DatumFeld, { isoZuDe } from "../components/DatumFeld.js";
+import { isoZuDe } from "../components/DatumFeld.js";
 import { bestaetigen, hinweis } from "../components/dialog.js";
+import FreieNummernHinweis from "../components/FreieNummernHinweis.js";
 
 interface Kostenstelle {
   id: number;
@@ -33,12 +34,15 @@ export default function BuchungenSeite() {
   const [kostenstellen, setKostenstellen] = useState<Kostenstelle[]>([]);
   const [aktiv, setAktiv] = useState<number | null>(null);
   const [buchungen, setBuchungen] = useState<Buchung[]>([]);
+  // Periode wie in der Handkassa II: Jahr und Monat unter der Kostenstelle.
+  const heute = new Date();
+  const [jahr, setJahr] = useState(heute.getFullYear());
+  const [monat, setMonat] = useState(heute.getMonth() + 1);
   const [ladeFehler, setLadeFehler] = useState<string | null>(null);
+  const [freieNummern, setFreieNummern] = useState<string[]>([]);
 
   // Filter-Zustand (alles im Browser, sofort wirkend)
   const [suche, setSuche] = useState("");
-  const [vonDatum, setVonDatum] = useState("");
-  const [bisDatum, setBisDatum] = useState("");
   const [kontoFilter, setKontoFilter] = useState(""); // Kontonummer oder ""
   const [typFilter, setTypFilter] = useState<"" | "eingang" | "ausgang">("");
   const [stornierteZeigen, setStornierteZeigen] = useState(false);
@@ -75,22 +79,53 @@ export default function BuchungenSeite() {
     if (aktiv) ladeBuchungen(aktiv);
   }, [aktiv]);
 
+  function ladeFreieNummern() {
+    if (!aktiv) return;
+    api
+      .get<{ belegnummer: string }[]>(`/buchungen/freie-belegnummern?kostenstelle=${aktiv}&jahr=${jahr}&monat=${monat}`)
+      .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
+      .catch(() => setFreieNummern([]));
+  }
+  // Neu laden bei Periode/Kostenstelle und nach jeder Änderung der Liste.
+  useEffect(ladeFreieNummern, [aktiv, jahr, monat, buchungen]);
+
   const aktuelleKs = kostenstellen.find((k) => k.id === aktiv);
 
-  // Alle in den Buchungen vorkommenden Konten (für das Konto-Dropdown)
+  // Buchungen der gewählten Periode (Belegdatum im gewählten Monat).
+  const periode = `${jahr}-${String(monat).padStart(2, "0")}`;
+  const imMonat = buchungen.filter((b) => b.belegdatum.slice(0, 7) === periode);
+
+  // Datumsvorschlag: Tag des zuletzt erfassten Belegs dieses Monats; ohne
+  // Buchung im laufenden Monat der heutige Tag, sonst kein Vorschlag.
+  const letzte = imMonat.reduce<Buchung | null>(
+    (a, b) => (!a || b.buchungsnummer > a.buchungsnummer ? b : a),
+    null
+  );
+  const vorschlagTag = letzte
+    ? Number(letzte.belegdatum.slice(8, 10))
+    : jahr === heute.getFullYear() && monat === heute.getMonth() + 1
+    ? heute.getDate()
+    : null;
+
+  // Auswahl: einige Jahre zurück und eines voraus.
+  const jahre = Array.from({ length: 7 }, (_, i) => heute.getFullYear() - 5 + i);
+
+  function periodeWechseln(j: number, m: number) {
+    setJahr(j);
+    setMonat(m);
+    setBearbeiten(null); // Bearbeiten gilt nur innerhalb der Periode
+  }
+
+  // Alle in den Buchungen des Monats vorkommenden Konten (für das Konto-Dropdown)
   const verfuegbareKonten = Array.from(
-    new Set(buchungen.flatMap((b) => b.positionen.map((p) => p.konto.nummer)))
+    new Set(imMonat.flatMap((b) => b.positionen.map((p) => p.konto.nummer)))
   ).sort();
 
   // Gefilterte Liste (alle Filter werden im Browser kombiniert angewendet)
-  const gefiltert = buchungen.filter((b) => {
+  const gefiltert = imMonat.filter((b) => {
     if (!stornierteZeigen && b.storniert) return false;
     if (typFilter && b.typ !== typFilter) return false;
     if (kontoFilter && !b.positionen.some((p) => p.konto.nummer === kontoFilter)) return false;
-
-    const datum = b.belegdatum.slice(0, 10);
-    if (vonDatum && datum < vonDatum) return false;
-    if (bisDatum && datum > bisDatum) return false;
 
     if (suche.trim()) {
       const text = suche.trim().toLowerCase();
@@ -104,8 +139,6 @@ export default function BuchungenSeite() {
 
   function filterZuruecksetzen() {
     setSuche("");
-    setVonDatum("");
-    setBisDatum("");
     setKontoFilter("");
     setTypFilter("");
     setStornierteZeigen(false);
@@ -123,6 +156,28 @@ export default function BuchungenSeite() {
     await api
       .post(`/buchungen/${id}/storno`)
       .catch((e) => hinweis((e as Error).message));
+    if (aktiv) {
+      ladeBuchungen(aktiv);
+      api.get<Kostenstelle[]>("/kostenstellen").then(setKostenstellen);
+    }
+  }
+
+  // Löschen (z. B. doppelt erfasster Beleg): nur in offener Periode. Die
+  // Belegnummer wird frei und bei der nächsten Buchung dieses Monats vergeben.
+  async function loeschen(b: Buchung) {
+    if (
+      !(await bestaetigen(
+        `Buchung mit Belegnummer ${b.belegnummer.replace(/^\d{4}-/, "")} löschen? Die Nummer wird bei der nächsten Buchung dieses Monats wieder vergeben.`,
+        { titel: "Buchung löschen", bestaetigenText: "Löschen", gefahr: true }
+      ))
+    )
+      return;
+    try {
+      await api.delete(`/buchungen/${b.id}`);
+    } catch (e) {
+      hinweis((e as Error).message);
+    }
+    if (bearbeiten?.buchungId === b.id) setBearbeiten(null);
     if (aktiv) {
       ladeBuchungen(aktiv);
       api.get<Kostenstelle[]>("/kostenstellen").then(setKostenstellen);
@@ -153,12 +208,13 @@ export default function BuchungenSeite() {
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <label className="text-sm font-medium">Kostenstelle:</label>
+      <div className="grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-2 items-center mb-6">
+        <label htmlFor="ks-wahl" className="text-sm font-medium">Kostenstelle:</label>
         <select
-          className="border rounded-sm px-3 py-2"
+          id="ks-wahl"
+          className="border rounded-sm px-3 py-2 justify-self-start"
           value={aktiv ?? ""}
-          onChange={(e) => setAktiv(Number(e.target.value))}
+          onChange={(e) => { setAktiv(Number(e.target.value)); setBearbeiten(null); }}
         >
           {kostenstellen.map((k) => (
             <option key={k.id} value={k.id}>
@@ -166,17 +222,45 @@ export default function BuchungenSeite() {
             </option>
           ))}
         </select>
-        {aktuelleKs && (
-          <span className="ml-auto text-sm">
-            Kassenstand:{" "}
-            <span className="font-semibold">{formatCent(aktuelleKs.saldoCent)}</span>
-          </span>
-        )}
+        <span className="text-sm text-right">
+          {aktuelleKs && (
+            <>
+              Kassenstand: <span className="font-semibold">{formatCent(aktuelleKs.saldoCent)}</span>
+            </>
+          )}
+        </span>
+        <label htmlFor="jahr-wahl" className="text-sm font-medium">Monat:</label>
+        <div className="flex gap-2">
+          <select
+            id="jahr-wahl"
+            aria-label="Jahr"
+            className="border rounded-sm px-3 py-2"
+            value={jahr}
+            onChange={(e) => periodeWechseln(Number(e.target.value), monat)}
+          >
+            {jahre.map((j) => (
+              <option key={j} value={j}>{j}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Monat"
+            className="border rounded-sm px-3 py-2"
+            value={monat}
+            onChange={(e) => periodeWechseln(jahr, Number(e.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-6">
         {aktiv && <BuchungsFormular
           kostenstelleId={aktiv}
+          jahr={jahr}
+          monat={monat}
+          vorschlagTag={vorschlagTag}
           bearbeiten={bearbeiten}
           onBearbeitenAbbrechen={() => setBearbeiten(null)}
           onGespeichert={() => {
@@ -187,7 +271,9 @@ export default function BuchungenSeite() {
 
         <div className="flex gap-6 items-start">
           <div className="bg-white rounded-lg shadow-sm p-5 flex-1 min-w-0">
-          <h2 className="font-semibold text-marke-900 mb-4">Buchungen</h2>
+          <h2 className="font-semibold text-marke-900 mb-4">Buchungen {String(monat).padStart(2, "0")}/{jahr}</h2>
+
+          <FreieNummernHinweis nummern={freieNummern} className="mb-4" />
 
           {/* Filterleiste */}
           <div className="mb-4 space-y-3">
@@ -200,14 +286,6 @@ export default function BuchungenSeite() {
                   value={suche}
                   onChange={(e) => setSuche(e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Von</label>
-                <DatumFeld size="klein" className="w-[150px]" wert={vonDatum} onChange={setVonDatum} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Bis</label>
-                <DatumFeld size="klein" className="w-[150px]" wert={bisDatum} onChange={setBisDatum} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Konto</label>
@@ -239,7 +317,7 @@ export default function BuchungenSeite() {
                 Filter zurücksetzen
               </button>
               <span className="ml-auto text-xs text-slate-500">
-                {gefiltert.length} von {buchungen.length} Buchungen
+                {gefiltert.length} von {imMonat.length} Buchungen
               </span>
             </div>
           </div>
@@ -254,8 +332,8 @@ export default function BuchungenSeite() {
                 Erneut versuchen
               </button>
             </div>
-          ) : buchungen.length === 0 ? (
-            <p className="text-sm text-slate-500">Noch keine Buchungen.</p>
+          ) : imMonat.length === 0 ? (
+            <p className="text-sm text-slate-500">Noch keine Buchungen in diesem Monat.</p>
           ) : gefiltert.length === 0 ? (
             <p className="text-sm text-slate-500">Keine Buchungen entsprechen den Filterkriterien.</p>
           ) : (
@@ -335,6 +413,9 @@ export default function BuchungenSeite() {
                           </button>
                           <button onClick={() => storno(b.id)} className="text-xs text-red-600 hover:underline">
                             Storno
+                          </button>
+                          <button onClick={() => loeschen(b)} className="text-xs text-red-600 hover:underline">
+                            Löschen
                           </button>
                         </div>
                       )}

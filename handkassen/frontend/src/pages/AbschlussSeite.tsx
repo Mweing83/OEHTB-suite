@@ -3,6 +3,7 @@ import { api } from "../lib/api.js";
 import { formatCent, euroStringZuCent } from "../lib/geld.js";
 import { useAuth } from "../lib/auth.js";
 import { hinweis } from "../components/dialog.js";
+import FreieNummernHinweis from "../components/FreieNummernHinweis.js";
 
 interface Kostenstelle {
   id: number;
@@ -36,6 +37,7 @@ export default function AbschlussSeite() {
   const [monat, setMonat] = useState(heute.getMonth() + 1);
   const [zaehlliste, setZaehlliste] = useState("");
   const [meldung, setMeldung] = useState("");
+  const [freieNummern, setFreieNummern] = useState<string[]>([]);
 
   function laden() {
     api.get<Abschluss[]>("/abschluss").then(setAbschluesse).catch(() => {});
@@ -47,6 +49,15 @@ export default function AbschlussSeite() {
     });
     laden();
   }, []);
+
+  // Lücke in der Belegnummerierung vor dem Abschluss anzeigen (nur Hinweis).
+  useEffect(() => {
+    if (!ksId || !(monat >= 1 && monat <= 12) || !jahr) { setFreieNummern([]); return; }
+    api
+      .get<{ belegnummer: string }[]>(`/buchungen/freie-belegnummern?kostenstelle=${ksId}&jahr=${jahr}&monat=${monat}`)
+      .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
+      .catch(() => setFreieNummern([]));
+  }, [ksId, jahr, monat]);
 
   async function einreichen() {
     setMeldung("");
@@ -111,6 +122,11 @@ export default function AbschlussSeite() {
             <input type="number" min={1} max={12} className="w-full border rounded-sm px-3 py-2" value={monat} onChange={(e) => setMonat(Number(e.target.value))} />
           </div>
         </div>
+        <FreieNummernHinweis
+          nummern={freieNummern}
+          className="mb-4"
+          zusatz="Wird in diesem Monat nichts mehr gebucht, bleibt die Lücke bestehen und gelangt so in den Export."
+        />
         <label className="block text-sm font-medium mb-1">Gezählter Kassenstand (Zählliste)</label>
         <input className="w-full border rounded-sm px-3 py-2 mb-4 text-right" placeholder="0,00" value={zaehlliste} onChange={(e) => setZaehlliste(e.target.value)} />
         <button onClick={einreichen} className="w-full bg-marke-700 text-white rounded-sm py-2 font-medium hover:bg-marke-800">
