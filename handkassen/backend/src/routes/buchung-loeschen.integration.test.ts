@@ -91,11 +91,11 @@ run("Buchungen löschen und Belegnummern wiederverwenden (Integration)", () => {
     await buchen();
     await loeschen(b.id);
     const finanzen = await alsAgent("finanzen");
-    const r = await finanzen.get("/api/export/freie-belegnummern?jahr=2026&monat=5");
+    const r = await finanzen.get("/api/export/freie-belegnummern?firma=1&jahr=2026&monat=5");
     expect(r.status).toBe(200);
     expect(r.body).toEqual([{ belegnummer: "2026-1000-01", kostenstelle: { nummer: "1000", bezeichnung: "KS A" } }]);
-    expect((await finanzen.get("/api/export/freie-belegnummern?jahr=2026&monat=6")).body).toEqual([]);
-    expect((await erfasser.get("/api/export/freie-belegnummern?jahr=2026&monat=5")).status).toBe(403);
+    expect((await finanzen.get("/api/export/freie-belegnummern?firma=1&jahr=2026&monat=6")).body).toEqual([]);
+    expect((await erfasser.get("/api/export/freie-belegnummern?firma=1&jahr=2026&monat=5")).status).toBe(403);
   });
 
   it("entfernt die Belegdatei und den Beleg-Datensatz", async () => {

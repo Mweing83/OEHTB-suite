@@ -11,6 +11,7 @@ interface Kostenstelle {
   nummer: string;
   bezeichnung: string;
   bereich: { id: number; bezeichnung: string };
+  firma: { id: number; name: string };
   saldoCent: number;
 }
 
@@ -33,6 +34,8 @@ interface Buchung {
 export default function BuchungenSeite() {
   const [kostenstellen, setKostenstellen] = useState<Kostenstelle[]>([]);
   const [aktiv, setAktiv] = useState<number | null>(null);
+  // Firma (oberhalb der Kostenstelle; nur sichtbar bei mehreren Firmen)
+  const [firmaId, setFirmaId] = useState<number | null>(null);
   const [buchungen, setBuchungen] = useState<Buchung[]>([]);
   // Periode wie in der Handkassa II: Jahr und Monat unter der Kostenstelle.
   const heute = new Date();
@@ -56,7 +59,10 @@ export default function BuchungenSeite() {
   useEffect(() => {
     api.get<Kostenstelle[]>("/kostenstellen").then((ks) => {
       setKostenstellen(ks);
-      if (ks.length && aktiv === null) setAktiv(ks[0].id);
+      if (ks.length && aktiv === null) {
+        setAktiv(ks[0].id);
+        setFirmaId(ks[0].firma.id);
+      }
     });
   }, []);
 
@@ -90,6 +96,16 @@ export default function BuchungenSeite() {
   useEffect(ladeFreieNummern, [aktiv, jahr, monat, buchungen]);
 
   const aktuelleKs = kostenstellen.find((k) => k.id === aktiv);
+  const firmen = Array.from(new Map(kostenstellen.map((k) => [k.firma.id, k.firma])).values()).sort(
+    (a, b) => a.id - b.id
+  );
+  const ksDerFirma = kostenstellen.filter((k) => k.firma.id === firmaId);
+
+  function firmaWechseln(id: number) {
+    setFirmaId(id);
+    setBearbeiten(null);
+    setAktiv(kostenstellen.find((k) => k.firma.id === id)?.id ?? null);
+  }
 
   // Buchungen der gewählten Periode (Belegdatum im gewählten Monat).
   const periode = `${jahr}-${String(monat).padStart(2, "0")}`;
@@ -209,6 +225,22 @@ export default function BuchungenSeite() {
   return (
     <div>
       <div className="grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-2 items-center mb-6">
+        {firmen.length > 1 && (
+          <>
+            <label htmlFor="firma-wahl" className="text-sm font-medium">Firma:</label>
+            <select
+              id="firma-wahl"
+              className="border rounded-sm px-3 py-2 justify-self-start"
+              value={firmaId ?? ""}
+              onChange={(e) => firmaWechseln(Number(e.target.value))}
+            >
+              {firmen.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            <span />
+          </>
+        )}
         <label htmlFor="ks-wahl" className="text-sm font-medium">Kostenstelle:</label>
         <select
           id="ks-wahl"
@@ -216,7 +248,7 @@ export default function BuchungenSeite() {
           value={aktiv ?? ""}
           onChange={(e) => { setAktiv(Number(e.target.value)); setBearbeiten(null); }}
         >
-          {kostenstellen.map((k) => (
+          {ksDerFirma.map((k) => (
             <option key={k.id} value={k.id}>
               {k.nummer} {k.bezeichnung} ({k.bereich.bezeichnung})
             </option>

@@ -51,9 +51,9 @@ run("BMD-Export: CSV und ZIP mit Belegen (Integration)", () => {
       .post("/api/buchungen")
       .send(buchungEingabe(basis.ksA, basis.kontoId, { typ: "eingang", betragCent: 25000, positionen: [{ betragCent: 25000, steuersatz: 0, kontoId: basis.kontoId }] }));
 
-    const r = await finanzen.get("/api/export/bmd?jahr=2026&monat=5");
+    const r = await finanzen.get("/api/export/bmd?firma=1&jahr=2026&monat=5");
     expect(r.status).toBe(200);
-    expect(r.headers["content-disposition"]).toContain('filename="bmd_ka_2026_05.csv"');
+    expect(r.headers["content-disposition"]).toContain('filename="bmd_ka_oehtb_dienstleistungen_gmbh_2026_05.csv"');
     const zeilen = r.text.trim().split("\r\n");
     expect(zeilen[0].split(";")).toHaveLength(14);
     expect(zeilen[0]).toMatch(/;buchsymbol;dokument$/);
@@ -63,14 +63,14 @@ run("BMD-Export: CSV und ZIP mit Belegen (Integration)", () => {
 
   it("ZIP: enthält die CSV und jede Belegdatei unter genau dem Namen aus der CSV", async () => {
     const { datei } = await buchungMitBeleg();
-    const csv = await finanzen.get("/api/export/bmd?jahr=2026&monat=5");
+    const csv = await finanzen.get("/api/export/bmd?firma=1&jahr=2026&monat=5");
 
-    const r = await finanzen.get("/api/export/bmd-zip?jahr=2026&monat=5").buffer(true).parse(binaer);
+    const r = await finanzen.get("/api/export/bmd-zip?firma=1&jahr=2026&monat=5").buffer(true).parse(binaer);
     expect(r.status).toBe(200);
     expect(r.headers["content-type"]).toBe("application/zip");
     const inhalt = unzipSync(new Uint8Array(r.body as Buffer));
-    expect(Object.keys(inhalt).sort()).toEqual(["bmd_ka_2026_05.csv", datei].sort());
-    expect(strFromU8(inhalt["bmd_ka_2026_05.csv"], true)).toBe(csv.text);
+    expect(Object.keys(inhalt).sort()).toEqual(["bmd_ka_oehtb_dienstleistungen_gmbh_2026_05.csv", datei].sort());
+    expect(strFromU8(inhalt["bmd_ka_oehtb_dienstleistungen_gmbh_2026_05.csv"], true)).toBe(csv.text);
     expect(Buffer.from(inhalt[datei]).equals(PNG)).toBe(true);
   });
 
@@ -78,21 +78,21 @@ run("BMD-Export: CSV und ZIP mit Belegen (Integration)", () => {
     const { belegnummer, datei } = await buchungMitBeleg();
     fs.unlinkSync(path.join(UPLOAD_DIR, datei));
 
-    const csv = await finanzen.get("/api/export/bmd?jahr=2026&monat=5");
+    const csv = await finanzen.get("/api/export/bmd?firma=1&jahr=2026&monat=5");
     expect(csv.text.trim().split("\r\n")[1]).toMatch(/;KA;$/);
 
-    const r = await finanzen.get("/api/export/bmd-zip?jahr=2026&monat=5").buffer(true).parse(binaer);
+    const r = await finanzen.get("/api/export/bmd-zip?firma=1&jahr=2026&monat=5").buffer(true).parse(binaer);
     const inhalt = unzipSync(new Uint8Array(r.body as Buffer));
-    expect(Object.keys(inhalt).sort()).toEqual(["FEHLENDE_BELEGE.txt", "bmd_ka_2026_05.csv"]);
+    expect(Object.keys(inhalt).sort()).toEqual(["FEHLENDE_BELEGE.txt", "bmd_ka_oehtb_dienstleistungen_gmbh_2026_05.csv"]);
     expect(strFromU8(inhalt["FEHLENDE_BELEGE.txt"])).toContain(belegnummer);
   });
 
   it("nur Finanzen/Admin; ungültiger Monat -> 400; fehlendes Gegenkonto -> 400", async () => {
-    expect((await erfasser.get("/api/export/bmd-zip?jahr=2026&monat=5")).status).toBe(403);
-    expect((await finanzen.get("/api/export/bmd-zip?jahr=2026&monat=13")).status).toBe(400);
+    expect((await erfasser.get("/api/export/bmd-zip?firma=1&jahr=2026&monat=5")).status).toBe(403);
+    expect((await finanzen.get("/api/export/bmd-zip?firma=1&jahr=2026&monat=13")).status).toBe(400);
     await buchungMitBeleg();
     await prisma.kostenstelle.update({ where: { id: basis.ksA }, data: { gegenkonto: null } });
-    const r = await finanzen.get("/api/export/bmd-zip?jahr=2026&monat=5");
+    const r = await finanzen.get("/api/export/bmd-zip?firma=1&jahr=2026&monat=5");
     expect(r.status).toBe(400);
     expect(r.body.fehler).toContain("Gegenkonto");
   });

@@ -79,7 +79,8 @@ async function main() {
   // Konten
   for (const k of konten) {
     await prisma.konto.upsert({
-      where: { nummer: k.nummer },
+      // Standard-Kontenplan der ersten Firma; weitere Firmen pflegt die Verwaltung.
+      where: { firmaId_nummer: { firmaId: 1, nummer: k.nummer } },
       update: {},
       create: k,
     });

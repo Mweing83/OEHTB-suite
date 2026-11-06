@@ -4,12 +4,14 @@ import { formatCent, euroStringZuCent } from "../lib/geld.js";
 import { useAuth } from "../lib/auth.js";
 import { hinweis } from "../components/dialog.js";
 import FreieNummernHinweis from "../components/FreieNummernHinweis.js";
+import KostenstellenOptionen from "../components/KostenstellenOptionen.js";
 
 interface Kostenstelle {
   id: number;
   nummer: string;
   bezeichnung: string;
   bereich?: { id: number; bezeichnung: string };
+  firma?: { id: number; name: string };
 }
 interface Abschluss {
   id: number;
@@ -108,9 +110,7 @@ export default function AbschlussSeite() {
         )}
         <label className="block text-sm font-medium mb-1">Kostenstelle</label>
         <select className="w-full border rounded-sm px-3 py-2 mb-4" value={ksId ?? ""} onChange={(e) => setKsId(Number(e.target.value))}>
-          {kostenstellen.map((k) => (
-            <option key={k.id} value={k.id}>{k.nummer} {k.bezeichnung}</option>
-          ))}
+          <KostenstellenOptionen liste={kostenstellen} />
         </select>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>

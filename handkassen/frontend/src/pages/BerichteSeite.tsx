@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 import Berichte from "../components/Berichte.js";
+import KostenstellenOptionen from "../components/KostenstellenOptionen.js";
 
 interface Kostenstelle {
   id: number;
   nummer: string;
   bezeichnung: string;
   bereich: { id: number; bezeichnung: string };
+  firma?: { id: number; name: string };
 }
 
 // Eigene Seite für die PDF-Berichte.
@@ -36,11 +38,7 @@ export default function BerichteSeite() {
             value={aktiv ?? ""}
             onChange={(e) => setAktiv(Number(e.target.value))}
           >
-            {kostenstellen.map((k) => (
-              <option key={k.id} value={k.id}>
-                {k.nummer} {k.bezeichnung} ({k.bereich.bezeichnung})
-              </option>
-            ))}
+            <KostenstellenOptionen liste={kostenstellen} />
           </select>
         )}
       </div>

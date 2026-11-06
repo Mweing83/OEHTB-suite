@@ -61,8 +61,24 @@ model Benutzer {
   @@map("benutzer")
 }
 
+// Firma (Mandant): eigener Kontenplan, eigene Kostenstellen, getrennter Export.
+// Benutzer:innen sehen eine Firma über die ihnen freigeschalteten
+// Kostenstellen; Finanzen/Admin sehen alle Firmen.
+model Firma {
+  id           Int            @id @default(autoincrement())
+  name         String         @unique
+  aktiv        Boolean        @default(true)
+  kostenstellen Kostenstelle[]
+  konten       Konto[]
+
+  @@map("firma")
+}
+
 model Kostenstelle {
   id          Int       @id @default(autoincrement())
+  // Firma der Kostenstelle (Bestand bei Einführung: erste Firma).
+  firmaId     Int       @default(1)
+  firma       Firma     @relation(fields: [firmaId], references: [id])
   // Offizielle Kostenstellen-Nummer (z. B. "1260"). Dient als Präfix der Belegnummer.
   nummer      String    @unique
   bezeichnung String
@@ -93,6 +109,7 @@ model Kostenstelle {
 
   @@index([bereichId])
   @@index([kassenartId])
+  @@index([firmaId])
   @@map("kostenstelle")
 }
 
@@ -146,7 +163,10 @@ model BenutzerKostenstelle {
 
 model Konto {
   id          Int     @id @default(autoincrement())
-  nummer      String  @unique // z. B. "50250"
+  // Kontenplan je Firma: Nummer nur innerhalb der Firma eindeutig.
+  firmaId     Int     @default(1)
+  firma       Firma   @relation(fields: [firmaId], references: [id])
+  nummer      String  // z. B. "50250"
   bezeichnung String
   beschreibung String?
   anmerkung   String?
@@ -158,6 +178,7 @@ model Konto {
   positionen  BuchungsPosition[]
   bereiche    BereichKonto[]
 
+  @@unique([firmaId, nummer])
   @@map("konto")
 }
 

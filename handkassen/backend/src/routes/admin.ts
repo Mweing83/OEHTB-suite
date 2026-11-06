@@ -96,18 +96,67 @@ adminRouter.put("/benutzer/:id/kostenstellen", async (req, res) => {
 });
 
 // ============================================================
+//  FIRMEN (Mandanten)
+// ============================================================
+
+adminRouter.get("/firmen", async (_req, res) => {
+  const firmen = await prisma.firma.findMany({ orderBy: { id: "asc" } });
+  res.json(firmen);
+});
+
+const firmaSchema = z.object({ name: z.string().trim().min(1).max(200) });
+
+adminRouter.post("/firmen", async (req, res) => {
+  const parse = firmaSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ fehler: "Bitte einen Namen eingeben." });
+  if (await prisma.firma.findUnique({ where: { name: parse.data.name } })) {
+    return res.status(409).json({ fehler: "Diese Firma gibt es bereits." });
+  }
+  const firma = await prisma.firma.create({ data: { name: parse.data.name } });
+  await audit({ benutzerId: req.benutzer!.id, aktion: "firma.erstellt", entitaet: "firma", entitaetId: firma.id, neueWerte: firma });
+  res.status(201).json(firma);
+});
+
+adminRouter.put("/firmen/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const parse = firmaSchema.safeParse(req.body);
+  if (!Number.isInteger(id) || id <= 0 || !parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
+  const alt = await prisma.firma.findUnique({ where: { id } });
+  if (!alt) return res.status(404).json({ fehler: "Nicht gefunden." });
+  const kollision = await prisma.firma.findFirst({ where: { name: parse.data.name, id: { not: id } } });
+  if (kollision) return res.status(409).json({ fehler: "Diese Firma gibt es bereits." });
+  const firma = await prisma.firma.update({ where: { id }, data: { name: parse.data.name } });
+  await audit({ benutzerId: req.benutzer!.id, aktion: "firma.bearbeitet", entitaet: "firma", entitaetId: id, alteWerte: alt, neueWerte: firma });
+  res.json(firma);
+});
+
+adminRouter.post("/firmen/:id/aktiv", async (req, res) => {
+  const id = Number(req.params.id);
+  const { aktiv } = req.body ?? {};
+  const firma = await prisma.firma.update({ where: { id }, data: { aktiv: !!aktiv } });
+  await audit({ benutzerId: req.benutzer!.id, aktion: aktiv ? "firma.aktiviert" : "firma.deaktiviert", entitaet: "firma", entitaetId: id });
+  res.json({ id: firma.id, aktiv: firma.aktiv });
+});
+
+// Firma muss existieren (FK) – verständliche 400 statt 500.
+async function firmaVorhanden(firmaId: number): Promise<boolean> {
+  return !!(await prisma.firma.findUnique({ where: { id: firmaId } }));
+}
+
+// ============================================================
 //  KOSTENSTELLEN
 // ============================================================
 
 adminRouter.get("/kostenstellen", async (_req, res) => {
   const ks = await prisma.kostenstelle.findMany({
-    include: { bereich: true, kassenart: true },
+    include: { bereich: true, kassenart: true, firma: true },
     orderBy: { bezeichnung: "asc" },
   });
   res.json(ks);
 });
 
 const ksSchema = z.object({
+  firmaId: z.number().int().positive(),
   nummer: z.string().min(1),
   bezeichnung: z.string().min(1),
   gegenkonto: z.string().min(1),
@@ -123,6 +172,7 @@ adminRouter.post("/kostenstellen", async (req, res) => {
   if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
   const vorhanden = await prisma.kostenstelle.findUnique({ where: { nummer: parse.data.nummer } });
   if (vorhanden) return res.status(409).json({ fehler: "Diese Kostenstellen-Nummer ist bereits vergeben." });
+  if (!(await firmaVorhanden(parse.data.firmaId))) return res.status(400).json({ fehler: "Unbekannte Firma." });
   const anfang = parse.data.anfangssaldoCent ?? 0;
   const ks = await prisma.kostenstelle.create({
     data: { ...parse.data, anfangssaldoCent: anfang, saldoCent: anfang },
@@ -136,6 +186,7 @@ adminRouter.post("/kostenstellen", async (req, res) => {
 // Bearbeiten: alle Felder optional, aber typgeprueft (vorher ungeprueft ->
 // 500er bei falschen Typen).
 const ksUpdateSchema = z.object({
+  firmaId: z.number().int().positive().optional(),
   nummer: z.string().min(1).optional(),
   bezeichnung: z.string().min(1).optional(),
   gegenkonto: z.string().optional(),
@@ -151,9 +202,27 @@ adminRouter.put("/kostenstellen/:id", async (req, res) => {
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ fehler: "Ungültige Kostenstelle." });
   const parse = ksUpdateSchema.safeParse(req.body ?? {});
   if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
-  const { nummer, bezeichnung, gegenkonto, bereichId, kassenartId, anfangssaldoCent, belegStartnummer, belegStartJahr } = parse.data;
+  const { firmaId, nummer, bezeichnung, gegenkonto, bereichId, kassenartId, anfangssaldoCent, belegStartnummer, belegStartJahr } = parse.data;
   const alt = await prisma.kostenstelle.findUnique({ where: { id } });
   if (!alt) return res.status(404).json({ fehler: "Nicht gefunden." });
+
+  // Firmenwechsel (nur Admin, wie der ganze Router): auch mit Buchungen
+  // erlaubt, damit Bestand/Testdaten umgehängt werden können – aber nicht,
+  // sobald ein Monat freigegeben ist (abgeschlossen, ggf. schon exportiert).
+  if (typeof firmaId === "number" && firmaId !== alt.firmaId) {
+    if (!(await firmaVorhanden(firmaId))) return res.status(400).json({ fehler: "Unbekannte Firma." });
+    const [gesperrt, freigegeben] = await Promise.all([
+      prisma.buchung.count({ where: { kostenstelleId: id, gesperrt: true } }),
+      prisma.abschluss.count({
+        where: { kostenstelleId: id, OR: [{ status: "freigegeben" }, { freigegebenAm: { not: null } }] },
+      }),
+    ]);
+    if (gesperrt > 0 || freigegeben > 0) {
+      return res.status(409).json({
+        fehler: "Die Firma kann nach der ersten Monatsfreigabe dieser Kostenstelle nicht mehr geändert werden.",
+      });
+    }
+  }
 
   // Der Anfangssaldo fliesst in Soll/Endsaldo aller Perioden ein. Nach der
   // ersten Freigabe wuerde eine Aenderung abgeschlossene Monate nachtraeglich
@@ -186,6 +255,7 @@ adminRouter.put("/kostenstellen/:id", async (req, res) => {
   const ks = await prisma.kostenstelle.update({
     where: { id },
     data: {
+      firmaId: typeof firmaId === "number" ? firmaId : alt.firmaId,
       nummer: typeof nummer === "string" && nummer ? nummer : alt.nummer,
       bezeichnung: bezeichnung ?? alt.bezeichnung,
       gegenkonto: typeof gegenkonto === "string" && gegenkonto.trim() ? gegenkonto.trim() : alt.gegenkonto,
@@ -213,9 +283,12 @@ adminRouter.post("/kostenstellen/:id/aktiv", async (req, res) => {
 //  KONTEN (Kontenplan)
 // ============================================================
 
-adminRouter.get("/konten", async (_req, res) => {
+adminRouter.get("/konten", async (req, res) => {
+  // Optional nach Firma filtern (Kontenplan je Firma).
+  const firmaId = Number(req.query.firma);
   const konten = await prisma.konto.findMany({
-    orderBy: { nummer: "asc" },
+    where: Number.isInteger(firmaId) && firmaId > 0 ? { firmaId } : undefined,
+    orderBy: [{ firmaId: "asc" }, { nummer: "asc" }],
     include: { bereiche: { select: { bereichId: true } } },
   });
   res.json(
@@ -240,6 +313,7 @@ const fixSteuersatzSchema = z
   .nullable();
 
 const kontoSchema = z.object({
+  firmaId: z.number().int().positive(),
   nummer: z.string().min(1),
   bezeichnung: z.string().min(1),
   beschreibung: z.string().optional(),
@@ -252,8 +326,11 @@ adminRouter.post("/konten", async (req, res) => {
   const parse = kontoSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
   const { bereichIds, ...kontoDaten } = parse.data;
-  const vorhanden = await prisma.konto.findUnique({ where: { nummer: kontoDaten.nummer } });
-  if (vorhanden) return res.status(409).json({ fehler: "Kontonummer bereits vorhanden." });
+  if (!(await firmaVorhanden(kontoDaten.firmaId))) return res.status(400).json({ fehler: "Unbekannte Firma." });
+  const vorhanden = await prisma.konto.findUnique({
+    where: { firmaId_nummer: { firmaId: kontoDaten.firmaId, nummer: kontoDaten.nummer } },
+  });
+  if (vorhanden) return res.status(409).json({ fehler: "Kontonummer in dieser Firma bereits vorhanden." });
 
   const konto = await prisma.$transaction(async (tx) => {
     const k = await tx.konto.create({ data: kontoDaten });
@@ -278,10 +355,31 @@ adminRouter.put("/konten/:id", async (req, res) => {
     if (!fix.success) return res.status(400).json({ fehler: "Ungültiger fixer Steuersatz." });
     fixSteuersatz = fix.data;
   }
+  // Firmenwechsel (nur Admin): auch für bebuchte Konten, außer es hängen
+  // Buchungen eines freigegebenen Monats daran; ohne Nummernkollision.
+  let firmaId: number | undefined;
+  if (req.body && req.body.firmaId !== undefined) {
+    const alt = await prisma.konto.findUnique({ where: { id } });
+    if (!alt) return res.status(404).json({ fehler: "Nicht gefunden." });
+    const neu = Number(req.body.firmaId);
+    if (!Number.isInteger(neu) || neu <= 0 || !(await firmaVorhanden(neu))) {
+      return res.status(400).json({ fehler: "Unbekannte Firma." });
+    }
+    if (neu !== alt.firmaId) {
+      if ((await prisma.buchungsPosition.count({ where: { kontoId: id, buchung: { gesperrt: true } } })) > 0) {
+        return res.status(409).json({
+          fehler: "Auf dieses Konto wurde in einem bereits freigegebenen Monat gebucht; die Firma kann nicht mehr geändert werden.",
+        });
+      }
+      const kollision = await prisma.konto.findUnique({ where: { firmaId_nummer: { firmaId: neu, nummer: alt.nummer } } });
+      if (kollision) return res.status(409).json({ fehler: "Diese Kontonummer gibt es in der Zielfirma bereits." });
+      firmaId = neu;
+    }
+  }
   const konto = await prisma.$transaction(async (tx) => {
     const k = await tx.konto.update({
       where: { id },
-      data: { bezeichnung, beschreibung, anmerkung, fixSteuersatz },
+      data: { bezeichnung, beschreibung, anmerkung, fixSteuersatz, firmaId },
     });
     if (Array.isArray(bereichIds)) {
       // Freigabemenge vollstaendig neu setzen.

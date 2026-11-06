@@ -9,7 +9,7 @@ export async function pruefeKontenFreigabe(
 ): Promise<{ ok: true } | { ok: false; fehler: string }> {
   const ks = await prisma.kostenstelle.findUnique({
     where: { id: kostenstelleId },
-    select: { bereichId: true },
+    select: { bereichId: true, firmaId: true },
   });
   if (!ks) return { ok: false, fehler: "Kostenstelle nicht gefunden." };
 
@@ -20,6 +20,7 @@ export async function pruefeKontenFreigabe(
       id: true,
       nummer: true,
       aktiv: true,
+      firmaId: true,
       bereiche: { where: { bereichId: ks.bereichId }, select: { bereichId: true } },
     },
   });
@@ -29,6 +30,10 @@ export async function pruefeKontenFreigabe(
     const k = perId.get(id);
     if (!k) return { ok: false, fehler: `Konto (ID ${id}) nicht gefunden.` };
     if (!k.aktiv) return { ok: false, fehler: `Konto ${k.nummer} ist deaktiviert.` };
+    // Kontenplan je Firma: kein Konto einer anderen Firma bebuchen.
+    if (k.firmaId !== ks.firmaId) {
+      return { ok: false, fehler: `Konto ${k.nummer} gehört nicht zur Firma dieser Kostenstelle.` };
+    }
     if (k.bereiche.length === 0) {
       return { ok: false, fehler: `Konto ${k.nummer} ist fuer diesen Bereich nicht freigegeben.` };
     }

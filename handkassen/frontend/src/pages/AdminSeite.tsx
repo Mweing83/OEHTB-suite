@@ -75,6 +75,8 @@ interface Benutzer {
 }
 interface Kostenstelle {
   id: number;
+  firmaId: number;
+  firma: { id: number; name: string };
   nummer: string;
   bezeichnung: string;
   gegenkonto: string | null;
@@ -195,21 +197,31 @@ function BenutzerTab() {
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
             <h3 className="font-semibold text-marke-900 mb-1">Kostenstellen für {zuweisung.name}</h3>
             <p className="text-sm text-slate-500 mb-4">Welche Kassen darf dieser Benutzer bearbeiten?</p>
-            <div className="max-h-64 overflow-auto space-y-2 mb-4">
-              {kostenstellen.filter((k) => k.aktiv).map((k) => (
-                <label key={k.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={ausgewaehlt.includes(k.id)}
-                    onChange={(e) =>
-                      setAusgewaehlt((alt) =>
-                        e.target.checked ? [...alt, k.id] : alt.filter((x) => x !== k.id)
-                      )
-                    }
-                  />
-                  {k.bezeichnung} <span className="text-slate-500">({k.bereich.bezeichnung})</span>
-                </label>
-              ))}
+            <div className="max-h-64 overflow-auto space-y-3 mb-4">
+              {/* nach Firma gruppiert: über die Kostenstellen sieht der Benutzer die Firma */}
+              {Array.from(new Map(kostenstellen.filter((k) => k.aktiv).map((k) => [k.firmaId, k.firma])).values())
+                .sort((a, b) => a.id - b.id)
+                .map((f) => (
+                  <div key={f.id}>
+                    <div className="text-xs font-semibold text-slate-500 mb-1">{f.name}</div>
+                    <div className="space-y-2">
+                      {kostenstellen.filter((k) => k.aktiv && k.firmaId === f.id).map((k) => (
+                        <label key={k.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={ausgewaehlt.includes(k.id)}
+                            onChange={(e) =>
+                              setAusgewaehlt((alt) =>
+                                e.target.checked ? [...alt, k.id] : alt.filter((x) => x !== k.id)
+                              )
+                            }
+                          />
+                          {k.nummer} {k.bezeichnung} <span className="text-slate-500">({k.bereich.bezeichnung})</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setZuweisung(null)} className="px-3 py-2 text-sm text-slate-600 hover:underline">Abbrechen</button>
@@ -223,6 +235,110 @@ function BenutzerTab() {
 }
 
 // ============================================================
+//  TAB: Firmen (Mandanten)
+// ============================================================
+
+interface Firma { id: number; name: string; aktiv: boolean; }
+
+// Lädt die Firmen für Auswahlfelder (Kostenstellen, Kontenplan).
+function useFirmen(): Firma[] {
+  const [firmen, setFirmen] = useState<Firma[]>([]);
+  useEffect(() => {
+    api.get<Firma[]>("/admin/firmen").then(setFirmen).catch(() => {});
+  }, []);
+  return firmen;
+}
+
+function FirmenTab() {
+  const [liste, setListe] = useState<Firma[]>([]);
+  const [fehler, setFehler] = useState("");
+  const [neu, setNeu] = useState("");
+  const [bearbeiteId, setBearbeiteId] = useState<number | null>(null);
+  const [entwurf, setEntwurf] = useState("");
+
+  function laden() {
+    api.get<Firma[]>("/admin/firmen").then(setListe).catch(() => {});
+  }
+  useEffect(laden, []);
+
+  async function anlegen() {
+    setFehler("");
+    try {
+      await api.post("/admin/firmen", { name: neu.trim() });
+      setNeu("");
+      laden();
+    } catch (e) {
+      setFehler((e as Error).message);
+    }
+  }
+  async function speichern(id: number) {
+    setFehler("");
+    try {
+      await api.put(`/admin/firmen/${id}`, { name: entwurf.trim() });
+      setBearbeiteId(null);
+      laden();
+    } catch (e) {
+      setFehler((e as Error).message);
+    }
+  }
+  async function aktivSchalten(f: Firma) {
+    await api.post(`/admin/firmen/${f.id}/aktiv`, { aktiv: !f.aktiv }).catch((e) => setFehler((e as Error).message));
+    laden();
+  }
+
+  return (
+    <>
+      <Karte titel="Neue Firma anlegen">
+        <Fehlerzeile text={fehler} />
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium mb-1">Name</label>
+            <input className="w-full border rounded-sm px-3 py-2" value={neu} onChange={(e) => setNeu(e.target.value)} />
+          </div>
+          <button onClick={anlegen} className="bg-marke-700 text-white rounded-sm px-4 py-2 font-medium hover:bg-marke-800">Anlegen</button>
+        </div>
+      </Karte>
+      <Karte titel="Firmen">
+        <p className="text-sm text-slate-600 mb-3">
+          Jede Firma hat einen eigenen Kontenplan und eigene Kostenstellen; Monatsabschluss,
+          Kassastand und Export laufen getrennt je Firma. Benutzer:innen sehen eine Firma über
+          die ihnen zugeordneten Kostenstellen, Finanzen und Admin sehen alle Firmen.
+        </p>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-slate-500 border-b">
+              <th className="py-2">Name</th><th>Status</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {liste.map((f) => (
+              <tr key={f.id} className="border-b last:border-0">
+                <td className="py-2">
+                  {bearbeiteId === f.id ? (
+                    <input className={zelleInput} value={entwurf} onChange={(e) => setEntwurf(e.target.value)} />
+                  ) : f.name}
+                </td>
+                <td>{f.aktiv ? <span className="text-green-700">aktiv</span> : <span className="text-slate-500">inaktiv</span>}</td>
+                <td className="text-right space-x-2 whitespace-nowrap">
+                  {bearbeiteId === f.id ? (
+                    <SpeichernAbbrechen onSpeichern={() => speichern(f.id)} onAbbrechen={() => setBearbeiteId(null)} />
+                  ) : (
+                    <>
+                      <BearbeitenKnopf onClick={() => { setBearbeiteId(f.id); setEntwurf(f.name); }} />
+                      <StatusKnopf aktiv={f.aktiv} onClick={() => aktivSchalten(f)} />
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Karte>
+    </>
+  );
+}
+
+// ============================================================
 //  TAB: Kostenstellen
 // ============================================================
 
@@ -230,11 +346,13 @@ function KostenstellenTab() {
   const [liste, setListe] = useState<Kostenstelle[]>([]);
   const [bereiche, setBereiche] = useState<Stammwert[]>([]);
   const [kassenarten, setKassenarten] = useState<Stammwert[]>([]);
+  const firmen = useFirmen();
+  const aktiveFirmen = firmen.filter((f) => f.aktiv);
   const [fehler, setFehler] = useState("");
-  const [neu, setNeu] = useState({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: String(new Date().getFullYear()) });
+  const [neu, setNeu] = useState({ firmaId: 0, nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: String(new Date().getFullYear()) });
   // Inline-Bearbeitung
   const [bearbeiteId, setBearbeiteId] = useState<number | null>(null);
-  const [entwurf, setEntwurf] = useState({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: "" });
+  const [entwurf, setEntwurf] = useState({ firmaId: 0, nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: "" });
 
   function laden() {
     api.get<Kostenstelle[]>("/admin/kostenstellen").then(setListe).catch(() => {});
@@ -252,8 +370,10 @@ function KostenstellenTab() {
     if (!neu.nummer.trim()) { setFehler("Bitte eine Kostenstellen-Nummer eingeben."); return; }
     if (!neu.gegenkonto.trim()) { setFehler("Bitte ein Gegenkonto (BMD) eingeben."); return; }
     if (!neu.bereichId || !neu.kassenartId) { setFehler("Bitte Bereich und Art wählen."); return; }
+    if (!neu.firmaId) { setFehler("Bitte eine Firma wählen."); return; }
     try {
       await api.post("/admin/kostenstellen", {
+        firmaId: neu.firmaId,
         nummer: neu.nummer.trim(),
         bezeichnung: neu.bezeichnung,
         gegenkonto: neu.gegenkonto.trim(),
@@ -264,7 +384,7 @@ function KostenstellenTab() {
           ? { belegStartnummer: Number(neu.belegStartnummer), belegStartJahr: Number(neu.belegStartJahr) }
           : {}),
       });
-      setNeu({ nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: String(new Date().getFullYear()) });
+      setNeu({ firmaId: neu.firmaId, nummer: "", bezeichnung: "", gegenkonto: "", bereichId: 0, kassenartId: 0, anfangssaldo: "", belegStartnummer: "", belegStartJahr: String(new Date().getFullYear()) });
       laden();
     } catch (e) {
       setFehler((e as Error).message);
@@ -278,6 +398,7 @@ function KostenstellenTab() {
     setFehler("");
     setBearbeiteId(k.id);
     setEntwurf({
+      firmaId: k.firmaId,
       nummer: k.nummer,
       bezeichnung: k.bezeichnung,
       gegenkonto: k.gegenkonto ?? "",
@@ -295,6 +416,7 @@ function KostenstellenTab() {
     if (!entwurf.gegenkonto.trim()) { setFehler("Bitte ein Gegenkonto (BMD) eingeben."); return; }
     try {
       await api.put(`/admin/kostenstellen/${id}`, {
+        firmaId: entwurf.firmaId,
         nummer: entwurf.nummer.trim(),
         bezeichnung: entwurf.bezeichnung,
         gegenkonto: entwurf.gegenkonto.trim(),
@@ -365,7 +487,15 @@ function KostenstellenTab() {
             <input className="w-full border rounded-sm px-3 py-2 text-right" value={neu.belegStartJahr}
               onChange={(e) => setNeu({ ...neu, belegStartJahr: e.target.value })} />
           </div>
-          <p className="col-span-5 text-xs text-slate-500 self-center">
+          <div className="col-span-2">
+            <label className="block text-sm font-medium mb-1">Firma</label>
+            <select className="w-full border rounded-sm px-3 py-2" value={neu.firmaId}
+              onChange={(e) => setNeu({ ...neu, firmaId: Number(e.target.value) })}>
+              <option value={0}>wählen…</option>
+              {aktiveFirmen.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+          <p className="col-span-3 text-xs text-slate-500 self-center">
             Für die unterjährige Umstellung: die erste Buchung dieser Kassa im angegebenen Jahr erhält diese laufende Nummer.
           </p>
         </div>
@@ -381,7 +511,7 @@ function KostenstellenTab() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-slate-500 border-b">
-              <th className="py-2">Nummer</th><th>Bezeichnung</th><th>Gegenkonto</th><th>Bereich</th><th>Art</th>
+              <th className="py-2">Nummer</th><th>Bezeichnung</th><th>Firma</th><th>Gegenkonto</th><th>Bereich</th><th>Art</th>
               <th className="text-right">Anfangssaldo</th><th className="text-right">akt. Saldo</th><th>Start-Beleg</th><th>Status</th><th></th>
             </tr>
           </thead>
@@ -401,6 +531,16 @@ function KostenstellenTab() {
                     <input className={zelleInput} value={entwurf.bezeichnung}
                       onChange={(e) => setEntwurf({ ...entwurf, bezeichnung: e.target.value })} />
                   ) : k.bezeichnung}
+                </td>
+                <td>
+                  {imEdit ? (
+                    <select className={zelleInput} value={entwurf.firmaId}
+                      onChange={(e) => setEntwurf({ ...entwurf, firmaId: Number(e.target.value) })}>
+                      {firmen.filter((f) => f.aktiv || f.id === entwurf.firmaId).map((f) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  ) : k.firma.name}
                 </td>
                 <td>
                   {imEdit ? (
@@ -458,6 +598,7 @@ function KostenstellenTab() {
         </table>
         <p className="text-xs text-slate-500 mt-3">
           Hinweis: Wird der Anfangssaldo geändert, verschiebt sich der laufende Saldo um dieselbe Differenz.
+          Die Firma lässt sich ändern, bis der erste Monat dieser Kostenstelle freigegeben ist.
         </p>
       </Karte>
     </>
@@ -565,7 +706,7 @@ function SteuersaetzeTab() {
 //  TAB: Kontenplan
 // ============================================================
 
-interface Konto { id: number; nummer: string; bezeichnung: string; beschreibung?: string; anmerkung?: string; aktiv: boolean; bereichIds: number[]; fixSteuersatz: number | null; }
+interface Konto { id: number; firmaId: number; nummer: string; bezeichnung: string; beschreibung?: string; anmerkung?: string; aktiv: boolean; bereichIds: number[]; fixSteuersatz: number | null; }
 
 // Fixer Steuersatz im Formular: "" = frei wählbar, sonst der Prozentwert als Text.
 function fixAusText(t: string): number | null {
@@ -577,25 +718,31 @@ function KontenTab() {
   const [bereiche, setBereiche] = useState<Stammwert[]>([]);
   const [fehler, setFehler] = useState("");
   const [steuersaetze, setSteuersaetze] = useState<{ id: number; prozent: number; aktiv: boolean }[]>([]);
+  // Kontenplan je Firma: Auswahl oben steuert Liste und Neuanlage.
+  const firmen = useFirmen();
+  const [firmaId, setFirmaId] = useState(0);
+  useEffect(() => {
+    if (!firmaId && firmen.length) setFirmaId(firmen[0].id);
+  }, [firmen, firmaId]);
   const [neu, setNeu] = useState<{ nummer: string; bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[]; fix: string }>({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
   // Inline-Bearbeitung
   const [bearbeiteId, setBearbeiteId] = useState<number | null>(null);
-  const [entwurf, setEntwurf] = useState<{ bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[]; fix: string }>({ bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
+  const [entwurf, setEntwurf] = useState<{ firmaId: number; bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[]; fix: string }>({ firmaId: 0, bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
 
   function laden() {
-    api.get<Konto[]>("/admin/konten").then(setListe).catch(() => {});
+    if (firmaId) api.get<Konto[]>(`/admin/konten?firma=${firmaId}`).then(setListe).catch(() => {});
     api.get<Stammwert[]>("/admin/bereiche").then(setBereiche).catch(() => {});
     api.get<{ id: number; prozent: number | string; aktiv: boolean }[]>("/admin/steuersaetze")
       .then((l) => setSteuersaetze(l.map((x) => ({ ...x, prozent: Number(x.prozent) }))))
       .catch(() => {});
   }
-  useEffect(laden, []);
+  useEffect(laden, [firmaId]);
 
   async function anlegen() {
     setFehler("");
     try {
       const { fix, ...daten } = neu;
-      await api.post("/admin/konten", { ...daten, fixSteuersatz: fixAusText(fix) });
+      await api.post("/admin/konten", { ...daten, firmaId, fixSteuersatz: fixAusText(fix) });
       setNeu({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
       laden();
     } catch (e) {
@@ -609,7 +756,7 @@ function KontenTab() {
   function bearbeitenStarten(k: Konto) {
     setFehler("");
     setBearbeiteId(k.id);
-    setEntwurf({ bezeichnung: k.bezeichnung, beschreibung: k.beschreibung ?? "", anmerkung: k.anmerkung ?? "", bereichIds: k.bereichIds, fix: k.fixSteuersatz == null ? "" : String(k.fixSteuersatz) });
+    setEntwurf({ firmaId: k.firmaId, bezeichnung: k.bezeichnung, beschreibung: k.beschreibung ?? "", anmerkung: k.anmerkung ?? "", bereichIds: k.bereichIds, fix: k.fixSteuersatz == null ? "" : String(k.fixSteuersatz) });
   }
   async function bearbeitenSpeichern(id: number) {
     setFehler("");
@@ -620,6 +767,7 @@ function KontenTab() {
         anmerkung: entwurf.anmerkung,
         bereichIds: entwurf.bereichIds,
         fixSteuersatz: fixAusText(entwurf.fix),
+        firmaId: entwurf.firmaId,
       });
       setBearbeiteId(null);
       laden();
@@ -647,6 +795,14 @@ function KontenTab() {
 
   return (
     <>
+      <div className="flex items-center gap-3 mb-4">
+        <label className="text-sm font-medium">Firma:</label>
+        <select className="border rounded-sm px-3 py-2" value={firmaId}
+          onChange={(e) => { setFirmaId(Number(e.target.value)); setBearbeiteId(null); }}>
+          {firmen.map((f) => <option key={f.id} value={f.id}>{f.name}{f.aktiv ? "" : " (inaktiv)"}</option>)}
+        </select>
+        <span className="text-xs text-slate-500">Jede Firma hat einen eigenen Kontenplan.</span>
+      </div>
       <Karte titel="Neues Konto anlegen">
         <Fehlerzeile text={fehler} />
         <div className="grid grid-cols-5 gap-3 items-end">
@@ -700,8 +856,17 @@ function KontenTab() {
                 <td className="py-2">{k.nummer}</td>
                 <td>
                   {imEdit ? (
-                    <input className={zelleInput} value={entwurf.bezeichnung}
-                      onChange={(e) => setEntwurf({ ...entwurf, bezeichnung: e.target.value })} />
+                    <>
+                      <input className={zelleInput} value={entwurf.bezeichnung}
+                        onChange={(e) => setEntwurf({ ...entwurf, bezeichnung: e.target.value })} />
+                      {/* Konto in eine andere Firma umhängen (bis zur ersten Monatsfreigabe) */}
+                      <select className={`${zelleInput} mt-1`} value={entwurf.firmaId} title="Firma"
+                        onChange={(e) => setEntwurf({ ...entwurf, firmaId: Number(e.target.value) })}>
+                        {firmen.filter((f) => f.aktiv || f.id === entwurf.firmaId).map((f) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </>
                   ) : k.bezeichnung}
                 </td>
                 <td className="text-slate-500">
@@ -1589,6 +1754,7 @@ const GRUPPEN = [
   {
     id: "stammdaten", label: "Stammdaten", unter: [
       { id: "kostenstellen", label: "Kostenstellen" },
+      { id: "firmen", label: "Firmen" },
       { id: "bereiche", label: "Bereiche" },
       { id: "arten", label: "Kassenarten" },
       { id: "konten", label: "Kontenplan" },
@@ -1617,7 +1783,7 @@ const GRUPPEN = [
 
 type GruppeId = (typeof GRUPPEN)[number]["id"];
 type UnterId =
-  | "kostenstellen" | "bereiche" | "arten" | "konten" | "steuer"
+  | "kostenstellen" | "firmen" | "bereiche" | "arten" | "konten" | "steuer"
   | "benutzer"
   | "belege" | "kassensperre" | "kontakt"
   | "backup" | "audit";
@@ -1671,6 +1837,7 @@ export default function AdminSeite() {
 
       {unter === "benutzer" && <BenutzerTab />}
       {unter === "kostenstellen" && <KostenstellenTab />}
+      {unter === "firmen" && <FirmenTab />}
       {unter === "bereiche" && <StammwertTab basis="/admin/bereiche" titelEinzahl="Bereich" titelMehrzahl="Bereiche" />}
       {unter === "arten" && <StammwertTab basis="/admin/kassenarten" titelEinzahl="Kassenart" titelMehrzahl="Kassenarten" />}
       {unter === "steuer" && <SteuersaetzeTab />}

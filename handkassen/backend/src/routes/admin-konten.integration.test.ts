@@ -18,7 +18,7 @@ run("Admin Konten-Freigaben (Integration)", () => {
   it("legt ein Konto mit Bereichs-Freigaben an", async () => {
     const agent = await alsAgent("admin");
     const r = await agent.post("/api/admin/konten").send({
-      nummer: "70000", bezeichnung: "Neu", bereichIds: [bereichId],
+      firmaId: 1, nummer: "70000", bezeichnung: "Neu", bereichIds: [bereichId],
     });
     expect(r.status).toBe(201);
     const anzahl = await prisma.bereichKonto.count({ where: { kontoId: r.body.id, bereichId } });
@@ -33,7 +33,7 @@ run("Admin Konten-Freigaben (Integration)", () => {
   });
 
   it("ersetzt die Freigabemenge per PUT", async () => {
-    const konto = await prisma.konto.findUnique({ where: { nummer: "50000" } });
+    const konto = await prisma.konto.findUnique({ where: { firmaId_nummer: { firmaId: 1, nummer: "50000" } } });
     const agent = await alsAgent("admin");
     const r = await agent.put(`/api/admin/konten/${konto!.id}`).send({
       bezeichnung: "Testkonto", bereichIds: [],

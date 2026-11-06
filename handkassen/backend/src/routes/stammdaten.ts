@@ -30,12 +30,12 @@ stammdatenRouter.get("/konten", angemeldet, async (req, res) => {
   }
   const ks = await prisma.kostenstelle.findUnique({
     where: { id: kostenstelleId },
-    select: { bereichId: true },
+    select: { bereichId: true, firmaId: true },
   });
   if (!ks) return res.status(404).json({ fehler: "Kostenstelle nicht gefunden." });
 
   const konten = await prisma.konto.findMany({
-    where: { aktiv: true, bereiche: { some: { bereichId: ks.bereichId } } },
+    where: { aktiv: true, firmaId: ks.firmaId, bereiche: { some: { bereichId: ks.bereichId } } },
     orderBy: { nummer: "asc" },
   });
   res.json(konten.map((k) => ({ ...k, fixSteuersatz: k.fixSteuersatz == null ? null : Number(k.fixSteuersatz) })));
@@ -74,20 +74,37 @@ stammdatenRouter.get("/kostenstellen", angemeldet, async (req, res) => {
   // Nur AKTIVE Kostenstellen fuer die operative Auswahl (Buchen/Berichte/
   // Abschluss). Deaktivierte werden ausschliesslich in der Verwaltung
   // (/admin/kostenstellen) angezeigt und verwaltet.
+  // Kostenstellen deaktivierter Firmen sind operativ ebenfalls ausgeblendet.
   if (b.rolle === "admin" || b.rolle === "finanzen") {
     const alle = await prisma.kostenstelle.findMany({
-      where: { aktiv: true },
-      include: { bereich: true, kassenart: true },
+      where: { aktiv: true, firma: { aktiv: true } },
+      include: { bereich: true, kassenart: true, firma: true },
       orderBy: { nummer: "asc" },
     });
     return res.json(alle);
   }
   const eigene = await prisma.kostenstelle.findMany({
-    where: { aktiv: true, benutzer: { some: { benutzerId: b.id } } },
-    include: { bereich: true, kassenart: true },
+    where: { aktiv: true, firma: { aktiv: true }, benutzer: { some: { benutzerId: b.id } } },
+    include: { bereich: true, kassenart: true, firma: true },
     orderBy: { nummer: "asc" },
   });
   res.json(eigene);
+});
+
+// --- Firmen, die der Benutzer sieht (Auswahl oberhalb der Kostenstelle) ---
+// Finanzen/Admin: alle aktiven Firmen; sonst die Firmen der freigeschalteten
+// Kostenstellen.
+stammdatenRouter.get("/firmen", angemeldet, async (req, res) => {
+  const b = req.benutzer!;
+  const alle = b.rolle === "admin" || b.rolle === "finanzen";
+  const firmen = await prisma.firma.findMany({
+    where: alle
+      ? { aktiv: true }
+      : { aktiv: true, kostenstellen: { some: { aktiv: true, benutzer: { some: { benutzerId: b.id } } } } },
+    orderBy: { id: "asc" },
+    select: { id: true, name: true },
+  });
+  res.json(firmen);
 });
 
 // Einzelne Kostenstelle (mit Zugriffsprüfung)

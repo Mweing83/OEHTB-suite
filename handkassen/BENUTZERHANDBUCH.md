@@ -94,8 +94,13 @@ Rechts oben stehen der eigene Name samt Rolle sowie der Link **Abmelden**.
 
 Der Menüpunkt **Buchungen** ist die zentrale Arbeitsfläche.
 
-### Kostenstelle und Monat wählen
-Ganz oben wird die **Kostenstelle** ausgewählt, darunter bei **Monat** das
+### Firma, Kostenstelle und Monat wählen
+Die Handkassa wird für mehrere Firmen genutzt. Wer Zugriff auf mehr als eine
+Firma hat, wählt ganz oben die **Firma**; angeboten werden dann nur deren
+Kostenstellen und Konten. Wer nur für eine Firma bucht, sieht keine
+Firmenauswahl.
+
+Danach wird die **Kostenstelle** ausgewählt, darunter bei **Monat** das
 **Jahr** und der **Monat** (zwei getrennte Auswahlfelder). Rechts wird laufend
 der aktuelle **Kassenstand** der Kostenstelle angezeigt. Die Buchungsliste zeigt
 die Buchungen des gewählten Monats; neue Buchungen werden in diesen Monat
@@ -301,9 +306,12 @@ oder gedruckt werden.
   Spalte „Betrag" ist vorzeichenbehaftet (Ausgänge negativ) und summiert sich
   zum Saldo des Zeitraums.
 
-### Export über alle Kassen (nur Finanzen/Admin)
+### Export je Firma (nur Finanzen/Admin)
 Im unteren Abschnitt – nur für Finanzen und Admin sichtbar – gibt es den
-monatsweisen Export **über alle Kostenstellen**:
+monatsweisen Export **über alle Kostenstellen einer Firma**. Zuerst die
+**Firma** wählen: Jede Firma wird getrennt exportiert, damit die Buchungen in
+den jeweils richtigen NTCS-Mandanten eingespielt werden. Der Dateiname enthält
+die Firma (z. B. `bmd_ka_oehtb_wohnen_gmbh_2026_09.csv`).
 
 - **BMD-CSV** – Buchungssatz-Datei (CSV, Semikolon) für den Import in die
   Buchhaltungssoftware BMD. Die Spalte „dokument“ nennt die Belegdatei der
@@ -338,7 +346,16 @@ vier Oberbereiche mit Unterreitern gegliedert.
 - **Bereiche** – die organisatorischen Bereiche, denen Kostenstellen zugeordnet
   sind.
 - **Kassenarten** – die Arten von Kassen.
-- **Kontenplan** – die Konten, auf die gebucht wird (Nummer und Bezeichnung).
+- **Firmen** – die Firmen (Mandanten), für die die Handkassa geführt wird.
+  Jede Firma hat einen eigenen Kontenplan und eigene Kostenstellen;
+  Monatsabschluss, Kassastand und Export laufen getrennt je Firma. Eine Firma
+  lässt sich umbenennen oder deaktivieren (ihre Kostenstellen sind dann im
+  Alltag ausgeblendet).
+- **Kontenplan** – die Konten, auf die gebucht wird (Nummer und Bezeichnung),
+  **je Firma**: Oben die Firma wählen; Liste und Neuanlage gelten für diese
+  Firma. Dieselbe Kontonummer darf es in mehreren Firmen geben. Beim
+  Bearbeiten lässt sich ein Konto (wie eine Kostenstelle) in eine andere Firma
+  umhängen, solange in einem betroffenen Monat noch nichts freigegeben wurde.
   In der Spalte **Steuersatz** lässt sich je Konto ein **fixer Steuersatz**
   hinterlegen (z. B. 0 % bei Dotationen); er wird bei der Buchung automatisch
   übernommen und ist dort nicht änderbar. „frei wählbar“ heißt: Der Steuersatz

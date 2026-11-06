@@ -57,6 +57,14 @@ Handkassen-System", Version 1.0.
 - Ersteller wird automatisch und unveränderbar hinterlegt.
 - Erfasser:innen sind **je Kostenstelle separat freigeschaltet** (Tabelle
   benutzer_kostenstelle). Nutzer sehen nur Daten ihrer zugewiesenen Kostenstellen.
+- Mehrere Firmen (Tabelle firma): Kostenstelle und Konto gehören zu genau einer
+  Firma (Konto.nummer nur je Firma eindeutig, Kostenstelle.nummer global, weil
+  sie in Belegnummer und Belegdateinamen steckt). Gebucht werden darf nur auf
+  Konten der Firma der Kostenstelle. Sichtbarkeit einer Firma ergibt sich aus
+  den freigeschalteten Kostenstellen; finanzen/admin sehen alle. Exporte
+  (BMD, BMD-ZIP, CSV) verlangen ?firma=. Firmenwechsel einer Kostenstelle bzw.
+  eines Kontos (nur Admin) auch mit Buchungen, aber nicht mehr nach der ersten
+  Monatsfreigabe (gesperrte Buchungen bzw. freigegebener Abschluss).
 - Monatsabschluss-Status: offen -> eingereicht -> geprüft -> freigegeben.
   Solange die Periode nicht freigegeben ist, werden Buchungen direkt bearbeitet
   (PUT /buchungen/:id; alte/neue Werte im audit_log, Nummern bleiben). Nach
