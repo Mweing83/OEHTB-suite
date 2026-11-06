@@ -26,10 +26,18 @@ export async function resetDb() {
       backup_konfig, allgemein_konfig
     RESTART IDENTITY CASCADE;
   `);
-  // Die vier Firmen stammen aus der Migration und bleiben; in Tests angelegte
-  // bzw. geänderte Firmen werden zurückgesetzt.
+  // Die vier Firmen legt in Produktion die Migration an. Die CI baut die
+  // Testdatenbank aber per "prisma db push" (ohne Migrations-SQL) – daher hier
+  // sicherstellen, dass genau diese vier Firmen (wieder) vorhanden sind.
   await prisma.$executeRawUnsafe(`DELETE FROM firma WHERE id > 4`);
-  await prisma.$executeRawUnsafe(`UPDATE firma SET aktiv = true`);
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO firma (id, name, aktiv) VALUES
+      (1, 'ÖHTB Dienstleistungen GmbH', true),
+      (2, 'ÖHTB Arbeiten GmbH', true),
+      (3, 'ÖHTB Wohnen GmbH', true),
+      (4, 'ÖHTB Verein', true)
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, aktiv = true
+  `);
   await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"firma"', 'id'), 4)`);
 }
 

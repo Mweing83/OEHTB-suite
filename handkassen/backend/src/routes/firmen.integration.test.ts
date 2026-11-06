@@ -15,7 +15,7 @@ run("Mehrere Firmen (Integration)", () => {
     basis = await seedBasis();
   });
 
-  it("die Migration legt die vier Firmen an", async () => {
+  it("die vier Firmen sind angelegt (Migration bzw. Test-Reset)", async () => {
     const admin = await alsAgent("admin");
     const r = await admin.get("/api/admin/firmen");
     expect(r.body.map((f: { name: string }) => f.name)).toEqual([
