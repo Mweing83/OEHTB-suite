@@ -6,7 +6,7 @@ import { prisma } from "../lib/db.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { audit } from "../lib/audit.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
-import { buchungValidieren, saldoWirkung, belegnummerFormat, buchungFuerAusgabe, type BuchungEingabe } from "../lib/buchungslogik.js";
+import { buchungValidieren, saldoWirkung, belegnummerFormat, buchungFuerAusgabe, textNormalisieren, type BuchungEingabe } from "../lib/buchungslogik.js";
 import { monatGesperrt } from "../lib/sperre.js";
 import { belegPflichtAktiv } from "../lib/einstellungen.js";
 import { pruefeKontenFreigabe, pruefeFixSteuersaetze } from "../lib/kontoFreigabe.js";
@@ -287,7 +287,7 @@ buchungRouter.get("/", angemeldet, async (req, res) => {
   const buchungen = await prisma.buchung.findMany({
     where: { kostenstelleId },
     include: {
-      positionen: { include: { konto: true } },
+      positionen: { include: { konto: true }, orderBy: { id: "asc" } },
       beleg: true,
       ersteller: { select: { name: true } },
       korrekturVon: { select: { buchungsnummer: true } },
@@ -299,7 +299,7 @@ buchungRouter.get("/", angemeldet, async (req, res) => {
 
 // --- Buchung anlegen ---
 buchungRouter.post("/", angemeldet, async (req, res) => {
-  const eingabe = req.body as BuchungEingabe & { belegId?: number };
+  const eingabe = textNormalisieren(req.body as BuchungEingabe & { belegId?: number });
 
   // 1) Zugriff auf Kostenstelle prüfen
   if (!(await darfKostenstelle(req.benutzer!, eingabe.kostenstelleId))) {
@@ -381,6 +381,7 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
             betragCent: p.betragCent,
             steuersatz: p.steuersatz,
             kontoId: p.kontoId,
+            text: p.text ?? null,
           })),
         },
       },
@@ -545,10 +546,10 @@ buchungRouter.put("/:id", angemeldet, async (req, res) => {
   if (original.storniert) return res.status(409).json({ fehler: "Buchung ist storniert." });
 
   // Die Kostenstelle ist Teil der Belegnummer und bleibt daher fest.
-  const eingabe: BuchungEingabe & { belegId?: number } = {
+  const eingabe: BuchungEingabe & { belegId?: number } = textNormalisieren({
     ...(req.body as BuchungEingabe & { belegId?: number }),
     kostenstelleId: original.kostenstelleId,
-  };
+  });
 
   const pruef = await fachlichPruefen(eingabe);
   if (!pruef.ok) return res.status(400).json({ fehler: pruef.fehler });
@@ -622,6 +623,7 @@ buchungRouter.put("/:id", angemeldet, async (req, res) => {
             betragCent: p.betragCent,
             steuersatz: p.steuersatz,
             kontoId: p.kontoId,
+            text: p.text ?? null,
           })),
         },
       },

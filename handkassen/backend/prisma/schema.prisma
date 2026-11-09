@@ -246,6 +246,9 @@ model BuchungsPosition {
   steuersatz  Decimal @db.Decimal(5, 1) // Satz mit bis zu einer Nachkommastelle
   kontoId     Int
   konto       Konto   @relation(fields: [kontoId], references: [id])
+  // Text der Buchungszeile (Pflicht bei Splitbuchungen, z. B. "Lebensmittel",
+  // "Taschentücher"). Ohne Split null – dann gilt die Beschreibung der Buchung.
+  text        String?
 
   @@index([buchungId])
   @@map("buchungsposition")

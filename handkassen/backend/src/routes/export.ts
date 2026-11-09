@@ -7,6 +7,7 @@ import { csvFeld } from "../lib/csv.js";
 import { angemeldet, rolleErforderlich } from "../middleware/auth.js";
 import { UPLOAD_DIR } from "../lib/uploads.js";
 import { bmdCsv, centZuStr, nettoUndSteuer } from "../lib/bmd-export.js";
+import { positionsText } from "../lib/buchungslogik.js";
 
 export const exportRouter = Router();
 
@@ -105,7 +106,8 @@ async function bmdDatenLaden(firmaId: number, jahr: number, monat: number): Prom
       // kost = offizielle Kostenstellen-Nummer (Verwaltung -> Kostenstellen)
       kostenstelleNummer: p.buchung.kostenstelle.nummer,
       gegenkonto: p.buchung.kostenstelle.gegenkonto!,
-      beschreibung: p.buchung.beschreibung,
+      // Text der Buchungszeile (Splitbuchung), sonst Buchungsbeschreibung.
+      beschreibung: positionsText(p, p.buchung.beschreibung),
       dokument: belege.get(p.buchung.id)?.name ?? "",
     }))
   );
@@ -226,7 +228,7 @@ exportRouter.get(
     const buchungen = await prisma.buchung.findMany({
       where: { belegdatum: { gte: von, lt: bis }, storniert: false, kostenstelle: { firmaId } },
       include: {
-        positionen: { include: { konto: true } },
+        positionen: { include: { konto: true }, orderBy: { id: "asc" } },
         kostenstelle: { include: { bereich: true } },
       },
       orderBy: [{ kostenstelleId: "asc" }, { belegdatum: "asc" }, { buchungsnummer: "asc" }],
@@ -235,30 +237,30 @@ exportRouter.get(
     const SP = ";";
     const kopf = [
       "Kostenstelle_Nr", "Kostenstelle", "Bereich", "Nr.", "Belegnummer", "Belegdatum",
-      "Typ", "Beschreibung", "Konten", "MwSt_EUR", "Betrag_EUR",
+      "Typ", "Beschreibung", "Konto", "MwSt_EUR", "Betrag_EUR",
     ].join(SP);
 
-    const zeilen = buchungen.map((b) => {
-      const mwst = b.positionen.reduce(
-        (s, p) => s + nettoUndSteuer(p.betragCent, Number(p.steuersatz)).steuerCent,
-        0
-      );
-      const konten = b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ");
-      const signiert = b.typ === "ausgang" ? -b.betragCent : b.betragCent;
-      return [
-        csvFeld(b.kostenstelle.nummer),
-        csvFeld(b.kostenstelle.bezeichnung),
-        csvFeld(b.kostenstelle.bereich.bezeichnung),
-        csvFeld(b.buchungsnummer),
-        csvFeld(b.belegnummer),
-        csvFeld(datumDeCsv(b.belegdatum)),
-        csvFeld(b.typ === "ausgang" ? "Ausgang" : "Eingang"),
-        csvFeld(b.beschreibung ?? ""),
-        csvFeld(konten),
-        csvFeld(centZuStr(mwst)),
-        csvFeld(centZuStr(signiert)),
-      ].join(SP);
-    });
+    // Eine Zeile je Buchungszeile (Splitbuchung = mehrere Zeilen mit derselben
+    // Belegnummer); die Summe der Zeilen ergibt den Belegbetrag.
+    const zeilen = buchungen.flatMap((b) =>
+      b.positionen.map((p) => {
+        const mwst = nettoUndSteuer(p.betragCent, Number(p.steuersatz)).steuerCent;
+        const signiert = b.typ === "ausgang" ? -p.betragCent : p.betragCent;
+        return [
+          csvFeld(b.kostenstelle.nummer),
+          csvFeld(b.kostenstelle.bezeichnung),
+          csvFeld(b.kostenstelle.bereich.bezeichnung),
+          csvFeld(b.buchungsnummer),
+          csvFeld(b.belegnummer),
+          csvFeld(datumDeCsv(b.belegdatum)),
+          csvFeld(b.typ === "ausgang" ? "Ausgang" : "Eingang"),
+          csvFeld(positionsText(p, b.beschreibung)),
+          csvFeld(`${p.konto.nummer} (${p.steuersatz}%)`),
+          csvFeld(centZuStr(mwst)),
+          csvFeld(centZuStr(signiert)),
+        ].join(SP);
+      })
+    );
 
     // UTF-8 mit BOM, CRLF (sonst zeigt Excel Umlaute falsch).
     const inhalt = "\uFEFF" + [kopf, ...zeilen].join("\r\n") + "\r\n";

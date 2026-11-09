@@ -140,11 +140,13 @@ Enthält ein Beleg Positionen mit **unterschiedlichen Konten oder Steuersätzen*
 wählen:
 
 - Zuerst den **Gesamtbetrag laut Beleg** (brutto) eingeben.
-- Danach je Position **Konto → Betrag → Steuersatz**. Die Kassa zeigt laufend,
-  welcher Betrag **noch aufzuteilen** ist, und schlägt diesen Restbetrag bei
-  jeder weiteren Position als Betrag vor.
-- **Enter** im Steuersatz der letzten Position legt bei offenem Restbetrag eine
-  neue Position an; ist der Rest 0,00 €, geht es weiter bzw. wird gespeichert.
+- Danach je Position **Konto → Betrag → Steuersatz → Beschreibung**. Jede
+  Zeile bekommt ihren eigenen Text (Pflichtfeld, z. B. „Lebensmittel“,
+  „Taschentücher“); das allgemeine Beschreibungsfeld entfällt bei der
+  Splitbuchung. Die Kassa zeigt laufend, welcher Betrag **noch aufzuteilen**
+  ist, und schlägt diesen Restbetrag bei jeder weiteren Position als Betrag vor.
+- **Enter** in der Beschreibung der letzten Position legt bei offenem
+  Restbetrag eine neue Position an; ist der Rest 0,00 €, wird gespeichert.
 - Gespeichert werden kann erst, wenn der Restbetrag **0,00 €** ist. Eine
   überflüssige Position lässt sich mit dem **✕** entfernen.
 
@@ -301,7 +303,10 @@ oder gedruckt werden.
 
 ### CSV (Excel)
 - **CSV (Excel)** – lädt die Buchungen des gewählten Zeitraums als Tabelle
-  herunter. Die Datei ist auf Excel im deutschsprachigen Raum abgestimmt
+  herunter, **eine Zeile je Buchungszeile**: Eine Splitbuchung erscheint als
+  mehrere Zeilen mit derselben Nummer, Belegnummer und demselben Datum, aber
+  eigenem Konto, Steuersatz, MwSt, Betrag und eigener Beschreibung; die Zeilen
+  ergeben zusammen den Belegbetrag. Die Datei ist auf Excel im deutschsprachigen Raum abgestimmt
   (Semikolon-getrennt, Komma als Dezimaltrennzeichen, Umlaute korrekt). Die
   Spalte „Betrag" ist vorzeichenbehaftet (Ausgänge negativ) und summiert sich
   zum Saldo des Zeitraums.
@@ -315,7 +320,10 @@ die Firma (z. B. `bmd_ka_oehtb_wohnen_gmbh_2026_09.csv`).
 
 - **BMD-CSV** – Buchungssatz-Datei (CSV, Semikolon) für den Import in die
   Buchhaltungssoftware BMD. Die Spalte „dokument“ nennt die Belegdatei der
-  Buchung (Belegnummer + Endung, z. B. `2026-1370-01.jpg`).
+  Buchung (Belegnummer + Endung, z. B. `2026-1370-01.jpg`). Jede Buchungszeile
+  ist eine eigene Satzzeile; bei einer Splitbuchung tragen alle Zeilen dieselbe
+  Belegnummer und dasselbe Dokument, aber eigenes Konto, Steuersatz, Betrag und
+  den Text der Zeile.
 - **BMD-ZIP (CSV + Belege)** – dieselbe CSV zusammen mit allen Belegdateien
   des Monats in einer ZIP-Datei. Die Dateien heißen genau so wie in der Spalte
   „dokument“. Fehlt eine Belegdatei am Server, bleibt „dokument“ leer und die

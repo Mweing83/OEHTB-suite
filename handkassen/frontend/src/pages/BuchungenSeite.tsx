@@ -28,7 +28,7 @@ interface Buchung {
   ersteller: { name: string };
   beleg?: { id: number; originalname: string } | null;
   korrekturVon?: { buchungsnummer: number } | null;
-  positionen: { steuersatz: number; betragCent: number; kontoId: number; konto: { nummer: string } }[];
+  positionen: { steuersatz: number; betragCent: number; kontoId: number; text: string | null; konto: { nummer: string } }[];
 }
 
 export default function BuchungenSeite() {
@@ -213,6 +213,7 @@ export default function BuchungenSeite() {
       beschreibung: b.beschreibung ?? "",
       hatBeleg: !!b.beleg,
       positionen: b.positionen.map((p) => ({
+        text: p.text ?? "",
         betrag: (p.betragCent / 100).toFixed(2).replace(".", ","),
         steuersatz: p.steuersatz,
         kontoId: p.kontoId,
@@ -427,7 +428,9 @@ export default function BuchungenSeite() {
                         <span className="ml-2 text-xs text-amber-700">(Korrektur von Nr. {b.korrekturVon.buchungsnummer})</span>
                       )}
                       <div className="text-xs text-slate-500">
-                        {b.positionen.map((p) => `${p.konto.nummer} (${formatProzent(p.steuersatz)}%)`).join(", ")}
+                        {b.positionen
+                          .map((p) => `${p.konto.nummer} (${formatProzent(p.steuersatz)}%)${p.text ? ` ${p.text}` : ""}`)
+                          .join(", ")}
                       </div>
                     </td>
                     <td className="text-right">

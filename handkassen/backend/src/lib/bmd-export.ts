@@ -34,10 +34,12 @@ export function centZuStr(cent: number): string {
 // Aus einem Brutto-Betrag (Cent) den Netto- und den Steueranteil (Cent) bilden.
 // Wichtig: netto + steuer ergibt cent-genau wieder den Bruttobetrag,
 // damit der Kassenstand exakt erhalten bleibt.
+// Gerundet wird die Steuer (wie im Detailbericht), das Netto ist der Rest –
+// so stimmen alle Exporte und Berichte cent-genau überein.
 export function nettoUndSteuer(bruttoCent: number, prozent: number): { nettoCent: number; steuerCent: number } {
   if (!prozent) return { nettoCent: bruttoCent, steuerCent: 0 };
-  const nettoCent = Math.round(bruttoCent / (1 + prozent / 100));
-  const steuerCent = bruttoCent - nettoCent; // Rest, damit Summe exakt stimmt
+  const steuerCent = Math.round(bruttoCent - bruttoCent / (1 + prozent / 100));
+  const nettoCent = bruttoCent - steuerCent; // Rest, damit Summe exakt stimmt
   return { nettoCent, steuerCent };
 }
 

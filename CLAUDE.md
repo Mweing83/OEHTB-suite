@@ -21,10 +21,12 @@ Versionen werden bei jeder Änderung **selbstständig** vergeben, ohne Rückfrag
   Teiländerungen. Beispiel: Fix in Handkassen → Handkassen und Suite je PATCH.
 - **Wann:** im selben Commit wie die Änderung. Die Commit-Nachricht nennt die
   neue(n) Version(en), z. B. `(Handkassen 0.9.1, Suite 0.9.1)`.
+- **Setzen:** `node scripts/version-setzen.mjs <suite|handkassen|stunden|foerderungen> <x.y.z>`
+  ändert package.json und Lockfile-Kopf einer Gruppe in einem Schritt.
 - **Prüfung:** `npm run versions-check` (läuft auch in der CI) prüft, dass die
   zusammengehörigen Nummern übereinstimmen.
 - **Anzeige:** In der Kopfzeile jeder Oberfläche (Portal „Suite vX“, Tools
   „<Tool> vX“). Die Frontends lesen die Version beim Build aus ihrer
   `package.json` (`__APP_VERSION__` per Vite `define`).
 
-Stand 06.11.2026: Suite 0.9.0, Handkassen 0.9.0, Stunden 0.1.0, Förderungen 0.1.0.
+Stand 09.11.2026: Suite 0.10.0, Handkassen 0.10.0, Stunden 0.1.0, Förderungen 0.1.0.

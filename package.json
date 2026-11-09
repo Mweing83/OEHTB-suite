@@ -1,6 +1,6 @@
 {
   "name": "oehtb-suite",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "OEHTB-Suite: Werkzeuge (Prettier/ESLint, Drift-Check) fuer die gesamte Suite. Die drei Anwendungen (backend, handkassen, stunden) bleiben eigenstaendige npm-Projekte.",

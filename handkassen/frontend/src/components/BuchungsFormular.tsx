@@ -17,6 +17,7 @@ interface Steuersatz {
 }
 
 interface Position {
+  text: string; // Beschreibung der Buchungszeile (nur bei Splitbuchung)
   betrag: string; // Eingabe als Text ("12,50")
   steuersatz: number | null; // null = noch nicht gewählt (kein Vorschlag)
   kontoId: number;
@@ -31,7 +32,7 @@ export interface BearbeitenVorlage {
   typ: "eingang" | "ausgang";
   beschreibung: string;
   hatBeleg: boolean;
-  positionen: { betrag: string; steuersatz: number; kontoId: number }[];
+  positionen: { text: string; betrag: string; steuersatz: number; kontoId: number }[];
 }
 
 interface Props {
@@ -49,7 +50,7 @@ interface Props {
   onBearbeitenAbbrechen?: () => void;
 }
 
-const LEER: Position = { betrag: "", steuersatz: null, kontoId: 0 };
+const LEER: Position = { text: "", betrag: "", steuersatz: null, kontoId: 0 };
 
 function zweistellig(n: number): string {
   return String(n).padStart(2, "0");
@@ -167,11 +168,13 @@ export default function BuchungsFormular({
     if (!p.kontoId) fehlend.push(`${vor}Konto`);
     if (posCent[i] == null) fehlend.push(`${vor}Betrag`);
     if (p.steuersatz == null) fehlend.push(`${vor}Steuersatz`);
+    if (split && !p.text.trim()) fehlend.push(`${vor}Beschreibung`);
   });
   if (split && gesamtCent != null && restCent !== 0) {
     fehlend.push(restCent > 0 ? `noch ${formatCent(restCent)} aufzuteilen` : `${formatCent(-restCent)} zu viel aufgeteilt`);
   }
-  if (!beschreibung.trim()) fehlend.push("Beschreibung");
+  // Ohne Split eine Beschreibung für die Buchung, mit Split je Zeile (oben).
+  if (!split && !beschreibung.trim()) fehlend.push("Beschreibung");
   const vollstaendig = fehlend.length === 0;
 
   // --- Änderungen ---
@@ -197,17 +200,20 @@ export default function BuchungsFormular({
   function splitUmschalten(an: boolean) {
     setSplit(an);
     if (an) {
-      // Bisherigen Betrag als Gesamtbetrag und erste Position übernehmen.
+      // Bisherigen Betrag als Gesamtbetrag und erste Position übernehmen;
+      // eine schon eingegebene Beschreibung wird Text der ersten Zeile.
       setGesamt(positionen[0].betrag);
+      if (beschreibung.trim() && !positionen[0].text) positionAendern(0, { text: beschreibung.trim() });
     } else {
       setPositionen((alt) => [alt[0] ?? { ...LEER }]);
+      if (!beschreibung.trim() && positionen[0]?.text) setBeschreibung(positionen[0].text);
       setGesamt("");
     }
   }
 
   // Enter springt zum nächsten Feld; nach dem letzten Feld wird gespeichert.
-  // Bei der Splitbuchung legt Enter im Steuersatz der letzten Position bei
-  // offenem Restbetrag eine neue Position an.
+  // Bei der Splitbuchung legt Enter im letzten Feld (Beschreibung) der letzten
+  // Position bei offenem Restbetrag eine neue Position an, bei Rest 0 wird gespeichert.
   function beiTaste(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
     const ziel = e.target as HTMLElement;
@@ -216,7 +222,7 @@ export default function BuchungsFormular({
     e.preventDefault();
 
     const letztePos = positionen.length - 1;
-    if (split && feld === `pos-steuer-${letztePos}`) {
+    if (split && feld === `pos-text-${letztePos}`) {
       if (restCent > 0) return positionHinzufuegen();
       if (restCent === 0 && vollstaendig) return void speichern();
     }
@@ -254,13 +260,15 @@ export default function BuchungsFormular({
         kostenstelleId,
         belegdatum,
         typ,
-        beschreibung: beschreibung.trim(),
+        // Splitbuchung: Buchungsbeschreibung aus den Zeilentexten (für Liste/Berichte).
+        beschreibung: split ? positionen.map((p) => p.text.trim()).join(" / ") : beschreibung.trim(),
         betragCent: summeCent,
         belegId,
         positionen: positionen.map((p, i) => ({
           betragCent: posCent[i],
           steuersatz: p.steuersatz,
           kontoId: p.kontoId,
+          text: split ? p.text.trim() : null,
         })),
       };
 
@@ -309,7 +317,7 @@ export default function BuchungsFormular({
     const fix = kontoVon(p.kontoId)?.fixSteuersatz;
     return (
       <>
-        <div className={split ? "col-span-5" : "col-span-6"}>
+        <div className={split ? "col-span-4" : "col-span-6"}>
           {(!split || i === 0) && <label className="block text-sm font-medium mb-1">Konto *</label>}
           <select
             data-feld={`pos-konto-${i}`}
@@ -325,7 +333,7 @@ export default function BuchungsFormular({
             ))}
           </select>
         </div>
-        <div className="col-span-3">
+        <div className={split ? "col-span-2" : "col-span-3"}>
           {(!split || i === 0) && <label className="block text-sm font-medium mb-1">Betrag (brutto) *</label>}
           <input
             data-feld={`pos-betrag-${i}`}
@@ -336,7 +344,7 @@ export default function BuchungsFormular({
             onChange={(e) => positionAendern(i, { betrag: e.target.value })}
           />
         </div>
-        <div className="col-span-3">
+        <div className={split ? "col-span-2" : "col-span-3"}>
           {(!split || i === 0) && <label className="block text-sm font-medium mb-1">Steuersatz *</label>}
           <select
             data-feld={`pos-steuer-${i}`}
@@ -350,6 +358,18 @@ export default function BuchungsFormular({
             {steuerOptionen(p.steuersatz)}
           </select>
         </div>
+        {split && (
+          <div className="col-span-3">
+            {i === 0 && <label className="block text-sm font-medium mb-1">Beschreibung *</label>}
+            <input
+              data-feld={`pos-text-${i}`}
+              className={feldKlasse(versucht && !p.text.trim())}
+              placeholder="z. B. Lebensmittel"
+              value={p.text}
+              onChange={(e) => positionAendern(i, { text: e.target.value })}
+            />
+          </div>
+        )}
       </>
     );
   }
@@ -485,14 +505,18 @@ export default function BuchungsFormular({
         </div>
       )}
 
-      {/* 8: Beschreibung */}
-      <label className="block text-sm font-medium mb-1">Beschreibung *</label>
-      <input
-        data-feld="beschreibung"
-        className={`${feldKlasse(versucht && !beschreibung.trim())} mb-4`}
-        value={beschreibung}
-        onChange={(e) => setBeschreibung(e.target.value)}
-      />
+      {/* 8: Beschreibung (bei Splitbuchung je Zeile, siehe oben) */}
+      {!split && (
+        <>
+          <label className="block text-sm font-medium mb-1">Beschreibung *</label>
+          <input
+            data-feld="beschreibung"
+            className={`${feldKlasse(versucht && !beschreibung.trim())} mb-4`}
+            value={beschreibung}
+            onChange={(e) => setBeschreibung(e.target.value)}
+          />
+        </>
+      )}
 
       {/* 9: Foto / Beleg (optional) */}
       <div className="flex items-start justify-between mb-4 gap-4">

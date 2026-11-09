@@ -3,6 +3,8 @@ import {
   buchungValidieren,
   saldoWirkung,
   belegnummerFormat,
+  textNormalisieren,
+  positionsText,
   type BuchungEingabe,
 } from "./buchungslogik.js";
 
@@ -27,8 +29,8 @@ describe("buchungValidieren", () => {
     const b = basis({
       betragCent: 1381, // 7,65 (10%) + 6,16 (20%)
       positionen: [
-        { betragCent: 765, steuersatz: 10, kontoId: 1 },
-        { betragCent: 616, steuersatz: 20, kontoId: 2 },
+        { betragCent: 765, steuersatz: 10, kontoId: 1, text: "Lebensmittel" },
+        { betragCent: 616, steuersatz: 20, kontoId: 2, text: "Taschentücher" },
       ],
     });
     expect(buchungValidieren(b).ok).toBe(true);
@@ -92,6 +94,31 @@ describe("Pflichtfelder (Key-User-Feedback 2026-11)", () => {
     expect(buchungValidieren(basis({ belegdatum: "14.09.2026" })).ok).toBe(false);
     expect(buchungValidieren(basis({ belegdatum: "2026-09-30" })).ok).toBe(true);
     expect(buchungValidieren(basis({ belegdatum: "2028-02-29" })).ok).toBe(true);
+  });
+});
+
+describe("Splitbuchung: Text je Zeile", () => {
+  const split = (texte: (string | undefined)[]) =>
+    basis({
+      betragCent: 1500,
+      positionen: texte.map((text, i) => ({ betragCent: i === 0 ? 315 : 1185, steuersatz: 20, kontoId: i + 1, text })),
+    });
+
+  it("verlangt bei mehreren Positionen einen Text je Zeile", () => {
+    expect(buchungValidieren(split(["Lebensmittel", "Taschentücher"])).ok).toBe(true);
+    const r = buchungValidieren(split(["Lebensmittel", ""]));
+    expect(r.ok).toBe(false);
+    expect(r.fehler.join(" ")).toContain("Position 2: Beschreibung");
+  });
+
+  it("bildet die Buchungsbeschreibung aus den Zeilentexten, ohne Split kein Zeilentext", () => {
+    const n = textNormalisieren({ ...split([" Lebensmittel ", "Taschentücher"]), beschreibung: undefined });
+    expect(n.beschreibung).toBe("Lebensmittel / Taschentücher");
+    expect(n.positionen.map((p) => p.text)).toEqual(["Lebensmittel", "Taschentücher"]);
+    const einfach = textNormalisieren(basis({ positionen: [{ betragCent: 1000, steuersatz: 20, kontoId: 1, text: "x" }] }));
+    expect(einfach.positionen[0].text).toBeNull();
+    expect(positionsText({ text: null }, "Beleg")).toBe("Beleg");
+    expect(positionsText({ text: "Zeile" }, "Beleg")).toBe("Zeile");
   });
 });
 

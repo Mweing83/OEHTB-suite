@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { csvFeld } from "../lib/csv.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
+import { positionsText } from "../lib/buchungslogik.js";
 import {
   neuesDokumentMitKopf,
   fusszeile,
@@ -66,7 +67,7 @@ async function ladeDaten(req: any, res: any) {
       storniert: false,
       belegdatum: { gte: zeitraum.von, lt: zeitraum.bis },
     },
-    include: { positionen: { include: { konto: true } } },
+    include: { positionen: { include: { konto: true }, orderBy: { id: "asc" } } },
     orderBy: [{ belegdatum: "asc" }, { buchungsnummer: "asc" }],
   });
 
@@ -194,7 +195,10 @@ berichtRouter.get("/detailbericht", angemeldet, async (req, res) => {
   for (const b of buchungen) {
     seitenumbruchPruefen();
     const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, Number(p.steuersatz)), 0);
-    const konten = b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ");
+    // Splitbuchung: Zeilentexte je Konto anzeigen.
+    const konten = b.positionen
+      .map((p) => `${p.konto.nummer} (${p.steuersatz}%)${p.text ? " " + p.text : ""}`)
+      .join(", ");
     const beschreibung = (b.beschreibung ? b.beschreibung + " — " : "") + konten;
     const vorzeichen = b.typ === "ausgang" ? "- " : "+ ";
 
@@ -319,25 +323,28 @@ berichtRouter.get("/csv", angemeldet, async (req, res) => {
   // Formel-Neutralisierung wie csvFeld in export.ts (Security-Audit 2026-10).
   const feld = (wert: string | number): string => csvFeld(wert);
 
-  const kopf = ["Nr.", "Belegnummer", "Belegdatum", "Typ", "Beschreibung", "Konten", "MwSt_EUR", "Betrag_EUR"];
+  const kopf = ["Nr.", "Belegnummer", "Belegdatum", "Typ", "Beschreibung", "Konto", "MwSt_EUR", "Betrag_EUR"];
   const zeilen: string[] = [kopf.join(TRENN)];
 
+  // Eine Zeile je Buchungszeile: eine Splitbuchung ergibt mehrere Zeilen mit
+  // derselben Nummer/Belegnummer, eigenem Konto, Text, MwSt und Betrag.
   for (const b of buchungen) {
-    const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, Number(p.steuersatz)), 0);
-    const konten = b.positionen.map((p) => `${p.konto.nummer} (${p.steuersatz}%)`).join(", ");
-    const signiert = b.typ === "ausgang" ? -b.betragCent : b.betragCent;
-    zeilen.push(
-      [
-        feld(b.buchungsnummer),
-        feld(b.belegnummer),
-        feld(datumDe(b.belegdatum)),
-        feld(b.typ === "ausgang" ? "Ausgang" : "Eingang"),
-        feld(b.beschreibung ?? ""),
-        feld(konten),
-        feld(betrag(mwst)),
-        feld(betrag(signiert)),
-      ].join(TRENN)
-    );
+    for (const p of b.positionen) {
+      const mwst = enthalteneSteuerCent(p.betragCent, Number(p.steuersatz));
+      const signiert = b.typ === "ausgang" ? -p.betragCent : p.betragCent;
+      zeilen.push(
+        [
+          feld(b.buchungsnummer),
+          feld(b.belegnummer),
+          feld(datumDe(b.belegdatum)),
+          feld(b.typ === "ausgang" ? "Ausgang" : "Eingang"),
+          feld(positionsText(p, b.beschreibung)),
+          feld(`${p.konto.nummer} (${p.steuersatz}%)`),
+          feld(betrag(mwst)),
+          feld(betrag(signiert)),
+        ].join(TRENN)
+      );
+    }
   }
 
   const inhalt = "\uFEFF" + zeilen.join("\r\n") + "\r\n";
