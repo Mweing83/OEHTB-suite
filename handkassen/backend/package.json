@@ -1,6 +1,6 @@
 {
   "name": "handkassen-backend",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,7 +25,7 @@
     "fflate": "^0.8.3",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.4.0",
+    "multer": "^2.5.0",
     "pdfkit": "^0.20.2",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
