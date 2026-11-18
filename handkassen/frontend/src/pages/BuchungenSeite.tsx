@@ -66,9 +66,10 @@ export default function BuchungenSeite() {
   useEffect(() => {
     api.get<Kostenstelle[]>("/kostenstellen").then((ks) => {
       setKostenstellen(ks);
-      if (ks.length && aktiv === null) {
-        setAktiv(ks[0].id);
-        setFirmaId(ks[0].firma.id);
+      // Erste Kostenstelle (und ihre Firma) vorwählen, falls noch nichts gewählt ist.
+      if (ks.length) {
+        setAktiv((alt) => alt ?? ks[0].id);
+        setFirmaId((alt) => alt ?? ks[0].firma.id);
       }
     });
   }, []);

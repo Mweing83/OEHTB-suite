@@ -87,7 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(logoutTimer);
       ereignisse.forEach((e) => window.removeEventListener(e, handler));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [benutzer]);
 
   return (

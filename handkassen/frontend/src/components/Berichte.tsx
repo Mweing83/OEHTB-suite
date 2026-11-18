@@ -86,7 +86,7 @@ export default function Berichte({ kostenstelleId }: Props) {
       .get<{ belegnummer: string }[]>(`/export/freie-belegnummern?${exportParameter}`)
       .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
       .catch(() => setFreieNummern([]));
-  }, [darfBmd, exportParameter]);
+  }, [darfBmd, exportFirma, bmdJahr, bmdMonat, exportParameter]);
 
   // BMD-CSV oder ZIP (CSV + Belegdateien) herunterladen. Per fetch, damit eine
   // Fehlermeldung des Servers (z. B. fehlendes Gegenkonto) angezeigt werden kann.

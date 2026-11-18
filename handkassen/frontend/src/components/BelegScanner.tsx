@@ -138,7 +138,6 @@ export default function BelegScanner({ quelle, onFertig, onAbbrechen }: Props) {
       abgebrochen = true;
       if (objektUrlRef.current) URL.revokeObjectURL(objektUrlRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quelle]);
 
   // Bild in den Anzeige-Canvas zeichnen, sobald Größe bekannt ist.

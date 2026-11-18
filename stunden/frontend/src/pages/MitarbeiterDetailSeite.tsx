@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent, useCallback } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useNavigate } from "react-router";
 import { api, mitBasis } from "../lib/api";
 import { MitarbeiterDetail } from "../lib/typen";
 import { useAuth } from "../lib/auth";
@@ -15,6 +15,7 @@ function datumDe(iso: string): string {
 
 export default function MitarbeiterDetailSeite() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { benutzer } = useAuth();
   const darfBearbeiten =
     benutzer?.rolle === "admin" || benutzer?.rolle === "sachbearbeiter";
@@ -135,7 +136,9 @@ export default function MitarbeiterDetailSeite() {
     setLoescht(true);
     try {
       await api.delete(`/api/mitarbeiter/${id}${hart ? "?hart=1" : ""}`);
-      window.location.href = "/";
+      // Zurück zum Dashboard der Stunden-Anwendung. (Vorher window.location
+      // "/" – das ist unter dem Suite-Proxy das Portal, nicht das Dashboard.)
+      navigate("/");
     } catch (err) {
       await hinweis(err instanceof Error ? err.message : "Fehler beim Löschen.");
       setLoescht(false);

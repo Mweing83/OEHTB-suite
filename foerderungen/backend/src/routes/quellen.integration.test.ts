@@ -68,6 +68,27 @@ laufend("Foerderquellen-Routen", () => {
     expect(res.body.status).toBe("AKTIV");
   });
 
+  it("leert Webseite, Kontakt und Beschreibung beim Aendern", async () => {
+    const q = await prisma.foerderquelle.create({
+      data: {
+        name: "Quelle", traeger: "T", ebene: "LAND", kategorie: "PROJEKT", quelleTyp: "MANUELL",
+        webseite: "https://example.org", kontakt: "Frau Muster", beschreibung: "alt",
+      },
+    });
+    const aendern = (daten: object) => request(app).patch(`/api/quellen/${q.id}`).set("Cookie", cookie).send(daten);
+
+    const leer = await aendern({ webseite: null, kontakt: "", beschreibung: "" });
+    expect(leer.status).toBe(200);
+    expect(leer.body).toMatchObject({ webseite: null, kontakt: null, beschreibung: "" });
+
+    // Weglassen aendert nichts; ungueltige Links bleiben abgelehnt.
+    await aendern({ webseite: "https://example.org/neu", kontakt: "Herr Beispiel" });
+    const nurName = await aendern({ name: "Quelle neu" });
+    expect(nurName.body).toMatchObject({ name: "Quelle neu", webseite: "https://example.org/neu", kontakt: "Herr Beispiel" });
+    expect((await aendern({ webseite: "javascript:alert(1)" })).status).toBe(400);
+    expect((await aendern({ webseite: "" })).body.webseite).toBeNull();
+  });
+
   it("weist ungueltige Nutzlast ab", async () => {
     const res = await request(app).post("/api/quellen").set("Cookie", cookie).send({
       name: "", traeger: "T", ebene: "FALSCH", kategorie: "PROJEKT",

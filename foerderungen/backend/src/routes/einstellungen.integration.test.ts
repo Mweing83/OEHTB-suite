@@ -97,6 +97,19 @@ laufend("Einstellungs-Routen", () => {
     expect((await ladeProviderKonfig()).apiKey).toBeUndefined();
   });
 
+  it("meldet einen nicht entschluesselbaren Key, statt still den Dummy zu nehmen", async () => {
+    const { ladeProviderKonfig } = await import("../services/llm/factory.js");
+    await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
+      provider: "anthropic", apiKey: "sk-ant-geheim",
+    });
+    const zeile = await prisma.einstellung.findUniqueOrThrow({ where: { schluessel: "llm_konfig" } });
+    await prisma.einstellung.update({
+      where: { schluessel: "llm_konfig" },
+      data: { wert: { ...(zeile.wert as object), apiKeyVerschluesselt: "kaputt" } },
+    });
+    await expect(ladeProviderKonfig()).rejects.toThrow(/nicht entschlüsseln/);
+  });
+
   it("loescht den Key auf ausdruecklichen Wunsch", async () => {
     await request(app).put("/api/einstellungen/llm").set("Cookie", cookie).send({
       provider: "anthropic", apiKey: "sk-ant-geheim",

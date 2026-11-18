@@ -38,7 +38,7 @@ function warteAuf(pruef: () => boolean, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     (function check() {
-      let ok = false;
+      let ok: boolean;
       try {
         ok = pruef();
       } catch {

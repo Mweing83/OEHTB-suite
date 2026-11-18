@@ -358,7 +358,7 @@ durchsucht sie per KI mit Websuche. Aufbau nach `stunden`-Muster.
 
 | Datei | Zweck |
 |---|---|
-| `drift-check.mjs` | Prüft, ob die absichtlich duplizierten Dateien (z. B. `tailwind.config.js`, `suiteAuth.ts`) in allen Tools noch identisch sind. Läuft in der CI. |
+| `drift-check.mjs` | Prüft die absichtlich duplizierten Teile: Die Sicherheits-Guards (`suiteAuth.ts`, `provision.ts`, `krypto.ts`) müssen in allen Tools dieselben Regeln erfüllen, bewusst identische Kopien (`herkunft.ts`, `krypto.ts`, `index.css`, `dialog.tsx`) wortgleich bleiben. Läuft in der CI. |
 
 ### `.github/`
 

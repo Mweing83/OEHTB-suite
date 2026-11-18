@@ -4,6 +4,20 @@ Portal (`backend/`, `portal/`) mit den Teilprogrammen `handkassen/`, `stunden/`
 und `foerderungen/`. Tool-spezifische Regeln stehen in der jeweiligen
 `CLAUDE.md` (z. B. `handkassen/CLAUDE.md`).
 
+## Prüfungen (laufen so auch in der CI)
+
+- Wurzel: `npm run lint` (ESLint über alle Backends und Frontends),
+  `npm run drift-check` (Sicherheits-Guards konsistent; bewusst identische
+  Kopien wie `herkunft.ts`, `krypto.ts`, `index.css`, `dialog.tsx` gleich –
+  eine Änderung muss in alle Kopien), `npm run versions-check`.
+- Je Backend: `npx prisma migrate deploy` auf eine leere Test-DB (nicht
+  `db push`), `npx prisma migrate diff --from-config-datasource --to-schema
+  prisma/schema.prisma --exit-code` (Schema = Migrationen), `npx tsc --noEmit`,
+  `npx vitest run` mit `TEST_DATABASE_URL`.
+- Je Frontend: `npm run build` (Typprüfung + Build), `npm test --if-present`.
+- Unter Windows Vitest nur mit großem Laufwerksbuchstaben starten
+  (`C:\...`), sonst bricht jeder Test mit „reading 'config'“ ab.
+
 ## Versionierung
 
 Versionen werden bei jeder Änderung **selbstständig** vergeben, ohne Rückfrage.
@@ -29,4 +43,4 @@ Versionen werden bei jeder Änderung **selbstständig** vergeben, ohne Rückfrag
   „<Tool> vX“). Die Frontends lesen die Version beim Build aus ihrer
   `package.json` (`__APP_VERSION__` per Vite `define`).
 
-Stand 18.11.2026: Suite 0.11.2, Handkassen 0.11.2, Stunden 0.1.3, Förderungen 0.1.2.
+Stand 18.11.2026: Suite 0.11.3, Handkassen 0.11.3, Stunden 0.1.4, Förderungen 0.1.3.

@@ -1,8 +1,9 @@
 name: CI
 
 # Laeuft bei Push auf main und bei Pull Requests. Prueft die Suite als Ganzes:
-# konsistente Sicherheits-Guards, Linting, Typpruefung und die Integrationstests
-# jedes Backends gegen eine echte PostgreSQL-Instanz.
+# konsistente Sicherheits-Guards und Versionen, Linting ueber alle Teile, je
+# Backend Migrationen + Typpruefung + Integrationstests gegen echtes PostgreSQL
+# und je Frontend Typpruefung + Build (+ Tests, wo vorhanden).
 on:
   push:
     branches: [main]
@@ -19,18 +20,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install
-      - name: Drift-Check (duplizierte Sicherheits-Guards konsistent)
+      - run: npm ci
+      - name: Drift-Check (Sicherheits-Guards konsistent, identische Kopien gleich)
         run: npm run drift-check
       - name: Versions-Check (Suite und Teilprogramme konsistent)
         run: npm run versions-check
-      - name: ESLint
+      - name: ESLint (alle Backends und Frontends)
         run: npm run lint
       - name: Prettier (informativ, nicht blockierend)
         run: npm run format:check || true
 
   # ---------------------------------------------------------------------------
-  # Pro Backend: Typpruefung + Integrationstests gegen echtes PostgreSQL.
+  # Pro Backend: Migrationen wie in Produktion, Typpruefung, Integrationstests
+  # gegen echtes PostgreSQL.
   # ---------------------------------------------------------------------------
   backend:
     runs-on: ubuntu-latest
@@ -71,12 +73,51 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install
+      - run: npm ci
       - name: Prisma-Client erzeugen
         run: npx prisma generate
-      - name: Testschema anlegen
-        run: npx prisma db push
+      # Die Testdatenbank entsteht wie in Produktion aus den Migrationen (nicht
+      # per "db push"): so sind auch Migrations-SQL (z. B. Trigger, Startdaten)
+      # und die Reihenfolge der Migrationen getestet.
+      - name: Migrationen einspielen
+        run: npx prisma migrate deploy
+      # Bricht ab (Exit-Code 2), wenn schema.prisma etwas enthaelt, wofuer die
+      # Migration fehlt – oder umgekehrt.
+      - name: Schema und Migrationen stimmen ueberein
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
       - name: Typpruefung
         run: npx tsc --noEmit
       - name: Integrationstests
         run: npx vitest run
+
+  # ---------------------------------------------------------------------------
+  # Pro Frontend: Typpruefung + Produktions-Build (npm run build = tsc && vite
+  # build), dazu die Unit-Tests, wo es welche gibt.
+  # ---------------------------------------------------------------------------
+  frontend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: portal
+            dir: portal
+          - name: stunden
+            dir: stunden/frontend
+          - name: handkassen
+            dir: handkassen/frontend
+          - name: foerderungen
+            dir: foerderungen/frontend
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Typpruefung und Build
+        run: npm run build
+      - name: Unit-Tests (falls vorhanden)
+        run: npm test --if-present

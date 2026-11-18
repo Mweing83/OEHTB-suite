@@ -71,9 +71,11 @@ export default function QuelleDetailSeite() {
         ebene,
         kategorie,
         themen: themen.split(",").map((t) => t.trim()).filter(Boolean),
-        webseite: webseite || undefined,
-        kontakt: kontakt || undefined,
-        beschreibung: beschreibung || undefined,
+        // Leere Felder ausdrücklich leeren (null bzw. ""), nicht weglassen –
+        // sonst bliebe der alte Wert stehen.
+        webseite: webseite.trim() || null,
+        kontakt: kontakt.trim() || null,
+        beschreibung,
       });
       setMeldung("Gespeichert.");
       laden();

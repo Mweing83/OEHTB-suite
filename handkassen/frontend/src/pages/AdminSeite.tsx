@@ -1136,6 +1136,8 @@ function VerzeichnisBrowser({
     }
   }
 
+  // Nur beim Öffnen des Dialogs zum Startpfad springen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { navigieren(startPfad || ""); }, []);
 
   function unterordnerPfad(name: string): string {

@@ -1,19 +1,24 @@
 #!/usr/bin/env node
-// Drift-Detektor fuer die bewusst duplizierten Sicherheits-Guards der Suite.
+// Drift-Detektor fuer die bewusst duplizierten Teile der Suite.
 //
-// Portal und beide Tools implementieren ihre Auth-/Provisionierungs-Logik je
+// Portal und die Tools implementieren ihre Auth-/Provisionierungs-Logik je
 // EIGENSTAENDIG (kein Cross-Repo-Import – Architektur-Entscheidung). Der Preis:
 // sicherheitskritische Invarianten koennen still auseinanderlaufen. Genau das
 // ist in Phase 0 passiert (ein Backend liess den Platzhalter "changeme" durch).
 //
-// Dieses Skript prueft NICHT auf Datei-Gleichheit (die Dateien duerfen sich in
-// Rollen-Enums, Prisma-Modellen etc. legitim unterscheiden), sondern auf die
-// gemeinsam geltenden Invarianten:
+// Geprueft wird zweierlei:
+//
+// A) Sicherheits-Guards: NICHT auf Datei-Gleichheit (die Dateien duerfen sich
+//    in Rollen-Enums, Prisma-Modellen etc. legitim unterscheiden), sondern auf
+//    die gemeinsam geltenden Invarianten:
 //   1. Jeder Secret-Guard erkennt DIESELBEN Platzhalter-Begriffe.
 //   2. Jeder JWT-Guard erzwingt Mindestlaenge 32 in Produktion.
 //   3. Jeder PROVISION-Guard erzwingt Mindestlaenge 16 in Produktion.
 //
-// Bricht mit Exit-Code 1 ab, sobald ein Guard abweicht – geeignet fuer CI.
+// B) Identische Kopien (IDENTISCHE_KOPIEN): Dateien, die in mehreren Teilen
+//    wortgleich liegen sollen, muessen es auch bleiben.
+//
+// Bricht mit Exit-Code 1 ab, sobald etwas abweicht – geeignet fuer CI.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -44,6 +49,34 @@ const dateien = [
   { pfad: "stunden/backend/src/lib/krypto.ts", arten: [KRYPTO] },
   { pfad: "handkassen/backend/src/lib/suiteAuth.ts", arten: [JWT] },
   { pfad: "handkassen/backend/src/lib/provision.ts", arten: [PROVISION] },
+  { pfad: "foerderungen/backend/src/lib/suiteAuth.ts", arten: [JWT] },
+  { pfad: "foerderungen/backend/src/lib/provision.ts", arten: [PROVISION] },
+  { pfad: "foerderungen/backend/src/lib/krypto.ts", arten: [KRYPTO] },
+];
+
+// Dateien, die bewusst als IDENTISCHE Kopie in mehreren Teilen liegen (kein
+// Cross-Import). Wird eine Kopie allein geaendert, laufen die Teile still
+// auseinander – ein Fix muss in allen Kopien landen. Verglichen wird der
+// Inhalt ohne Ruecksicht auf Zeilenenden.
+const BACKENDS = ["backend", "handkassen/backend", "stunden/backend", "foerderungen/backend"];
+const FRONTENDS = ["portal", "handkassen/frontend", "stunden/frontend", "foerderungen/frontend"];
+const IDENTISCHE_KOPIEN = [
+  {
+    name: "lib/herkunft.ts (Abwehr fremder Seiten)",
+    pfade: BACKENDS.map((t) => `${t}/src/lib/herkunft.ts`),
+  },
+  {
+    name: "lib/krypto.ts (Verschluesselung gespeicherter Schluessel)",
+    pfade: ["stunden/backend", "foerderungen/backend"].map((t) => `${t}/src/lib/krypto.ts`),
+  },
+  {
+    name: "index.css (gemeinsames Farbschema)",
+    pfade: FRONTENDS.map((t) => `${t}/src/index.css`),
+  },
+  {
+    name: "components/dialog.tsx (Bestaetigungsdialoge)",
+    pfade: ["portal", "handkassen/frontend", "stunden/frontend"].map((t) => `${t}/src/components/dialog.tsx`),
+  },
 ];
 
 const befunde = [];
@@ -91,17 +124,36 @@ for (const { pfad, arten } of dateien) {
   }
 }
 
+for (const { name, pfade } of IDENTISCHE_KOPIEN) {
+  const inhalte = pfade.map((pfad) => {
+    try {
+      return readFileSync(join(wurzel, pfad), "utf8").replace(/\r\n/g, "\n");
+    } catch {
+      befunde.push(`${pfad}: Datei nicht gefunden (identische Kopie von ${name} fehlt).`);
+      return null;
+    }
+  });
+  const abweichend = pfade.filter((_, i) => inhalte[i] !== null && inhalte[i] !== inhalte[0]);
+  if (abweichend.length > 0) {
+    befunde.push(
+      `${name}: ${abweichend.join(", ")} weicht von ${pfade[0]} ab ` +
+        `(die Kopien muessen identisch bleiben – Aenderung in alle uebernehmen).`
+    );
+  }
+}
+
 if (befunde.length > 0) {
-  console.error("DRIFT ERKANNT in den Sicherheits-Guards:\n");
+  console.error("DRIFT ERKANNT in den Sicherheits-Guards bzw. identischen Kopien:\n");
   for (const b of befunde) console.error("  - " + b);
   console.error(
-    "\nDie duplizierten Guards muessen dieselben Invarianten erfuellen. " +
-      "Bitte angleichen (siehe Phase 0)."
+    "\nDie duplizierten Guards muessen dieselben Invarianten erfuellen, " +
+      "die identischen Kopien gleich bleiben. Bitte angleichen."
   );
   process.exit(1);
 }
 
 console.log(
   `drift-check: OK – ${dateien.length} Sicherheits-Guards konsistent ` +
-    `(Platzhalter-Begriffe, Mindestlaengen, Produktions-Check).`
+    `(Platzhalter-Begriffe, Mindestlaengen, Produktions-Check), ` +
+    `${IDENTISCHE_KOPIEN.length} Gruppen identischer Kopien gleich.`
 );

@@ -7,7 +7,8 @@ import { OpenAIProvider } from "./openai";
 import { DummyProvider } from "./dummy";
 
 // Provider-Factory nach dem Stunden-Muster: liest die gespeicherte
-// Konfiguration und faellt ohne gueltigen API-Key auf den Dummy zurueck.
+// Konfiguration und faellt OHNE hinterlegten API-Key auf den Dummy zurueck.
+// Ein hinterlegter, aber unlesbarer Key ist dagegen ein Fehler (siehe unten).
 
 const STANDARD: ProviderKonfig = { provider: "dummy" };
 
@@ -31,8 +32,15 @@ export async function ladeProviderKonfig(): Promise<ProviderKonfig> {
   ) {
     try {
       konfig.apiKey = entschluesseln(wert.apiKeyVerschluesselt);
-    } catch {
-      konfig.apiKey = undefined;
+    } catch (err) {
+      // Ein gespeicherter, aber nicht mehr entschluesselbarer Key (z. B. nach
+      // geaendertem Schluessel-Geheimnis) darf NICHT still zum Dummy-Anbieter
+      // fuehren: der schriebe Beispiel-Funde in die echte Datenbank. Der Scan
+      // bricht stattdessen mit dieser Meldung ab (steht im Scan-Protokoll).
+      throw new Error(
+        "Der gespeicherte API-Schlüssel lässt sich nicht entschlüsseln. Bitte in den Einstellungen neu eingeben.",
+        { cause: err }
+      );
     }
   }
   return konfig;

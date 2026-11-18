@@ -32,7 +32,25 @@ const anlegenSchema = z.object({
   kontakt: z.string().max(500).optional(),
 });
 
+// Beim Aendern lassen sich Webseite und Kontakt auch wieder leeren: null bzw.
+// "" entfernt den Wert (frueher wurde "" verworfen und der alte Wert blieb).
+// Die Beschreibung ist ein Pflicht-Textfeld der DB und wird mit "" geleert.
 const aendernSchema = anlegenSchema.partial().extend({
+  webseite: z
+    .union([
+      z.null(),
+      z.literal("").transform(() => null),
+      z
+        .string()
+        .url()
+        .max(1000)
+        .refine((u) => /^https?:\/\//i.test(u), "Nur http/https-Links erlaubt."),
+    ])
+    .optional(),
+  kontakt: z
+    .union([z.null(), z.string().max(500)])
+    .transform((v) => (v === "" ? null : v))
+    .optional(),
   status: z.enum(STATUS).optional(),
 });
 
