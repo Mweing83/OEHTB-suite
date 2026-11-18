@@ -94,6 +94,29 @@ run("Security-Audit 2026-10: Handkassen-Fixes (Integration)", () => {
     expect(e.status).toBe(409);
   });
 
+  it("freigegebene Periode sperrt Buchen, Bearbeiten, Storno und Löschen einheitlich – auch für Admins", async () => {
+    const erfasser = await alsAgent("erfasser");
+    const b = await erfasser.post("/api/buchungen").send(buchungEingabe(basis.ksA, basis.kontoId));
+    expect(b.status).toBe(201);
+    // Abschluss freigegeben, die Buchung selbst trägt (wie bei Altdaten) kein gesperrt-Flag.
+    await prisma.abschluss.create({
+      data: { kostenstelleId: basis.ksA, jahr: 2026, monat: 5, zaehllisteCent: 0, status: "freigegeben", freigegebenAm: new Date() },
+    });
+    for (const agent of [erfasser, await alsAgent("admin")]) {
+      const meldung = "Periode ist freigegeben und gesperrt.";
+      const neu = await agent.post("/api/buchungen").send(buchungEingabe(basis.ksA, basis.kontoId));
+      const aendern = await agent.put(`/api/buchungen/${b.body.id}`).send(buchungEingabe(basis.ksA, basis.kontoId));
+      const storno = await agent.post(`/api/buchungen/${b.body.id}/storno`);
+      const loeschen = await agent.delete(`/api/buchungen/${b.body.id}`);
+      for (const r of [neu, aendern, storno, loeschen]) {
+        expect(r.status).toBe(409);
+        expect(r.body.fehler).toBe(meldung);
+      }
+    }
+    const nachher = await prisma.buchung.findUniqueOrThrow({ where: { id: b.body.id } });
+    expect(nachher.storniert).toBe(false);
+  });
+
   it("lehnt ungültige Monate beim Einreichen ab", async () => {
     const r = await (await alsAgent("erfasser"))
       .post("/api/abschluss/einreichen")

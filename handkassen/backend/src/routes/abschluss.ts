@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { audit } from "../lib/audit.js";
 import { angemeldet, rolleErforderlich, darfKostenstelle } from "../middleware/auth.js";
+import { istId, istJahr, istMonat } from "../lib/periode.js";
 
 export const abschlussRouter = Router();
 
@@ -50,15 +51,7 @@ abschlussRouter.post("/einreichen", angemeldet, async (req, res) => {
   if (typeof zaehllisteCent !== "number" || !Number.isFinite(zaehllisteCent)) {
     return res.status(400).json({ fehler: "Gezählter Kassenstand ist keine gültige Zahl." });
   }
-  if (
-    !Number.isInteger(kostenstelleId) ||
-    !Number.isInteger(jahr) ||
-    !Number.isInteger(monat) ||
-    monat < 1 ||
-    monat > 12 ||
-    jahr < 2000 ||
-    jahr > 2100
-  ) {
+  if (!istId(kostenstelleId) || !istJahr(jahr) || !istMonat(monat)) {
     return res.status(400).json({ fehler: "Ungültige Kostenstelle, Jahr oder Monat." });
   }
   if (!(await darfKostenstelle(req.benutzer!, kostenstelleId))) {

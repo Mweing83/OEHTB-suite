@@ -1,5 +1,7 @@
 import { csvFeld } from "./csv.js";
 import { BMD_CODES, BMD_FIX } from "./bmd-zuordnung.js";
+import { nettoUndSteuer } from "./buchungslogik.js";
+import { centZuStr } from "./format.js";
 
 // =====================================================================
 //  BMD-Buchungssatz-Datei (CSV, Semikolon, Latin-1, CRLF).
@@ -24,23 +26,6 @@ export interface BmdPosition {
   gegenkonto: string;
   beschreibung: string | null;
   dokument: string; // leer, wenn kein Beleg (oder Datei fehlt)
-}
-
-// Cent -> "1234,56" (Komma als Dezimaltrenner, kein Tausenderpunkt)
-export function centZuStr(cent: number): string {
-  return (cent / 100).toFixed(2).replace(".", ",");
-}
-
-// Aus einem Brutto-Betrag (Cent) den Netto- und den Steueranteil (Cent) bilden.
-// Wichtig: netto + steuer ergibt cent-genau wieder den Bruttobetrag,
-// damit der Kassenstand exakt erhalten bleibt.
-// Gerundet wird die Steuer (wie im Detailbericht), das Netto ist der Rest –
-// so stimmen alle Exporte und Berichte cent-genau überein.
-export function nettoUndSteuer(bruttoCent: number, prozent: number): { nettoCent: number; steuerCent: number } {
-  if (!prozent) return { nettoCent: bruttoCent, steuerCent: 0 };
-  const steuerCent = Math.round(bruttoCent - bruttoCent / (1 + prozent / 100));
-  const nettoCent = bruttoCent - steuerCent; // Rest, damit Summe exakt stimmt
-  return { nettoCent, steuerCent };
 }
 
 // Datum -> "JJJJMMTT"

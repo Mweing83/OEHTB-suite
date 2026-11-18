@@ -5,12 +5,7 @@ import { useAuth } from "../lib/auth";
 import { MitarbeiterListe } from "../lib/typen";
 import Layout from "../components/Layout";
 import { hinweis } from "../components/dialog";
-
-// Datum DD/MM/YYYY (europaeisches Layout) fuer die Anzeige.
-function datumDe(iso: string): string {
-  const [j, m, t] = iso.split("-");
-  return `${t}/${m}/${j}`;
-}
+import { datumDe } from "../lib/datum";
 
 // Kleine Statusanzeige fuer den Verarbeitungsstand.
 function VerrechnungBadge({

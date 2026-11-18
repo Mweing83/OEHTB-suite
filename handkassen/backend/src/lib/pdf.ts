@@ -4,6 +4,7 @@
 import PDFDocument from "pdfkit";
 import path from "node:path";
 import fs from "node:fs";
+import { datumDe } from "./format.js";
 
 const ASSETS_DIR = path.resolve("assets");
 // Logo automatisch finden: JPG wird von pdfkit am zuverlässigsten dargestellt,
@@ -19,11 +20,6 @@ function logoPfadFinden(): string | null {
 // Geldformat: Cent -> "1.234,56 €"
 export function eur(cent: number): string {
   return (cent / 100).toLocaleString("de-AT", { style: "currency", currency: "EUR" });
-}
-
-// Datum -> "01.05.2026"
-export function datumDe(d: Date): string {
-  return d.toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 // Zeitraum-Beschriftung
@@ -99,11 +95,4 @@ export function fusszeile(doc: PDFKit.PDFDocument, seite: number, organisation: 
   );
   doc.text(`Seite ${seite}`, 50, unten, { align: "right", width: doc.page.width - 100, lineBreak: false });
   doc.page.margins.bottom = alterRand;
-}
-
-// Hilfsfunktion: enthaltene MwSt aus Bruttobetrag (Cent) herausrechnen.
-export function enthalteneSteuerCent(bruttoCent: number, steuersatz: number): number {
-  if (!steuersatz) return 0;
-  const netto = bruttoCent / (1 + steuersatz / 100);
-  return Math.round(bruttoCent - netto);
 }

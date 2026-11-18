@@ -5,21 +5,15 @@ import { useAuth } from "../lib/auth.js";
 import { hinweis } from "../components/dialog.js";
 import FreieNummernHinweis from "../components/FreieNummernHinweis.js";
 import KostenstellenOptionen from "../components/KostenstellenOptionen.js";
+import { periodeGueltig, useFreieNummern, useKostenstellen } from "../lib/daten.js";
 
-interface Kostenstelle {
-  id: number;
-  nummer: string;
-  bezeichnung: string;
-  bereich?: { id: number; bezeichnung: string };
-  firma?: { id: number; name: string };
-}
 interface Abschluss {
   id: number;
   jahr: number;
   monat: number;
   zaehllisteCent: number;
   status: "offen" | "eingereicht" | "geprueft" | "freigegeben";
-  kostenstelle: Kostenstelle;
+  kostenstelle: { id: number; nummer: string; bezeichnung: string };
 }
 
 const statusFarbe: Record<string, string> = {
@@ -31,7 +25,7 @@ const statusFarbe: Record<string, string> = {
 
 export default function AbschlussSeite() {
   const { benutzer } = useAuth();
-  const [kostenstellen, setKostenstellen] = useState<Kostenstelle[]>([]);
+  const { kostenstellen } = useKostenstellen();
   const [abschluesse, setAbschluesse] = useState<Abschluss[]>([]);
   const heute = new Date();
   const [ksId, setKsId] = useState<number | null>(null);
@@ -39,27 +33,22 @@ export default function AbschlussSeite() {
   const [monat, setMonat] = useState(heute.getMonth() + 1);
   const [zaehlliste, setZaehlliste] = useState("");
   const [meldung, setMeldung] = useState("");
-  const [freieNummern, setFreieNummern] = useState<string[]>([]);
 
   function laden() {
     api.get<Abschluss[]>("/abschluss").then(setAbschluesse).catch(() => {});
   }
+  useEffect(laden, []);
+  // Erste Kostenstelle vorwählen, falls noch nichts gewählt ist.
   useEffect(() => {
-    api.get<Kostenstelle[]>("/kostenstellen").then((ks) => {
-      setKostenstellen(ks);
-      if (ks.length) setKsId(ks[0].id);
-    });
-    laden();
-  }, []);
+    if (kostenstellen.length) setKsId((alt) => alt ?? kostenstellen[0].id);
+  }, [kostenstellen]);
 
   // Lücke in der Belegnummerierung vor dem Abschluss anzeigen (nur Hinweis).
-  useEffect(() => {
-    if (!ksId || !(monat >= 1 && monat <= 12) || !jahr) { setFreieNummern([]); return; }
-    api
-      .get<{ belegnummer: string }[]>(`/buchungen/freie-belegnummern?kostenstelle=${ksId}&jahr=${jahr}&monat=${monat}`)
-      .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
-      .catch(() => setFreieNummern([]));
-  }, [ksId, jahr, monat]);
+  const freieNummern = useFreieNummern(
+    ksId && periodeGueltig(jahr, monat)
+      ? `/buchungen/freie-belegnummern?kostenstelle=${ksId}&jahr=${jahr}&monat=${monat}`
+      : null
+  );
 
   async function einreichen() {
     setMeldung("");

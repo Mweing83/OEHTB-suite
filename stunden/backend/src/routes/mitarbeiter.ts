@@ -9,6 +9,8 @@ import {
   standFuerMitarbeiter,
   staendeZumStichtag,
   StichtagZeile,
+  beschaeftigungsWerteSchema,
+  heuteDatum,
 } from "../services/beschaeftigung";
 
 export const mitarbeiterRouter = Router();
@@ -61,12 +63,6 @@ function csvErzeugen(kopf: string[], zeilen: string[][]): string {
   return "﻿" + text + "\r\n"; // UTF-8-BOM fuer Excel-DE
 }
 
-// Heute um Mitternacht (UTC), analog zur Historien-Logik.
-function heuteUtc(): Date {
-  const j = new Date();
-  return new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate()));
-}
-
 // Baut eine CSV-Tabelle aus Stichtags-Zeilen (gemeinsames Format fuer beide
 // Exporte, damit aktueller Stand und Monats-Stand vergleichbar bleiben).
 function stichtagCsv(zeilen: StichtagZeile[], stichtagIso: string): string {
@@ -98,7 +94,7 @@ mitarbeiterRouter.get(
   // Massenexport personenbezogener Daten: nicht fuer die Rolle "leser".
   rollePflicht("admin", "sachbearbeiter", "personalverrechnung"),
   async (req: AuthRequest, res: Response) => {
-    const heute = heuteUtc();
+    const heute = heuteDatum();
     const stichtagIso = heute.toISOString().slice(0, 10);
     const zeilen = await staendeZumStichtag(heute, true);
     const csv = stichtagCsv(zeilen, stichtagIso);
@@ -330,10 +326,7 @@ mitarbeiterRouter.put(
 // Legt einen NEUEN Beschaeftigung-Datensatz an (Historie, nie ueberschreiben).
 // Nur admin und sachbearbeiter.
 // ---------------------------------------------------------------------------
-const beschaeftigungSchema = z.object({
-  wochenstunden: z.number().positive().max(168),
-  ausmassProzent: z.number().positive().max(100),
-  gueltigAb: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format YYYY-MM-DD"),
+const beschaeftigungSchema = beschaeftigungsWerteSchema.extend({
   notiz: z.string().optional(),
 });
 

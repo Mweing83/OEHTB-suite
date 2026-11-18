@@ -7,6 +7,11 @@ export function formatCent(cent: number): string {
   });
 }
 
+// Cent -> Eingabetext "12,50" (Gegenstück zu euroStringZuCent).
+export function centZuEingabe(cent: number): string {
+  return (cent / 100).toFixed(2).replace(".", ",");
+}
+
 // Betragseingabe -> Cent. Streng: alles, was nicht eindeutig ein Betrag ist,
 // ergibt NaN (kein Raten, kein stilles Abschneiden).
 //   "12,50" -> 1250      "12" -> 1200        "1.250,00" -> 125000

@@ -6,6 +6,7 @@ import { auditLog } from "../lib/audit";
 import { LLM_SCHLUESSEL, SCAN_SCHLUESSEL } from "../lib/konstanten";
 import { AuthRequest, authPflicht } from "../middleware/auth";
 import { aktualisiereZeitplan, ladeScanKonfig } from "../services/zeitplan";
+import { ladeGespeicherteLlmKonfig } from "../services/llm/factory";
 
 // Konfiguration nach dem Muster des Stunden-Admin-Tabs: Key-Value-Zeilen in
 // der Einstellung-Tabelle, API-Key AES-verschluesselt at rest, nie im
@@ -14,19 +15,14 @@ export const einstellungenRouter = Router();
 einstellungenRouter.use(authPflicht);
 
 einstellungenRouter.get("/", async (_req: AuthRequest, res: Response) => {
-  const llm = await prisma.einstellung.findUnique({
-    where: { schluessel: LLM_SCHLUESSEL },
-  });
-  const llmWert = (llm?.wert as Record<string, unknown>) ?? {};
+  const llm = await ladeGespeicherteLlmKonfig();
   res.json({
     llm: {
-      provider: llmWert.provider ?? "dummy",
-      modell: llmWert.modell ?? "",
-      apiKeyGesetzt: Boolean(llmWert.apiKeyVerschluesselt),
+      provider: llm.provider,
+      modell: llm.modell,
+      apiKeyGesetzt: llm.apiKeyVerschluesselt !== null,
       // Fuer welchen Anbieter der Key eingegeben wurde (Altbestand: aktueller).
-      apiKeyAnbieter: llmWert.apiKeyVerschluesselt
-        ? ((llmWert.apiKeyProvider as string | undefined) ?? llmWert.provider ?? null)
-        : null,
+      apiKeyAnbieter: llm.apiKeyAnbieter,
     },
     // ladeScanKonfig versteht auch das alte flache Format (Migration).
     scan: await ladeScanKonfig(),
@@ -48,27 +44,23 @@ einstellungenRouter.put("/llm", async (req: AuthRequest, res: Response) => {
     return;
   }
   const d = parse.data;
-  const alt = await prisma.einstellung.findUnique({ where: { schluessel: LLM_SCHLUESSEL } });
-  const alterWert = (alt?.wert as Record<string, unknown>) ?? {};
+  const alt = await ladeGespeicherteLlmKonfig();
   // Ein Key gehoert zu genau einem Anbieter. Wechselt der Anbieter ohne neuen
   // Key, wird der alte verworfen – sonst ginge z. B. der Anthropic-Key an
-  // OpenAI (Security-Audit 2026-10). Altbestand ohne apiKeyProvider gilt als
-  // Key des bisher eingestellten Anbieters.
-  const alterKeyAnbieter =
-    (alterWert.apiKeyProvider as string | undefined) ?? (alterWert.provider as string | undefined);
+  // OpenAI (Security-Audit 2026-10).
   const neuerKey = d.apiKey && d.apiKey.trim().length > 0 ? d.apiKey.trim() : null;
-  const behalten = !d.apiKeyLoeschen && alterKeyAnbieter === d.provider;
+  const behalten = !d.apiKeyLoeschen && alt.apiKeyAnbieter === d.provider;
   const neuerWert: Record<string, unknown> = {
     provider: d.provider,
     modell: d.modell ?? "",
-    apiKeyVerschluesselt: behalten ? (alterWert.apiKeyVerschluesselt ?? null) : null,
-    apiKeyProvider: behalten && alterWert.apiKeyVerschluesselt ? d.provider : null,
+    apiKeyVerschluesselt: behalten ? alt.apiKeyVerschluesselt : null,
+    apiKeyProvider: behalten ? d.provider : null,
   };
   if (neuerKey) {
     neuerWert.apiKeyVerschluesselt = verschluesseln(neuerKey);
     neuerWert.apiKeyProvider = d.provider;
   }
-  const keyVerworfen = Boolean(alterWert.apiKeyVerschluesselt) && !neuerWert.apiKeyVerschluesselt;
+  const keyVerworfen = alt.apiKeyVerschluesselt !== null && !neuerWert.apiKeyVerschluesselt;
   await prisma.einstellung.upsert({
     where: { schluessel: LLM_SCHLUESSEL },
     update: { wert: neuerWert as object },

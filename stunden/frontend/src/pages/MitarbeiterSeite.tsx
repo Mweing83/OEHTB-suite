@@ -6,12 +6,7 @@ import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
 import DatumEingabe from "../components/DatumEingabe";
 import { bestaetigen, hinweis } from "../components/dialog";
-
-// Datum DD/MM/YYYY (europaeisches Layout) fuer die Anzeige.
-function datumDe(iso: string): string {
-  const [j, m, t] = iso.split("-");
-  return `${t}/${m}/${j}`;
-}
+import { datumDe } from "../lib/datum";
 
 export default function MitarbeiterSeite() {
   const { benutzer } = useAuth();

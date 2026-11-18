@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
-import { csvFeld } from "../lib/csv.js";
+import { buchungenAlsCsv } from "../lib/csv.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
-import { positionsText, positionsTyp } from "../lib/buchungslogik.js";
+import { nettoUndSteuer, positionsTyp } from "../lib/buchungslogik.js";
+import { datumDe } from "../lib/format.js";
+import { jahrMonatAusQuery } from "../lib/periode.js";
 import {
   neuesDokumentMitKopf,
   fusszeile,
   eur,
-  datumDe,
   zeitraumText,
-  enthalteneSteuerCent,
 } from "../lib/pdf.js";
 
 export const berichtRouter = Router();
@@ -18,9 +18,12 @@ export const berichtRouter = Router();
 //   entweder ?jahr=2026&monat=5  ODER  ?von=2026-05-01&bis=2026-05-31
 // Rückgabe: { von, bis (exklusiv), label }
 function zeitraumAusQuery(req: any): { von: Date; bis: Date; label: string } | null {
-  const jahr = Number(req.query.jahr);
-  const monat = Number(req.query.monat);
-  if (jahr && monat) {
+  // Sind jahr/monat angegeben, müssen sie gültig sein (monat=13 würde sonst
+  // still in den Folgemonat rutschen).
+  if (req.query.jahr !== undefined || req.query.monat !== undefined) {
+    const periode = jahrMonatAusQuery(req.query);
+    if (!periode) return null;
+    const { jahr, monat } = periode;
     const von = new Date(jahr, monat - 1, 1);
     const bis = new Date(jahr, monat, 1); // erster Tag des Folgemonats (exklusiv)
     return { von, bis, label: zeitraumText(von, bis) };
@@ -196,7 +199,7 @@ berichtRouter.get("/detailbericht", angemeldet, async (req, res) => {
 
   for (const b of buchungen) {
     seitenumbruchPruefen();
-    const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, Number(p.steuersatz)), 0);
+    const mwst = b.positionen.reduce((s, p) => s + nettoUndSteuer(p.betragCent, Number(p.steuersatz)).steuerCent, 0);
     // Splitbuchung: Zeilentexte je Konto anzeigen.
     const konten = b.positionen
       .map(
@@ -324,39 +327,7 @@ berichtRouter.get("/csv", angemeldet, async (req, res) => {
   if (!daten) return;
   const { kostenstelle, buchungen, zeitraum } = daten;
 
-  // Excel-freundlich (de-AT): Semikolon als Trenner, Komma als Dezimaltrennzeichen,
-  // UTF-8 mit BOM (sonst zeigt Excel Umlaute falsch), Zeilenende CRLF.
-  const TRENN = ";";
-  const betrag = (cent: number) => (cent / 100).toFixed(2).replace(".", ",");
-  // Formel-Neutralisierung wie csvFeld in export.ts (Security-Audit 2026-10).
-  const feld = (wert: string | number): string => csvFeld(wert);
-
-  const kopf = ["Nr.", "Belegnummer", "Belegdatum", "Typ", "Beschreibung", "Konto", "MwSt_EUR", "Betrag_EUR"];
-  const zeilen: string[] = [kopf.join(TRENN)];
-
-  // Eine Zeile je Buchungszeile: eine Splitbuchung ergibt mehrere Zeilen mit
-  // derselben Nummer/Belegnummer, eigenem Konto, Text, MwSt und Betrag.
-  for (const b of buchungen) {
-    for (const p of b.positionen) {
-      const mwst = enthalteneSteuerCent(p.betragCent, Number(p.steuersatz));
-      const typ = positionsTyp(p, b.typ);
-      const signiert = typ === "ausgang" ? -p.betragCent : p.betragCent;
-      zeilen.push(
-        [
-          feld(b.buchungsnummer),
-          feld(b.belegnummer),
-          feld(datumDe(b.belegdatum)),
-          feld(typ === "ausgang" ? "Ausgang" : "Eingang"),
-          feld(positionsText(p, b.beschreibung)),
-          feld(`${p.konto.nummer} (${p.steuersatz}%)`),
-          feld(betrag(mwst)),
-          feld(betrag(signiert)),
-        ].join(TRENN)
-      );
-    }
-  }
-
-  const inhalt = "\uFEFF" + zeilen.join("\r\n") + "\r\n";
+  const inhalt = buchungenAlsCsv(buchungen, false);
 
   // Dateiname aus Kostenstelle + Zeitraum, auf sichere Zeichen reduziert.
   const sicher = (s: string) => s.replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "");

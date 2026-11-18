@@ -7,6 +7,7 @@ import { tokenSignieren } from "../lib/suiteAuth";
 import { resetDb } from "../test/helfer";
 import { pseudonymisieren, reIdentifizieren, namensRegex } from "./pseudonym";
 import { istUebernahmefaehig, type AufbereitetesErgebnis } from "./anfrage";
+import { beschaeftigungsWerteSchema } from "./beschaeftigung";
 
 const run = process.env.TEST_DATABASE_URL ? describe : describe.skip;
 
@@ -29,6 +30,19 @@ describe("Platzhalter und Uebernahme-Grenzen (Unit)", () => {
     expect(trifft("Mayer", "Frau Mayer ab Mai")).toBe(true);
     expect(trifft("Mayer", "Frau Mayerhofer ab Mai")).toBe(false);
     expect(trifft("Groß", "Frau Großmann ab Mai")).toBe(false);
+  });
+
+  it("eine Stelle fuer die Wertgrenzen: Stunden bis 168, Ausmass bis 100 %, echtes Datum", () => {
+    const ok = { wochenstunden: 38.5, ausmassProzent: 100, gueltigAb: "2026-06-01" };
+    const gueltig = (w: object) => beschaeftigungsWerteSchema.safeParse({ ...ok, ...w }).success;
+    expect(gueltig({})).toBe(true);
+    expect(gueltig({ wochenstunden: 168 })).toBe(true);
+    expect(gueltig({ wochenstunden: 168.5 })).toBe(false);
+    expect(gueltig({ wochenstunden: 0 })).toBe(false);
+    expect(gueltig({ ausmassProzent: 100.5 })).toBe(false);
+    expect(gueltig({ ausmassProzent: 0 })).toBe(false);
+    expect(gueltig({ gueltigAb: "01.06.2026" })).toBe(false);
+    expect(gueltig({ gueltigAb: "2026-13-45" })).toBe(false);
   });
 
   it("uebernimmt automatisch nur Werte in den Grenzen des manuellen Bestaetigens", () => {

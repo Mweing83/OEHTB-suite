@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
-import { formatCent, euroStringZuCent, formatProzent } from "../lib/geld.js";
+import { formatCent, euroStringZuCent, formatProzent, centZuEingabe } from "../lib/geld.js";
 import { bestaetigen } from "../components/dialog.js";
 
 // ============================================================
@@ -404,7 +404,7 @@ function KostenstellenTab() {
       gegenkonto: k.gegenkonto ?? "",
       bereichId: k.bereichId,
       kassenartId: k.kassenartId,
-      anfangssaldo: (k.anfangssaldoCent / 100).toFixed(2).replace(".", ","),
+      anfangssaldo: centZuEingabe(k.anfangssaldoCent),
       belegStartnummer: k.belegStartnummer != null ? String(k.belegStartnummer) : "",
       belegStartJahr: k.belegStartJahr != null ? String(k.belegStartJahr) : String(new Date().getFullYear()),
     });

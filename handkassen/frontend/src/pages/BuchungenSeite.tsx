@@ -1,19 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, apiUrl } from "../lib/api.js";
-import { formatCent, formatProzent, summeSteuerCent } from "../lib/geld.js";
+import { centZuEingabe, formatCent, formatProzent, summeSteuerCent } from "../lib/geld.js";
+import { useFreieNummern, useKostenstellen } from "../lib/daten.js";
 import BuchungsFormular, { type BearbeitenVorlage } from "../components/BuchungsFormular.js";
 import { isoZuDe } from "../components/DatumFeld.js";
 import { bestaetigen, hinweis } from "../components/dialog.js";
 import FreieNummernHinweis from "../components/FreieNummernHinweis.js";
-
-interface Kostenstelle {
-  id: number;
-  nummer: string;
-  bezeichnung: string;
-  bereich: { id: number; bezeichnung: string };
-  firma: { id: number; name: string };
-  saldoCent: number;
-}
 
 interface Buchung {
   id: number;
@@ -39,7 +31,7 @@ interface Buchung {
 }
 
 export default function BuchungenSeite() {
-  const [kostenstellen, setKostenstellen] = useState<Kostenstelle[]>([]);
+  const { kostenstellen, neuLaden: kostenstellenNeuLaden } = useKostenstellen();
   const [aktiv, setAktiv] = useState<number | null>(null);
   // Firma (oberhalb der Kostenstelle; nur sichtbar bei mehreren Firmen)
   const [firmaId, setFirmaId] = useState<number | null>(null);
@@ -49,7 +41,6 @@ export default function BuchungenSeite() {
   const [jahr, setJahr] = useState(heute.getFullYear());
   const [monat, setMonat] = useState(heute.getMonth() + 1);
   const [ladeFehler, setLadeFehler] = useState<string | null>(null);
-  const [freieNummern, setFreieNummern] = useState<string[]>([]);
 
   // Filter-Zustand (alles im Browser, sofort wirkend)
   const [suche, setSuche] = useState("");
@@ -63,16 +54,12 @@ export default function BuchungenSeite() {
   // Beleg-Vorschau im rechten Panel (statt in einem neuen Tab)
   const [belegVorschau, setBelegVorschau] = useState<{ id: number; originalname: string; belegnummer: string } | null>(null);
 
+  // Erste Kostenstelle (und ihre Firma) vorwählen, falls noch nichts gewählt ist.
   useEffect(() => {
-    api.get<Kostenstelle[]>("/kostenstellen").then((ks) => {
-      setKostenstellen(ks);
-      // Erste Kostenstelle (und ihre Firma) vorwählen, falls noch nichts gewählt ist.
-      if (ks.length) {
-        setAktiv((alt) => alt ?? ks[0].id);
-        setFirmaId((alt) => alt ?? ks[0].firma.id);
-      }
-    });
-  }, []);
+    if (!kostenstellen.length) return;
+    setAktiv((alt) => alt ?? kostenstellen[0].id);
+    setFirmaId((alt) => alt ?? kostenstellen[0].firma.id);
+  }, [kostenstellen]);
 
   function ladeBuchungen(ksId: number) {
     setLadeFehler(null);
@@ -93,15 +80,12 @@ export default function BuchungenSeite() {
     if (aktiv) ladeBuchungen(aktiv);
   }, [aktiv]);
 
-  function ladeFreieNummern() {
-    if (!aktiv) return;
-    api
-      .get<{ belegnummer: string }[]>(`/buchungen/freie-belegnummern?kostenstelle=${aktiv}&jahr=${jahr}&monat=${monat}`)
-      .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
-      .catch(() => setFreieNummern([]));
-  }
-  // Neu laden bei Periode/Kostenstelle und nach jeder Änderung der Liste.
-  useEffect(ladeFreieNummern, [aktiv, jahr, monat, buchungen]);
+  // Frei gewordene Belegnummern: neu laden bei Periode/Kostenstelle und nach
+  // jeder Änderung der Liste.
+  const freieNummern = useFreieNummern(
+    aktiv ? `/buchungen/freie-belegnummern?kostenstelle=${aktiv}&jahr=${jahr}&monat=${monat}` : null,
+    buchungen
+  );
 
   const aktuelleKs = kostenstellen.find((k) => k.id === aktiv);
   const firmen = Array.from(new Map(kostenstellen.map((k) => [k.firma.id, k.firma])).values()).sort(
@@ -182,7 +166,7 @@ export default function BuchungenSeite() {
       .catch((e) => hinweis((e as Error).message));
     if (aktiv) {
       ladeBuchungen(aktiv);
-      api.get<Kostenstelle[]>("/kostenstellen").then(setKostenstellen);
+      kostenstellenNeuLaden();
     }
   }
 
@@ -204,7 +188,7 @@ export default function BuchungenSeite() {
     if (bearbeiten?.buchungId === b.id) setBearbeiten(null);
     if (aktiv) {
       ladeBuchungen(aktiv);
-      api.get<Kostenstelle[]>("/kostenstellen").then(setKostenstellen);
+      kostenstellenNeuLaden();
     }
   }
 
@@ -223,7 +207,7 @@ export default function BuchungenSeite() {
       positionen: b.positionen.map((p) => ({
         typ: p.typ,
         text: p.text ?? "",
-        betrag: (p.betragCent / 100).toFixed(2).replace(".", ","),
+        betrag: centZuEingabe(p.betragCent),
         steuersatz: p.steuersatz,
         kontoId: p.kontoId,
       })),
@@ -307,7 +291,7 @@ export default function BuchungenSeite() {
           onBearbeitenAbbrechen={() => setBearbeiten(null)}
           onGespeichert={() => {
             ladeBuchungen(aktiv);
-            api.get<Kostenstelle[]>("/kostenstellen").then(setKostenstellen);
+            kostenstellenNeuLaden();
           }}
         />}
 

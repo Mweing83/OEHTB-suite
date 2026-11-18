@@ -17,7 +17,10 @@ export const TOOL_SLUG = process.env.TOOL_SLUG || "handkassen";
 export const SUITE_URL = process.env.SUITE_URL || "http://localhost:3000";
 const PRUEF_INTERVALL_MS = 60 * 1000;
 
-const JWT_SECRET = process.env.JWT_SECRET || "bitte-aendern";
+// Ohne gesetzten Wert derselbe Entwicklungs-Standard wie Portal, Stunden und
+// Foerderungen – sonst passt das lokale SSO nicht zusammen. In Produktion
+// verlangt der Guard darunter einen eigenen, langen Wert.
+const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 // Platzhalter-Erkennung suiteweit identisch (siehe Portal & Stunden, drift-check).
 const istPlatzhalter = /bitte|ersetzen|aendern|changeme|example|platzhalter/i.test(JWT_SECRET);
 if (

@@ -1,30 +1,20 @@
 import { useEffect, useState } from "react";
-import { api } from "../lib/api.js";
 import Berichte from "../components/Berichte.js";
 import KostenstellenOptionen from "../components/KostenstellenOptionen.js";
-
-interface Kostenstelle {
-  id: number;
-  nummer: string;
-  bezeichnung: string;
-  bereich: { id: number; bezeichnung: string };
-  firma?: { id: number; name: string };
-}
+import { useKostenstellen } from "../lib/daten.js";
 
 // Eigene Seite für die PDF-Berichte.
 // Das Kostenstellen-Dropdown zeigt nur Kassen, auf die der angemeldete
 // Nutzer Zugriff hat – die API /kostenstellen filtert das bereits serverseitig
 // (Erfasser: nur zugewiesene; Admin/Finanzen: alle).
 export default function BerichteSeite() {
-  const [kostenstellen, setKostenstellen] = useState<Kostenstelle[]>([]);
+  const { kostenstellen } = useKostenstellen();
   const [aktiv, setAktiv] = useState<number | null>(null);
 
+  // Erste Kostenstelle vorwählen, falls noch nichts gewählt ist.
   useEffect(() => {
-    api.get<Kostenstelle[]>("/kostenstellen").then((ks) => {
-      setKostenstellen(ks);
-      if (ks.length) setAktiv(ks[0].id);
-    }).catch(() => setKostenstellen([]));
-  }, []);
+    if (kostenstellen.length) setAktiv((alt) => alt ?? kostenstellen[0].id);
+  }, [kostenstellen]);
 
   return (
     <div>
@@ -43,7 +33,7 @@ export default function BerichteSeite() {
         )}
       </div>
 
-      {aktiv && <Berichte kostenstelleId={aktiv} />}
+      {aktiv && <Berichte kostenstelleId={aktiv} kostenstellen={kostenstellen} />}
     </div>
   );
 }

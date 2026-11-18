@@ -1,5 +1,5 @@
 // Reine Rechenlogik des Buchungsformulars (ohne React) – per Unit-Test prüfbar.
-import { euroStringZuCent } from "./geld.js";
+import { centZuEingabe, euroStringZuCent } from "./geld.js";
 
 export type Typ = "eingang" | "ausgang";
 
@@ -17,10 +17,6 @@ export interface Position {
 }
 
 export const LEER: Position = { typ: null, text: "", betrag: "", steuersatz: null, kontoId: 0 };
-
-export function centZuEingabe(cent: number): string {
-  return (cent / 100).toFixed(2).replace(".", ",");
-}
 
 // Betragseingabe einer Zeile: gültig nur als positiver Betrag, sonst null.
 export function betragCent(text: string): number | null {

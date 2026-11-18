@@ -12,6 +12,7 @@ import {
   istUebernahmefaehig,
   AufbereitetesErgebnis,
 } from "../services/anfrage";
+import { beschaeftigungsWerteSchema } from "../services/beschaeftigung";
 
 export const anfragenRouter = Router();
 
@@ -180,13 +181,43 @@ const ALLE_STATUS = Object.values(AnfrageStatusEnum) as AnfrageStatus[];
 const BESTAETIGBAR: AnfrageStatus[] = ["NEU", "GEPARSED", "ZUR_BESTAETIGUNG"];
 const ABLEHNBAR: AnfrageStatus[] = ["NEU", "GEPARSED", "ZUR_BESTAETIGUNG", "FEHLER"];
 
-const bestaetigenSchema = z.object({
+const bestaetigenSchema = beschaeftigungsWerteSchema.extend({
   mitarbeiterId: z.string().min(1),
-  wochenstunden: z.number().positive().max(168),
-  ausmassProzent: z.number().positive().max(100),
-  gueltigAb: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notiz: z.string().optional(),
 });
+
+// Kern von "Bestaetigen" und automatischer Uebernahme: Statuswechsel und neuer
+// Beschaeftigungs-Eintrag (Historie) passieren atomar und nur aus offenem
+// Zustand (Security-Audit 2026-10: bereits verrechnete/abgelehnte Anfragen
+// liessen sich erneut bestaetigen und erzeugten doppelte Eintraege; parallele
+// Klicks bestaetigen nur einmal). Liefert false, wenn die Anfrage nicht mehr
+// offen war.
+async function alsBeschaeftigungUebernehmen(
+  anfrageId: string,
+  werte: { mitarbeiterId: string; wochenstunden: number; ausmassProzent: number; gueltigAb: string; notiz: string | null },
+  userId: string | null
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const r = await tx.aenderungsanfrage.updateMany({
+      where: { id: anfrageId, status: { in: BESTAETIGBAR } },
+      data: { status: "BESTAETIGT", bearbeitetVon: userId, bearbeitetAm: new Date() },
+    });
+    if (r.count !== 1) return false;
+    await tx.beschaeftigung.create({
+      data: {
+        mitarbeiterId: werte.mitarbeiterId,
+        wochenstunden: werte.wochenstunden,
+        ausmassProzent: werte.ausmassProzent,
+        gueltigAb: new Date(werte.gueltigAb + "T00:00:00.000Z"),
+        quelle: "MAIL_PASTE",
+        erfasstVon: userId,
+        aenderungsanfrageId: anfrageId,
+        notiz: werte.notiz,
+      },
+    });
+    return true;
+  });
+}
 
 anfragenRouter.post(
   "/:id/bestaetigen",
@@ -210,35 +241,12 @@ anfragenRouter.post(
       return;
     }
 
-    // Nur offene Anfragen duerfen bestaetigt werden (Security-Audit 2026-10:
-    // bereits verrechnete/abgelehnte Anfragen liessen sich erneut bestaetigen
-    // und erzeugten doppelte Beschaeftigungs-Eintraege). Statuswechsel und
-    // neuer Eintrag passieren atomar; parallele Klicks bestaetigen nur einmal.
-    const ok = await prisma.$transaction(async (tx) => {
-      const r = await tx.aenderungsanfrage.updateMany({
-        where: { id: anfrage.id, status: { in: BESTAETIGBAR } },
-        data: {
-          status: "BESTAETIGT",
-          bearbeitetVon: req.benutzer?.userId ?? null,
-          bearbeitetAm: new Date(),
-        },
-      });
-      if (r.count !== 1) return false;
-      // Neuen Beschaeftigung-Eintrag anlegen (Historie).
-      await tx.beschaeftigung.create({
-        data: {
-          mitarbeiterId: d.mitarbeiterId,
-          wochenstunden: d.wochenstunden,
-          ausmassProzent: d.ausmassProzent,
-          gueltigAb: new Date(d.gueltigAb + "T00:00:00.000Z"),
-          quelle: "MAIL_PASTE",
-          erfasstVon: req.benutzer?.userId ?? null,
-          aenderungsanfrageId: anfrage.id,
-          notiz: d.notiz || null,
-        },
-      });
-      return true;
-    });
+    // Nur offene Anfragen duerfen bestaetigt werden (siehe alsBeschaeftigungUebernehmen).
+    const ok = await alsBeschaeftigungUebernehmen(
+      anfrage.id,
+      { ...d, notiz: d.notiz || null },
+      req.benutzer?.userId ?? null
+    );
     if (!ok) {
       res.status(409).json({ fehler: "Anfrage ist nicht mehr offen und kann nicht bestätigt werden." });
       return;
@@ -411,30 +419,17 @@ async function uebernehmen(
   const mitarbeiterId = ergebnis.mitarbeiterId!;
 
   // Atomar und nur aus offenem Zustand (wie beim manuellen Bestaetigen).
-  const ok = await prisma.$transaction(async (tx) => {
-    const r = await tx.aenderungsanfrage.updateMany({
-      where: { id: anfrageId, status: { in: BESTAETIGBAR } },
-      data: {
-        status: "BESTAETIGT",
-        bearbeitetVon: userId,
-        bearbeitetAm: new Date(),
-      },
-    });
-    if (r.count !== 1) return false;
-    await tx.beschaeftigung.create({
-      data: {
-        mitarbeiterId,
-        wochenstunden: ergebnis.neuStunden!,
-        ausmassProzent: ergebnis.ausmassProzent!,
-        gueltigAb: new Date(ergebnis.gueltigAb + "T00:00:00.000Z"),
-        quelle: "MAIL_PASTE",
-        erfasstVon: userId,
-        aenderungsanfrageId: anfrageId,
-        notiz: "Automatisch übernommen",
-      },
-    });
-    return true;
-  });
+  const ok = await alsBeschaeftigungUebernehmen(
+    anfrageId,
+    {
+      mitarbeiterId,
+      wochenstunden: ergebnis.neuStunden!,
+      ausmassProzent: ergebnis.ausmassProzent!,
+      gueltigAb: ergebnis.gueltigAb!,
+      notiz: "Automatisch übernommen",
+    },
+    userId
+  );
   if (!ok) return;
 
   await auditLog({

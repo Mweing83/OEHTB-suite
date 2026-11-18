@@ -1,3 +1,7 @@
+// Zuerst die lokale .env laden (wie Portal, Stunden und Foerderungen), damit
+// "npm run dev" DATABASE_URL & Co. kennt. Im Container gibt es keine .env –
+// dort kommen die Werte aus der Umgebung.
+import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";

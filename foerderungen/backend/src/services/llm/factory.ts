@@ -10,28 +10,44 @@ import { DummyProvider } from "./dummy";
 // Konfiguration und faellt OHNE hinterlegten API-Key auf den Dummy zurueck.
 // Ein hinterlegter, aber unlesbarer Key ist dagegen ein Fehler (siehe unten).
 
-const STANDARD: ProviderKonfig = { provider: "dummy" };
+// Gespeicherte LLM-Konfiguration (Einstellung "llm_konfig"), einheitlich
+// gelesen – von den Einstellungs-Routen und der Factory.
+export interface GespeicherteLlmKonfig {
+  provider: ProviderKonfig["provider"];
+  modell: string;
+  apiKeyVerschluesselt: string | null;
+  // Fuer welchen Anbieter der Key eingegeben wurde; null ohne Key. Ein Key
+  // gehoert zu genau einem Anbieter (Altbestand ohne apiKeyProvider: gilt
+  // fuer den eingestellten Anbieter).
+  apiKeyAnbieter: string | null;
+}
 
-export async function ladeProviderKonfig(): Promise<ProviderKonfig> {
+export async function ladeGespeicherteLlmKonfig(): Promise<GespeicherteLlmKonfig> {
   const eintrag = await prisma.einstellung.findUnique({
     where: { schluessel: LLM_SCHLUESSEL },
   });
-  if (!eintrag) return STANDARD;
-  const wert = eintrag.wert as Record<string, unknown>;
-  const konfig: ProviderKonfig = {
-    provider: (wert.provider as ProviderKonfig["provider"]) ?? "dummy",
-    modell: typeof wert.modell === "string" ? wert.modell : undefined,
+  const wert = (eintrag?.wert as Record<string, unknown> | undefined) ?? {};
+  const provider = (wert.provider as ProviderKonfig["provider"] | undefined) ?? "dummy";
+  const key =
+    typeof wert.apiKeyVerschluesselt === "string" && wert.apiKeyVerschluesselt ? wert.apiKeyVerschluesselt : null;
+  return {
+    provider,
+    modell: typeof wert.modell === "string" ? wert.modell : "",
+    apiKeyVerschluesselt: key,
+    apiKeyAnbieter: key ? ((wert.apiKeyProvider as string | undefined) ?? provider) : null,
   };
-  // Key nur fuer den Anbieter verwenden, fuer den er eingegeben wurde
-  // (Altbestand ohne apiKeyProvider: gilt fuer den eingestellten Anbieter).
-  const keyAnbieter = (wert.apiKeyProvider as string | undefined) ?? konfig.provider;
-  if (
-    typeof wert.apiKeyVerschluesselt === "string" &&
-    wert.apiKeyVerschluesselt &&
-    keyAnbieter === konfig.provider
-  ) {
+}
+
+export async function ladeProviderKonfig(): Promise<ProviderKonfig> {
+  const gespeichert = await ladeGespeicherteLlmKonfig();
+  const konfig: ProviderKonfig = {
+    provider: gespeichert.provider,
+    modell: gespeichert.modell || undefined,
+  };
+  // Key nur fuer den Anbieter verwenden, fuer den er eingegeben wurde.
+  if (gespeichert.apiKeyVerschluesselt && gespeichert.apiKeyAnbieter === konfig.provider) {
     try {
-      konfig.apiKey = entschluesseln(wert.apiKeyVerschluesselt);
+      konfig.apiKey = entschluesseln(gespeichert.apiKeyVerschluesselt);
     } catch (err) {
       // Ein gespeicherter, aber nicht mehr entschluesselbarer Key (z. B. nach
       // geaendertem Schluessel-Geheimnis) darf NICHT still zum Dummy-Anbieter

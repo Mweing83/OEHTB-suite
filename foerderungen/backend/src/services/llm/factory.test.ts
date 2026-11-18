@@ -1,6 +1,46 @@
 import { describe, it, expect } from "vitest";
 import { extrahiereJsonArray, mitWiederholung } from "./typen";
 import { erzeugeProvider } from "./factory";
+import { WebsucheProvider } from "./websuche";
+
+// Anbieter-Attrappe: zeichnet auf, was an die API ginge, und antwortet fest.
+class TestProvider extends WebsucheProvider {
+  name = "test";
+  aufrufe: { system: string; frage: string }[] = [];
+  constructor(private antwort: string) {
+    super();
+  }
+  protected async frage(system: string, frage: string): Promise<string> {
+    this.aufrufe.push({ system, frage });
+    return this.antwort;
+  }
+}
+
+describe("WebsucheProvider (gemeinsame Aufgaben aller Anbieter)", () => {
+  it("fragt nach Ausschreibungen der genannten Quellen und liest das JSON-Array", async () => {
+    const p = new TestProvider(
+      'Ergebnis:\n[{"quelleName":"FSW","titel":"Call A","link":null,"frist":null,"laufendEinreichbar":true,"foerderhoehe":null,"beschreibung":"x"}]'
+    );
+    const funde = await p.sucheAusschreibungen([{ name: "FSW", webseite: "https://www.fsw.at", themen: ["Behindertenhilfe"] }]);
+    expect(funde).toHaveLength(1);
+    expect(funde[0].titel).toBe("Call A");
+    expect(p.aufrufe[0].frage).toContain("- FSW (https://www.fsw.at; Themen: Behindertenhilfe)");
+    expect(p.aufrufe[0].system).toContain('"quelleName"');
+    expect(p.aufrufe[0].system).toContain("STRIKT gueltig");
+  });
+
+  it("nennt bei der Quellensuche die bereits bekannten Namen", async () => {
+    const p = new TestProvider("[]");
+    expect(await p.entdeckeQuellen(["Licht ins Dunkel", "FSW"])).toEqual([]);
+    expect(p.aufrufe[0].frage).toContain("- Licht ins Dunkel\n- FSW");
+    expect(p.aufrufe[0].system).toContain('"ebene": "BUND"|"LAND"|"GEMEINDE"|"EU"|"PRIVAT"');
+  });
+
+  it("Anthropic und OpenAI bauen auf derselben Basis auf", () => {
+    expect(erzeugeProvider({ provider: "anthropic", apiKey: "x" })).toBeInstanceOf(WebsucheProvider);
+    expect(erzeugeProvider({ provider: "openai", apiKey: "x" })).toBeInstanceOf(WebsucheProvider);
+  });
+});
 
 describe("extrahiereJsonArray", () => {
   it("zieht ein Array aus Text mit Zaeunen", () => {

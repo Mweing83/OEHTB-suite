@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { pseudonymisieren, reIdentifizieren } from "./pseudonym";
 import { aktiverProvider } from "./llm/factory";
+import { beschaeftigungsWerteSchema } from "./beschaeftigung";
 
 // ---------------------------------------------------------------------------
 // Verarbeitung einer Aenderungsanfrage:
@@ -118,14 +119,10 @@ export async function anfrageVerarbeiten(anfrageId: string): Promise<void> {
 export function istUebernahmefaehig(e: AufbereitetesErgebnis): boolean {
   return (
     e.mitarbeiterId !== null &&
-    typeof e.neuStunden === "number" &&
-    e.neuStunden > 0 &&
-    e.neuStunden <= 168 &&
-    typeof e.ausmassProzent === "number" &&
-    e.ausmassProzent > 0 &&
-    e.ausmassProzent <= 100 &&
-    e.gueltigAb !== null &&
-    /^\d{4}-\d{2}-\d{2}$/.test(e.gueltigAb) &&
-    !Number.isNaN(new Date(e.gueltigAb + "T00:00:00.000Z").getTime())
+    beschaeftigungsWerteSchema.safeParse({
+      wochenstunden: e.neuStunden,
+      ausmassProzent: e.ausmassProzent,
+      gueltigAb: e.gueltigAb,
+    }).success
   );
 }

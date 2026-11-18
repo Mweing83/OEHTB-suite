@@ -3,22 +3,14 @@ import path from "node:path";
 import fs from "node:fs";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import { prisma } from "../lib/db.js";
-import { csvFeld } from "../lib/csv.js";
+import { buchungenAlsCsv } from "../lib/csv.js";
 import { angemeldet, rolleErforderlich } from "../middleware/auth.js";
 import { UPLOAD_DIR } from "../lib/uploads.js";
-import { bmdCsv, centZuStr, nettoUndSteuer } from "../lib/bmd-export.js";
+import { bmdCsv } from "../lib/bmd-export.js";
 import { positionsText, positionsTyp } from "../lib/buchungslogik.js";
+import { idAusQuery, jahrMonatAusQuery } from "../lib/periode.js";
 
 export const exportRouter = Router();
-
-// Datum -> "TT.MM.JJJJ" (für CSV/Excel)
-function datumDeCsv(d: Date): string {
-  const t = String(d.getDate()).padStart(2, "0");
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  return `${t}.${m}.${d.getFullYear()}`;
-}
-
-// CSV-Feld escapen inkl. Formel-Neutralisierung: siehe lib/csv.ts.
 
 // Zahlen aus der Query prüfen (firma/jahr/monat, optional kostenstelle), sonst
 // null. Exporte laufen je Firma (ein NTCS-Mandant) über alle Kostenstellen oder
@@ -30,17 +22,15 @@ interface ExportAuswahl {
   kostenstelleId: number | null;
 }
 function monatAusQuery(q: Record<string, unknown>): ExportAuswahl | null {
-  const firmaId = Number(q.firma);
-  const jahr = Number(q.jahr);
-  const monat = Number(q.monat);
-  if (!Number.isInteger(firmaId) || firmaId <= 0) return null;
-  if (!Number.isInteger(jahr) || !Number.isInteger(monat) || monat < 1 || monat > 12 || jahr < 2000) return null;
+  const firmaId = idAusQuery(q.firma);
+  const periode = jahrMonatAusQuery(q);
+  if (!firmaId || !periode) return null;
   let kostenstelleId: number | null = null;
   if (q.kostenstelle !== undefined && q.kostenstelle !== "") {
-    kostenstelleId = Number(q.kostenstelle);
-    if (!Number.isInteger(kostenstelleId) || kostenstelleId <= 0) return null;
+    kostenstelleId = idAusQuery(q.kostenstelle);
+    if (!kostenstelleId) return null;
   }
-  return { firmaId, jahr, monat, kostenstelleId };
+  return { firmaId, ...periode, kostenstelleId };
 }
 
 // Prisma-Filter auf die Kostenstelle(n) des Exports.
@@ -263,38 +253,7 @@ exportRouter.get(
       orderBy: [{ kostenstelleId: "asc" }, { belegdatum: "asc" }, { buchungsnummer: "asc" }],
     });
 
-    const SP = ";";
-    const kopf = [
-      "Kostenstelle_Nr", "Kostenstelle", "Bereich", "Nr.", "Belegnummer", "Belegdatum",
-      "Typ", "Beschreibung", "Konto", "MwSt_EUR", "Betrag_EUR",
-    ].join(SP);
-
-    // Eine Zeile je Buchungszeile (Splitbuchung = mehrere Zeilen mit derselben
-    // Belegnummer); die Summe der Zeilen ergibt den Belegbetrag.
-    const zeilen = buchungen.flatMap((b) =>
-      b.positionen.map((p) => {
-        const mwst = nettoUndSteuer(p.betragCent, Number(p.steuersatz)).steuerCent;
-        // Vorzeichen und Typ je Zeile (Einnahme in einer Ausgabe-Rechnung = +)
-        const typ = positionsTyp(p, b.typ);
-        const signiert = typ === "ausgang" ? -p.betragCent : p.betragCent;
-        return [
-          csvFeld(b.kostenstelle.nummer),
-          csvFeld(b.kostenstelle.bezeichnung),
-          csvFeld(b.kostenstelle.bereich.bezeichnung),
-          csvFeld(b.buchungsnummer),
-          csvFeld(b.belegnummer),
-          csvFeld(datumDeCsv(b.belegdatum)),
-          csvFeld(typ === "ausgang" ? "Ausgang" : "Eingang"),
-          csvFeld(positionsText(p, b.beschreibung)),
-          csvFeld(`${p.konto.nummer} (${p.steuersatz}%)`),
-          csvFeld(centZuStr(mwst)),
-          csvFeld(centZuStr(signiert)),
-        ].join(SP);
-      })
-    );
-
-    // UTF-8 mit BOM, CRLF (sonst zeigt Excel Umlaute falsch).
-    const inhalt = "\uFEFF" + [kopf, ...zeilen].join("\r\n") + "\r\n";
+    const inhalt = buchungenAlsCsv(buchungen, true);
 
     res
       .setHeader("Content-Type", "text/csv; charset=utf-8")

@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api } from "../lib/api.js";
-import { formatCent, formatProzent } from "../lib/geld.js";
+import { centZuEingabe, formatCent, formatProzent } from "../lib/geld.js";
 import {
   LEER,
   betragCent,
-  centZuEingabe,
   positionsSumme,
   restzeileAnpassen,
   type Position,

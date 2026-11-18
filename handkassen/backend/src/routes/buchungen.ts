@@ -7,7 +7,8 @@ import type { Prisma } from "../generated/prisma/client.js";
 import { audit } from "../lib/audit.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
 import { buchungValidieren, saldoWirkung, belegnummerFormat, buchungFuerAusgabe, textNormalisieren, type BuchungEingabe } from "../lib/buchungslogik.js";
-import { monatGesperrt } from "../lib/sperre.js";
+import { periodeGesperrtMeldung } from "../lib/sperre.js";
+import { idAusQuery, jahrMonatAusQuery } from "../lib/periode.js";
 import { belegPflichtAktiv } from "../lib/einstellungen.js";
 import { pruefeKontenFreigabe, pruefeFixSteuersaetze } from "../lib/kontoFreigabe.js";
 import { UPLOAD_DIR } from "../lib/uploads.js";
@@ -242,13 +243,9 @@ async function naechsteBelegnummer(
 
 // Kostenstelle/Jahr/Monat aus der Query prüfen.
 function periodeAusQuery(q: Record<string, unknown>): { kostenstelleId: number; jahr: number; monat: number } | null {
-  const kostenstelleId = Number(q.kostenstelle);
-  const jahr = Number(q.jahr);
-  const monat = Number(q.monat);
-  if (!Number.isInteger(kostenstelleId) || kostenstelleId <= 0) return null;
-  if (!Number.isInteger(jahr) || jahr < 2000 || jahr > 2100) return null;
-  if (!Number.isInteger(monat) || monat < 1 || monat > 12) return null;
-  return { kostenstelleId, jahr, monat };
+  const kostenstelleId = idAusQuery(q.kostenstelle);
+  const periode = jahrMonatAusQuery(q);
+  return kostenstelleId && periode ? { kostenstelleId, ...periode } : null;
 }
 
 // --- Vorschau: voraussichtliche nächste Belegnummer (verbindlich erst beim Speichern) ---
@@ -319,31 +316,10 @@ buchungRouter.post("/", angemeldet, async (req, res) => {
     if (belegFehler) return res.status(400).json({ fehler: belegFehler });
   }
 
-  // 3) Periode darf nicht bereits freigegeben (gesperrt) sein
+  // 3) Periode darf weder freigegeben noch (für Nicht-Admins) gesperrt sein
   const beleg = new Date(eingabe.belegdatum);
-  const abschluss = await prisma.abschluss.findUnique({
-    where: {
-      kostenstelleId_jahr_monat: {
-        kostenstelleId: eingabe.kostenstelleId,
-        jahr: beleg.getFullYear(),
-        monat: beleg.getMonth() + 1,
-      },
-    },
-  });
-  if (abschluss && (abschluss.status === "freigegeben" || abschluss.freigegebenAm)) {
-    return res.status(409).json({ fehler: "Periode ist freigegeben und gesperrt." });
-  }
-
-  // 3b) Monatssperre: nach Ablauf der Frist (oder manuell gesperrt) darf nur
-  // noch ein Administrator in diesem Monat buchen.
-  if (
-    req.benutzer!.rolle !== "admin" &&
-    (await monatGesperrt(eingabe.kostenstelleId, beleg.getFullYear(), beleg.getMonth() + 1))
-  ) {
-    return res.status(409).json({
-      fehler: "Dieser Monat ist gesperrt. Nur Administratoren können hier noch buchen.",
-    });
-  }
+  const gesperrt = await periodeGesperrtMeldung(eingabe.kostenstelleId, beleg, req.benutzer!.rolle, "buchen");
+  if (gesperrt) return res.status(409).json({ fehler: gesperrt });
 
   // 4) Transaktional speichern: Nummern vergeben, Buchung + Positionen, Saldo, Audit
   const ergebnis = await prisma.$transaction(async (tx) => {
@@ -422,15 +398,8 @@ buchungRouter.post("/:id/storno", angemeldet, async (req, res) => {
   if (buchung.gesperrt) return res.status(409).json({ fehler: "Buchung ist gesperrt." });
   if (buchung.storniert) return res.status(409).json({ fehler: "Bereits storniert." });
 
-  // Monatssperre: in einem gesperrten Monat darf nur ein Administrator stornieren.
-  if (
-    req.benutzer!.rolle !== "admin" &&
-    (await monatGesperrt(buchung.kostenstelleId, buchung.belegdatum.getFullYear(), buchung.belegdatum.getMonth() + 1))
-  ) {
-    return res.status(409).json({
-      fehler: "Dieser Monat ist gesperrt. Nur Administratoren können hier noch stornieren.",
-    });
-  }
+  const gesperrt = await periodeGesperrtMeldung(buchung.kostenstelleId, buchung.belegdatum, req.benutzer!.rolle, "stornieren");
+  if (gesperrt) return res.status(409).json({ fehler: gesperrt });
 
   await prisma.$transaction(async (tx) => {
     await tx.buchung.update({ where: { id }, data: { storniert: true } });
@@ -469,19 +438,9 @@ buchungRouter.delete("/:id", angemeldet, async (req, res) => {
   }
   if (buchung.gesperrt) return res.status(409).json({ fehler: "Buchung ist gesperrt." });
 
-  const jahr = buchung.belegdatum.getFullYear();
   const monat = buchung.belegdatum.getMonth() + 1;
-  const abschluss = await prisma.abschluss.findUnique({
-    where: { kostenstelleId_jahr_monat: { kostenstelleId: buchung.kostenstelleId, jahr, monat } },
-  });
-  if (abschluss && (abschluss.status === "freigegeben" || abschluss.freigegebenAm)) {
-    return res.status(409).json({ fehler: "Periode ist freigegeben und gesperrt." });
-  }
-  if (req.benutzer!.rolle !== "admin" && (await monatGesperrt(buchung.kostenstelleId, jahr, monat))) {
-    return res.status(409).json({
-      fehler: "Dieser Monat ist gesperrt. Nur Administratoren können hier noch löschen.",
-    });
-  }
+  const gesperrt = await periodeGesperrtMeldung(buchung.kostenstelleId, buchung.belegdatum, req.benutzer!.rolle, "löschen");
+  if (gesperrt) return res.status(409).json({ fehler: gesperrt });
   if (buchung._count.korrekturen > 0) {
     return res.status(409).json({ fehler: "Auf diese Buchung verweist eine Korrekturbuchung; sie kann nicht gelöscht werden." });
   }
@@ -574,38 +533,11 @@ buchungRouter.put("/:id", angemeldet, async (req, res) => {
     return res.status(400).json({ fehler: "Ein Beleg ist verpflichtend. Bitte einen Beleg anhängen." });
   }
 
-  // Ziel-Periode darf nicht freigegeben sein (z. B. Verschieben in einen anderen Monat).
-  const abschluss = await prisma.abschluss.findUnique({
-    where: {
-      kostenstelleId_jahr_monat: {
-        kostenstelleId: original.kostenstelleId,
-        jahr: neuesBelegdatum.getFullYear(),
-        monat: neuesBelegdatum.getMonth() + 1,
-      },
-    },
-  });
-  if (abschluss && (abschluss.status === "freigegeben" || abschluss.freigegebenAm)) {
-    return res.status(409).json({ fehler: "Periode ist freigegeben und gesperrt." });
-  }
-
-  // Monatssperre: weder der bisherige noch der neue Monat dürfen für
-  // Nicht-Admins gesperrt sein.
-  if (req.benutzer!.rolle !== "admin") {
-    const origGesperrt = await monatGesperrt(
-      original.kostenstelleId,
-      original.belegdatum.getFullYear(),
-      original.belegdatum.getMonth() + 1
-    );
-    const zielGesperrt = await monatGesperrt(
-      original.kostenstelleId,
-      neuesBelegdatum.getFullYear(),
-      neuesBelegdatum.getMonth() + 1
-    );
-    if (origGesperrt || zielGesperrt) {
-      return res.status(409).json({
-        fehler: "Dieser Monat ist gesperrt. Nur Administratoren können hier noch bearbeiten.",
-      });
-    }
+  // Weder die Ziel-Periode (z. B. beim Verschieben in einen anderen Monat)
+  // noch die bisherige Periode dürfen freigegeben bzw. gesperrt sein.
+  for (const datum of [neuesBelegdatum, original.belegdatum]) {
+    const gesperrt = await periodeGesperrtMeldung(original.kostenstelleId, datum, req.benutzer!.rolle, "bearbeiten");
+    if (gesperrt) return res.status(409).json({ fehler: gesperrt });
   }
 
   const ergebnis = await prisma.$transaction(async (tx) => {

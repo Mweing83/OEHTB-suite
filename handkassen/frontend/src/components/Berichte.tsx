@@ -3,14 +3,19 @@ import { useAuth } from "../lib/auth.js";
 import { api, apiUrl } from "../lib/api.js";
 import DatumFeld from "./DatumFeld.js";
 import FreieNummernHinweis from "./FreieNummernHinweis.js";
+import { herunterladen } from "../lib/download.js";
+import { periodeGueltig, useFreieNummern, type Kostenstelle } from "../lib/daten.js";
 
 interface Props {
   kostenstelleId: number;
+  // Kostenstellen des Benutzers (von der Seite geladen) – für die Auswahl
+  // einer einzelnen Kostenstelle beim Export.
+  kostenstellen: Kostenstelle[];
 }
 
 // Bietet die drei PDF-Berichte für die gewählte Kostenstelle an.
 // Zwei Modi: nach Monat ODER frei wählbarer Zeitraum (von/bis).
-export default function Berichte({ kostenstelleId }: Props) {
+export default function Berichte({ kostenstelleId, kostenstellen }: Props) {
   const { benutzer } = useAuth();
   const darfBmd = benutzer?.rolle === "finanzen" || benutzer?.rolle === "admin";
   const heute = new Date();
@@ -39,12 +44,7 @@ export default function Berichte({ kostenstelleId }: Props) {
   // CSV wird heruntergeladen (nicht im Tab geöffnet). Ein temporärer Link mit
   // download-Attribut nutzt den vom Server gesetzten Dateinamen.
   function csvHerunterladen() {
-    const a = document.createElement("a");
-    a.href = url("csv");
-    a.download = "";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    herunterladen(url("csv"));
   }
 
   // BMD-Export bezieht sich auf ALLE Kostenstellen eines Monats (nicht auf eine einzelne).
@@ -68,25 +68,15 @@ export default function Berichte({ kostenstelleId }: Props) {
       .catch(() => {});
   }, [darfBmd]);
   // Optional nur eine Kostenstelle der Firma exportieren (0 = alle Kostenstellen).
-  const [exportKostenstellen, setExportKostenstellen] = useState<{ id: number; nummer: string; bezeichnung: string; firma: { id: number } }[]>([]);
   const [exportKs, setExportKs] = useState(0);
-  useEffect(() => {
-    if (!darfBmd) return;
-    api.get<typeof exportKostenstellen>("/kostenstellen").then(setExportKostenstellen).catch(() => {});
-  }, [darfBmd]);
-  const ksDerExportFirma = exportKostenstellen.filter((k) => k.firma.id === exportFirma);
+  const ksDerExportFirma = kostenstellen.filter((k) => k.firma.id === exportFirma);
   // Gemeinsamer Teil der Export-Adressen
   const exportParameter = `firma=${exportFirma}${exportKs ? `&kostenstelle=${exportKs}` : ""}&jahr=${bmdJahr}&monat=${bmdMonat}`;
-  const [freieNummern, setFreieNummern] = useState<string[]>([]);
 
   // Vor dem Export auf frei gewordene, offene Belegnummern hinweisen (Lücke nach NTCS).
-  useEffect(() => {
-    if (!darfBmd || !exportFirma || !(bmdMonat >= 1 && bmdMonat <= 12) || !bmdJahr) { setFreieNummern([]); return; }
-    api
-      .get<{ belegnummer: string }[]>(`/export/freie-belegnummern?${exportParameter}`)
-      .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
-      .catch(() => setFreieNummern([]));
-  }, [darfBmd, exportFirma, bmdJahr, bmdMonat, exportParameter]);
+  const freieNummern = useFreieNummern(
+    darfBmd && exportFirma && periodeGueltig(bmdJahr, bmdMonat) ? `/export/freie-belegnummern?${exportParameter}` : null
+  );
 
   // BMD-CSV oder ZIP (CSV + Belegdateien) herunterladen. Per fetch, damit eine
   // Fehlermeldung des Servers (z. B. fehlendes Gegenkonto) angezeigt werden kann.
@@ -106,12 +96,7 @@ export default function Berichte({ kostenstelleId }: Props) {
         /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ??
         `bmd_ka_${bmdJahr}_${String(bmdMonat).padStart(2, "0")}.${art === "bmd" ? "csv" : "zip"}`;
       const href = URL.createObjectURL(await res.blob());
-      const a = document.createElement("a");
-      a.href = href;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      herunterladen(href, name);
       URL.revokeObjectURL(href);
     } catch {
       setBmdFehler("Export fehlgeschlagen.");
@@ -122,12 +107,7 @@ export default function Berichte({ kostenstelleId }: Props) {
 
   // CSV über alle Kassen der Firma im gewählten Monat herunterladen.
   function csvAlleHerunterladen() {
-    const a = document.createElement("a");
-    a.href = apiUrl(`/export/csv?${exportParameter}`);
-    a.download = "";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    herunterladen(apiUrl(`/export/csv?${exportParameter}`));
   }
 
   return (

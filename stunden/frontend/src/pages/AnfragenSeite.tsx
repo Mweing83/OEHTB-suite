@@ -4,13 +4,8 @@ import { Anfrage, MitarbeiterListe } from "../lib/typen";
 import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
 import DatumEingabe from "../components/DatumEingabe";
-
-// Datum DD/MM/YYYY (europaeisches Layout) fuer die Anzeige.
-function datumDe(iso: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
-  const [j, m, t] = iso.split("-");
-  return `${t}/${m}/${j}`;
-}
+import { datumDe } from "../lib/datum";
+import { beschaeftigungPruefen } from "../lib/beschaeftigung";
 
 // Zeitstempel (ISO mit Uhrzeit) -> Datum DD/MM/YYYY fuer die Anzeige.
 function datumZeitstempelDe(iso: string): string {
@@ -224,22 +219,13 @@ function AnfrageKarte({
 
   async function bestaetigen() {
     setFehler(null);
-    const std = Number(stunden.replace(",", "."));
-    const aus = Number(ausmass.replace(",", "."));
     if (!mitarbeiterId) {
       setFehler("Bitte Mitarbeiter auswählen.");
       return;
     }
-    if (!Number.isFinite(std) || std <= 0) {
-      setFehler("Bitte gültige Wochenstunden eingeben.");
-      return;
-    }
-    if (!Number.isFinite(aus) || aus <= 0 || aus > 100) {
-      setFehler("Bitte gültiges Ausmaß (1–100 %) eingeben.");
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(gueltigAb)) {
-      setFehler("Bitte gültiges Datum wählen.");
+    const werte = beschaeftigungPruefen(stunden, ausmass, gueltigAb);
+    if (werte.fehler !== null) {
+      setFehler(werte.fehler);
       return;
     }
 
@@ -247,8 +233,8 @@ function AnfrageKarte({
     try {
       await api.post(`/api/anfragen/${anfrage.id}/bestaetigen`, {
         mitarbeiterId,
-        wochenstunden: std,
-        ausmassProzent: aus,
+        wochenstunden: werte.wochenstunden,
+        ausmassProzent: werte.ausmassProzent,
         gueltigAb,
       });
       onAktualisiert();

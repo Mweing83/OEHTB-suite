@@ -149,6 +149,16 @@ export function positionsText(p: { text?: string | null }, beschreibung: string 
   return (p.text && p.text.trim()) || beschreibung || "";
 }
 
+// Aus einem Brutto-Betrag (Cent) den Netto- und den enthaltenen Steueranteil
+// (Cent) bilden – die EINE Steuerberechnung für Exporte und Berichte.
+// Gerundet wird die Steuer, das Netto ist der Rest: netto + steuer ergibt
+// cent-genau wieder den Bruttobetrag, der Kassenstand bleibt exakt erhalten.
+export function nettoUndSteuer(bruttoCent: number, prozent: number): { nettoCent: number; steuerCent: number } {
+  if (!prozent) return { nettoCent: bruttoCent, steuerCent: 0 };
+  const steuerCent = Math.round(bruttoCent - bruttoCent / (1 + prozent / 100));
+  return { nettoCent: bruttoCent - steuerCent, steuerCent };
+}
+
 // Saldo-Wirkung einer Buchung auf die Kostenstelle (in Cent).
 export function saldoWirkung(typ: "eingang" | "ausgang", betragCent: number): number {
   return typ === "eingang" ? betragCent : -betragCent;

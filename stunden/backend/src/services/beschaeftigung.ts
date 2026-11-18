@@ -1,4 +1,17 @@
+import { z } from "zod";
 import { prisma } from "../lib/prisma";
+
+// Wertgrenzen einer Beschaeftigung – an EINER Stelle fuer das manuelle
+// Erfassen, das Bestaetigen einer Anfrage und die automatische Uebernahme
+// (vorher dreimal ausgeschrieben). Das Datum muss ein echter Kalendertag sein.
+export const beschaeftigungsWerteSchema = z.object({
+  wochenstunden: z.number().positive().max(168),
+  ausmassProzent: z.number().positive().max(100),
+  gueltigAb: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format YYYY-MM-DD")
+    .refine((d) => !Number.isNaN(new Date(d + "T00:00:00.000Z").getTime()), "Ungültiges Datum."),
+});
 
 // ---------------------------------------------------------------------------
 // Kernlogik der Beschaeftigungs-Historie.
@@ -65,7 +78,7 @@ function formatStand(b: {
 }
 
 // Liefert "heute" um Mitternacht (UTC), damit der Datumsvergleich sauber ist.
-function heuteDatum(): Date {
+export function heuteDatum(): Date {
   const jetzt = new Date();
   return new Date(
     Date.UTC(jetzt.getUTCFullYear(), jetzt.getUTCMonth(), jetzt.getUTCDate())

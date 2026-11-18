@@ -4,6 +4,7 @@ import { prisma } from "../lib/db.js";
 import { audit } from "../lib/audit.js";
 import { angemeldet, rolleErforderlich } from "../middleware/auth.js";
 import { sperrFristTage, autoGesperrt } from "../lib/sperre.js";
+import { idAusQuery, istJahr } from "../lib/periode.js";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -128,14 +129,6 @@ adminRouter.put("/firmen/:id", async (req, res) => {
   const firma = await prisma.firma.update({ where: { id }, data: { name: parse.data.name } });
   await audit({ benutzerId: req.benutzer!.id, aktion: "firma.bearbeitet", entitaet: "firma", entitaetId: id, alteWerte: alt, neueWerte: firma });
   res.json(firma);
-});
-
-adminRouter.post("/firmen/:id/aktiv", async (req, res) => {
-  const id = Number(req.params.id);
-  const { aktiv } = req.body ?? {};
-  const firma = await prisma.firma.update({ where: { id }, data: { aktiv: !!aktiv } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: aktiv ? "firma.aktiviert" : "firma.deaktiviert", entitaet: "firma", entitaetId: id });
-  res.json({ id: firma.id, aktiv: firma.aktiv });
 });
 
 // Firma muss existieren (FK) – verständliche 400 statt 500.
@@ -271,14 +264,6 @@ adminRouter.put("/kostenstellen/:id", async (req, res) => {
   res.json(ks);
 });
 
-adminRouter.post("/kostenstellen/:id/aktiv", async (req, res) => {
-  const id = Number(req.params.id);
-  const { aktiv } = req.body ?? {};
-  const ks = await prisma.kostenstelle.update({ where: { id }, data: { aktiv: !!aktiv } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: aktiv ? "kostenstelle.aktiviert" : "kostenstelle.deaktiviert", entitaet: "kostenstelle", entitaetId: id });
-  res.json({ id: ks.id, aktiv: ks.aktiv });
-});
-
 // ============================================================
 //  KONTEN (Kontenplan)
 // ============================================================
@@ -396,14 +381,6 @@ adminRouter.put("/konten/:id", async (req, res) => {
   res.json({ ...kontoFuerAusgabe(konto), bereichIds: Array.isArray(bereichIds) ? bereichIds : undefined });
 });
 
-adminRouter.post("/konten/:id/aktiv", async (req, res) => {
-  const id = Number(req.params.id);
-  const { aktiv } = req.body ?? {};
-  const konto = await prisma.konto.update({ where: { id }, data: { aktiv: !!aktiv } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: aktiv ? "konto.aktiviert" : "konto.deaktiviert", entitaet: "konto", entitaetId: id });
-  res.json({ id: konto.id, aktiv: konto.aktiv });
-});
-
 // ============================================================
 //  STEUERSÄTZE
 // ============================================================
@@ -430,14 +407,6 @@ adminRouter.post("/steuersaetze", async (req, res) => {
   res.status(201).json({ ...satz, prozent: satz.prozent.toNumber() });
 });
 
-adminRouter.post("/steuersaetze/:id/aktiv", async (req, res) => {
-  const id = Number(req.params.id);
-  const { aktiv } = req.body ?? {};
-  const satz = await prisma.steuersatz.update({ where: { id }, data: { aktiv: !!aktiv } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: aktiv ? "steuersatz.aktiviert" : "steuersatz.deaktiviert", entitaet: "steuersatz", entitaetId: id });
-  res.json({ id: satz.id, aktiv: satz.aktiv });
-});
-
 // Steuersatz endgueltig loeschen. Bereits gebuchte Positionen speichern den
 // Satz als Zahlwert (keine Fremdschluessel-Beziehung), bleiben also unberuehrt.
 adminRouter.post("/steuersaetze/:id/loeschen", async (req, res) => {
@@ -450,89 +419,89 @@ adminRouter.post("/steuersaetze/:id/loeschen", async (req, res) => {
 });
 
 // ============================================================
-//  BEREICHE (Stammdaten für Kostenstellen)
+//  BEREICHE und KASSENARTEN (einfache Stammwerte für Kostenstellen)
 // ============================================================
 
-adminRouter.get("/bereiche", async (_req, res) => {
-  const bereiche = await prisma.bereich.findMany({ orderBy: { bezeichnung: "asc" } });
-  res.json(bereiche);
-});
+const stammwertSchema = z.object({ bezeichnung: z.string().min(1) });
 
-const bereichSchema = z.object({ bezeichnung: z.string().min(1) });
-
-adminRouter.post("/bereiche", async (req, res) => {
-  const parse = bereichSchema.safeParse(req.body);
-  if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
-  const vorhanden = await prisma.bereich.findUnique({ where: { bezeichnung: parse.data.bezeichnung } });
-  if (vorhanden) return res.status(409).json({ fehler: "Dieser Bereich existiert bereits." });
-  const bereich = await prisma.bereich.create({ data: parse.data });
-  await audit({ benutzerId: req.benutzer!.id, aktion: "bereich.erstellt", entitaet: "bereich", entitaetId: bereich.id, neueWerte: bereich });
-  res.status(201).json(bereich);
-});
-
-adminRouter.put("/bereiche/:id", async (req, res) => {
-  const id = Number(req.params.id);
-  const parse = bereichSchema.safeParse(req.body);
-  if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
-  // Eindeutigkeit: keine zweite Zeile mit gleicher Bezeichnung
-  const kollision = await prisma.bereich.findFirst({
-    where: { bezeichnung: parse.data.bezeichnung, id: { not: id } },
+// Bereiche und Kassenarten sind gleich aufgebaut (id, bezeichnung, aktiv):
+// Liste, Anlegen und Umbenennen laufen über denselben Code.
+function stammwertRouten(
+  pfad: string,
+  entitaet: "bereich" | "kassenart",
+  doppeltMeldung: string,
+  db: {
+    alle: () => Promise<unknown[]>;
+    finde: (bezeichnung: string, ohneId?: number) => Promise<unknown | null>;
+    anlegen: (bezeichnung: string) => Promise<{ id: number }>;
+    umbenennen: (id: number, bezeichnung: string) => Promise<{ id: number }>;
+  }
+) {
+  adminRouter.get(pfad, async (_req, res) => {
+    res.json(await db.alle());
   });
-  if (kollision) return res.status(409).json({ fehler: "Dieser Bereich existiert bereits." });
-  const bereich = await prisma.bereich.update({ where: { id }, data: { bezeichnung: parse.data.bezeichnung } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: "bereich.bearbeitet", entitaet: "bereich", entitaetId: id, neueWerte: bereich });
-  res.json(bereich);
-});
 
-adminRouter.post("/bereiche/:id/aktiv", async (req, res) => {
-  const id = Number(req.params.id);
-  const { aktiv } = req.body ?? {};
-  const bereich = await prisma.bereich.update({ where: { id }, data: { aktiv: !!aktiv } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: aktiv ? "bereich.aktiviert" : "bereich.deaktiviert", entitaet: "bereich", entitaetId: id });
-  res.json({ id: bereich.id, aktiv: bereich.aktiv });
-});
-
-// ============================================================
-//  KASSENARTEN (Stammdaten für Kostenstellen)
-// ============================================================
-
-adminRouter.get("/kassenarten", async (_req, res) => {
-  const arten = await prisma.kassenart.findMany({ orderBy: { bezeichnung: "asc" } });
-  res.json(arten);
-});
-
-const kassenartSchema = z.object({ bezeichnung: z.string().min(1) });
-
-adminRouter.post("/kassenarten", async (req, res) => {
-  const parse = kassenartSchema.safeParse(req.body);
-  if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
-  const vorhanden = await prisma.kassenart.findUnique({ where: { bezeichnung: parse.data.bezeichnung } });
-  if (vorhanden) return res.status(409).json({ fehler: "Diese Art existiert bereits." });
-  const art = await prisma.kassenart.create({ data: parse.data });
-  await audit({ benutzerId: req.benutzer!.id, aktion: "kassenart.erstellt", entitaet: "kassenart", entitaetId: art.id, neueWerte: art });
-  res.status(201).json(art);
-});
-
-adminRouter.put("/kassenarten/:id", async (req, res) => {
-  const id = Number(req.params.id);
-  const parse = kassenartSchema.safeParse(req.body);
-  if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
-  const kollision = await prisma.kassenart.findFirst({
-    where: { bezeichnung: parse.data.bezeichnung, id: { not: id } },
+  adminRouter.post(pfad, async (req, res) => {
+    const parse = stammwertSchema.safeParse(req.body);
+    if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
+    if (await db.finde(parse.data.bezeichnung)) return res.status(409).json({ fehler: doppeltMeldung });
+    const wert = await db.anlegen(parse.data.bezeichnung);
+    await audit({ benutzerId: req.benutzer!.id, aktion: `${entitaet}.erstellt`, entitaet, entitaetId: wert.id, neueWerte: wert });
+    res.status(201).json(wert);
   });
-  if (kollision) return res.status(409).json({ fehler: "Diese Art existiert bereits." });
-  const art = await prisma.kassenart.update({ where: { id }, data: { bezeichnung: parse.data.bezeichnung } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: "kassenart.bearbeitet", entitaet: "kassenart", entitaetId: id, neueWerte: art });
-  res.json(art);
+
+  adminRouter.put(`${pfad}/:id`, async (req, res) => {
+    const id = Number(req.params.id);
+    const parse = stammwertSchema.safeParse(req.body);
+    if (!parse.success) return res.status(400).json({ fehler: "Ungültige Eingabe." });
+    // Eindeutigkeit: keine zweite Zeile mit gleicher Bezeichnung
+    if (await db.finde(parse.data.bezeichnung, id)) return res.status(409).json({ fehler: doppeltMeldung });
+    const wert = await db.umbenennen(id, parse.data.bezeichnung);
+    await audit({ benutzerId: req.benutzer!.id, aktion: `${entitaet}.bearbeitet`, entitaet, entitaetId: id, neueWerte: wert });
+    res.json(wert);
+  });
+}
+
+stammwertRouten("/bereiche", "bereich", "Dieser Bereich existiert bereits.", {
+  alle: () => prisma.bereich.findMany({ orderBy: { bezeichnung: "asc" } }),
+  finde: (bezeichnung, ohneId) =>
+    prisma.bereich.findFirst({ where: { bezeichnung, ...(ohneId ? { id: { not: ohneId } } : {}) } }),
+  anlegen: (bezeichnung) => prisma.bereich.create({ data: { bezeichnung } }),
+  umbenennen: (id, bezeichnung) => prisma.bereich.update({ where: { id }, data: { bezeichnung } }),
 });
 
-adminRouter.post("/kassenarten/:id/aktiv", async (req, res) => {
-  const id = Number(req.params.id);
-  const { aktiv } = req.body ?? {};
-  const art = await prisma.kassenart.update({ where: { id }, data: { aktiv: !!aktiv } });
-  await audit({ benutzerId: req.benutzer!.id, aktion: aktiv ? "kassenart.aktiviert" : "kassenart.deaktiviert", entitaet: "kassenart", entitaetId: id });
-  res.json({ id: art.id, aktiv: art.aktiv });
+stammwertRouten("/kassenarten", "kassenart", "Diese Art existiert bereits.", {
+  alle: () => prisma.kassenart.findMany({ orderBy: { bezeichnung: "asc" } }),
+  finde: (bezeichnung, ohneId) =>
+    prisma.kassenart.findFirst({ where: { bezeichnung, ...(ohneId ? { id: { not: ohneId } } : {}) } }),
+  anlegen: (bezeichnung) => prisma.kassenart.create({ data: { bezeichnung } }),
+  umbenennen: (id, bezeichnung) => prisma.kassenart.update({ where: { id }, data: { bezeichnung } }),
 });
+
+// ============================================================
+//  AKTIV-SCHALTER (deaktivieren statt löschen) – für alle Stammdaten gleich
+// ============================================================
+
+function aktivRoute(
+  pfad: string,
+  entitaet: string,
+  setzen: (id: number, aktiv: boolean) => Promise<{ id: number; aktiv: boolean }>
+) {
+  adminRouter.post(`${pfad}/:id/aktiv`, async (req, res) => {
+    const id = Number(req.params.id);
+    const aktiv = !!req.body?.aktiv;
+    const wert = await setzen(id, aktiv);
+    await audit({ benutzerId: req.benutzer!.id, aktion: `${entitaet}.${aktiv ? "aktiviert" : "deaktiviert"}`, entitaet, entitaetId: id });
+    res.json({ id: wert.id, aktiv: wert.aktiv });
+  });
+}
+
+aktivRoute("/firmen", "firma", (id, aktiv) => prisma.firma.update({ where: { id }, data: { aktiv } }));
+aktivRoute("/kostenstellen", "kostenstelle", (id, aktiv) => prisma.kostenstelle.update({ where: { id }, data: { aktiv } }));
+aktivRoute("/konten", "konto", (id, aktiv) => prisma.konto.update({ where: { id }, data: { aktiv } }));
+aktivRoute("/steuersaetze", "steuersatz", (id, aktiv) => prisma.steuersatz.update({ where: { id }, data: { aktiv } }));
+aktivRoute("/bereiche", "bereich", (id, aktiv) => prisma.bereich.update({ where: { id }, data: { aktiv } }));
+aktivRoute("/kassenarten", "kassenart", (id, aktiv) => prisma.kassenart.update({ where: { id }, data: { aktiv } }));
 
 // ============================================================
 //  AUDIT-LOG
@@ -749,9 +718,9 @@ adminRouter.put("/allgemein", async (req, res) => {
 // Übersicht der Monatssperren einer Kostenstelle für ein Jahr (12 Monate).
 // Pro Monat: effektiver Status, ob manuell gesetzt, und der automatische Status.
 adminRouter.get("/sperren", async (req, res) => {
-  const kostenstelleId = Number(req.query.kostenstelle);
+  const kostenstelleId = idAusQuery(req.query.kostenstelle);
   const jahr = Number(req.query.jahr);
-  if (!kostenstelleId || !jahr) {
+  if (!kostenstelleId || !istJahr(jahr)) {
     return res.status(400).json({ fehler: "kostenstelle und jahr erforderlich." });
   }
   const frist = await sperrFristTage();

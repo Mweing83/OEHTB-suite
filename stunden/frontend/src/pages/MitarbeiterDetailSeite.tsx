@@ -6,12 +6,8 @@ import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
 import DatumEingabe from "../components/DatumEingabe";
 import { bestaetigen, hinweis } from "../components/dialog";
-
-// Datum DD/MM/YYYY (europaeisches Layout) fuer die Anzeige.
-function datumDe(iso: string): string {
-  const [j, m, t] = iso.split("-");
-  return `${t}/${m}/${j}`;
-}
+import { datumDe } from "../lib/datum";
+import { beschaeftigungPruefen } from "../lib/beschaeftigung";
 
 export default function MitarbeiterDetailSeite() {
   const { id } = useParams<{ id: string }>();
@@ -149,28 +145,17 @@ export default function MitarbeiterDetailSeite() {
     e.preventDefault();
     setFormFehler(null);
 
-    // Explizite Validierung VOR dem Senden – verhindert NaN, das durch
-    // undefined-Pruefungen rutscht (Lehre aus dem Handkassen-Projekt).
-    const std = Number(wochenstunden.replace(",", "."));
-    const aus = Number(ausmass.replace(",", "."));
-    if (!Number.isFinite(std) || std <= 0) {
-      setFormFehler("Bitte gültige Wochenstunden eingeben.");
-      return;
-    }
-    if (!Number.isFinite(aus) || aus <= 0 || aus > 100) {
-      setFormFehler("Bitte gültiges Ausmaß (1–100 %) eingeben.");
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(gueltigAb)) {
-      setFormFehler("Bitte ein gültiges Datum wählen.");
+    const werte = beschaeftigungPruefen(wochenstunden, ausmass, gueltigAb);
+    if (werte.fehler !== null) {
+      setFormFehler(werte.fehler);
       return;
     }
 
     setSpeichert(true);
     try {
       await api.post(`/api/mitarbeiter/${id}/beschaeftigung`, {
-        wochenstunden: std,
-        ausmassProzent: aus,
+        wochenstunden: werte.wochenstunden,
+        ausmassProzent: werte.ausmassProzent,
         gueltigAb,
         notiz: notiz || undefined,
       });
