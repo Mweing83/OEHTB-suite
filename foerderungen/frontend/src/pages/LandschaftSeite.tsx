@@ -1,6 +1,7 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import Layout from "../components/Layout";
+import QuelleFormular, { QuelleWerte } from "../components/QuelleFormular";
 import { api } from "../lib/api";
 import {
   Foerderquelle,
@@ -11,7 +12,7 @@ import {
 } from "../lib/typen";
 
 // Katalog der Foerderlandschaft: aktive Quellen mit Filtern, dazu ein
-// einfaches Formular zum Anlegen neuer Quellen.
+// Formular zum Anlegen neuer Quellen (components/QuelleFormular).
 export default function LandschaftSeite() {
   const [liste, setListe] = useState<Foerderquelle[]>([]);
   const [laedt, setLaedt] = useState(true);
@@ -19,15 +20,6 @@ export default function LandschaftSeite() {
   const [ebene, setEbene] = useState<Ebene | "">("");
   const [kategorie, setKategorie] = useState<Kategorie | "">("");
   const [zeigeFormular, setZeigeFormular] = useState(false);
-
-  // Formularfelder fuer eine neue Quelle
-  const [name, setName] = useState("");
-  const [traeger, setTraeger] = useState("");
-  const [neuEbene, setNeuEbene] = useState<Ebene>("BUND");
-  const [neuKategorie, setNeuKategorie] = useState<Kategorie>("PROJEKT");
-  const [themen, setThemen] = useState("");
-  const [webseite, setWebseite] = useState("");
-  const [beschreibung, setBeschreibung] = useState("");
 
   function laden() {
     api
@@ -48,20 +40,16 @@ export default function LandschaftSeite() {
     [liste, ebene, kategorie]
   );
 
-  async function anlegen(e: FormEvent) {
-    e.preventDefault();
+  async function anlegen(werte: QuelleWerte) {
     setFehler(null);
     try {
       await api.post<Foerderquelle>("/api/quellen", {
-        name,
-        traeger,
-        ebene: neuEbene,
-        kategorie: neuKategorie,
-        themen: themen.split(",").map((t) => t.trim()).filter(Boolean),
-        webseite: webseite || undefined,
-        beschreibung: beschreibung || undefined,
+        ...werte,
+        // Leere optionale Felder weglassen.
+        webseite: werte.webseite || undefined,
+        kontakt: werte.kontakt || undefined,
+        beschreibung: werte.beschreibung || undefined,
       });
-      setName(""); setTraeger(""); setThemen(""); setWebseite(""); setBeschreibung("");
       setZeigeFormular(false);
       laden();
     } catch (err) {
@@ -69,8 +57,6 @@ export default function LandschaftSeite() {
     }
   }
 
-  const eingabeKlasse =
-    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-marke-500";
   const auswahlKlasse =
     "rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm";
 
@@ -102,28 +88,7 @@ export default function LandschaftSeite() {
       {fehler && <p className="text-gefahr-700 mb-4">{fehler}</p>}
 
       {zeigeFormular && (
-        <form onSubmit={anlegen} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4 mb-6 grid gap-3 sm:grid-cols-2">
-          <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={eingabeKlasse} />
-          <input required value={traeger} onChange={(e) => setTraeger(e.target.value)} placeholder="Träger" className={eingabeKlasse} />
-          <select value={neuEbene} onChange={(e) => setNeuEbene(e.target.value as Ebene)} className={eingabeKlasse} aria-label="Ebene der neuen Quelle">
-            {Object.entries(EBENE_LABEL).map(([w, l]) => (
-              <option key={w} value={w}>{l}</option>
-            ))}
-          </select>
-          <select value={neuKategorie} onChange={(e) => setNeuKategorie(e.target.value as Kategorie)} className={eingabeKlasse} aria-label="Kategorie der neuen Quelle">
-            {Object.entries(KATEGORIE_LABEL).map(([w, l]) => (
-              <option key={w} value={w}>{l}</option>
-            ))}
-          </select>
-          <input value={themen} onChange={(e) => setThemen(e.target.value)} placeholder="Themen (kommagetrennt)" className={eingabeKlasse} />
-          <input value={webseite} onChange={(e) => setWebseite(e.target.value)} placeholder="Webseite (https://…)" className={eingabeKlasse} />
-          <textarea value={beschreibung} onChange={(e) => setBeschreibung(e.target.value)} placeholder="Beschreibung" className={eingabeKlasse + " sm:col-span-2"} rows={2} />
-          <div className="sm:col-span-2">
-            <button type="submit" className="rounded-md bg-marke-600 text-white px-4 py-2 text-sm font-medium hover:bg-marke-700">
-              Anlegen
-            </button>
-          </div>
-        </form>
+        <QuelleFormular knopfText="Anlegen" onSpeichern={anlegen} className="mb-6" />
       )}
 
       {laedt ? (

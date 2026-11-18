@@ -6,6 +6,7 @@ import BuchungsFormular, { type BearbeitenVorlage } from "../components/Buchungs
 import { isoZuDe } from "../components/DatumFeld.js";
 import { bestaetigen, hinweis } from "../components/dialog.js";
 import FreieNummernHinweis from "../components/FreieNummernHinweis.js";
+import PeriodenWahl from "../components/PeriodenWahl.js";
 
 interface Buchung {
   id: number;
@@ -114,9 +115,6 @@ export default function BuchungenSeite() {
     : jahr === heute.getFullYear() && monat === heute.getMonth() + 1
     ? heute.getDate()
     : null;
-
-  // Auswahl: einige Jahre zurück und eines voraus.
-  const jahre = Array.from({ length: 7 }, (_, i) => heute.getFullYear() - 5 + i);
 
   function periodeWechseln(j: number, m: number) {
     setJahr(j);
@@ -256,29 +254,7 @@ export default function BuchungenSeite() {
           )}
         </span>
         <label htmlFor="jahr-wahl" className="text-sm font-medium">Monat:</label>
-        <div className="flex gap-2">
-          <select
-            id="jahr-wahl"
-            aria-label="Jahr"
-            className="border rounded-sm px-3 py-2"
-            value={jahr}
-            onChange={(e) => periodeWechseln(Number(e.target.value), monat)}
-          >
-            {jahre.map((j) => (
-              <option key={j} value={j}>{j}</option>
-            ))}
-          </select>
-          <select
-            aria-label="Monat"
-            className="border rounded-sm px-3 py-2"
-            value={monat}
-            onChange={(e) => periodeWechseln(jahr, Number(e.target.value))}
-          >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
-            ))}
-          </select>
-        </div>
+        <PeriodenWahl id="jahr-wahl" jahr={jahr} monat={monat} onChange={periodeWechseln} />
       </div>
 
       <div className="space-y-6">

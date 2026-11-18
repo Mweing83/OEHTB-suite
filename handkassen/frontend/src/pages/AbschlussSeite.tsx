@@ -5,7 +5,8 @@ import { useAuth } from "../lib/auth.js";
 import { hinweis } from "../components/dialog.js";
 import FreieNummernHinweis from "../components/FreieNummernHinweis.js";
 import KostenstellenOptionen from "../components/KostenstellenOptionen.js";
-import { periodeGueltig, useFreieNummern, useKostenstellen } from "../lib/daten.js";
+import PeriodenWahl from "../components/PeriodenWahl.js";
+import { useFreieNummern, useKostenstellen } from "../lib/daten.js";
 
 interface Abschluss {
   id: number;
@@ -45,9 +46,7 @@ export default function AbschlussSeite() {
 
   // Lücke in der Belegnummerierung vor dem Abschluss anzeigen (nur Hinweis).
   const freieNummern = useFreieNummern(
-    ksId && periodeGueltig(jahr, monat)
-      ? `/buchungen/freie-belegnummern?kostenstelle=${ksId}&jahr=${jahr}&monat=${monat}`
-      : null
+    ksId ? `/buchungen/freie-belegnummern?kostenstelle=${ksId}&jahr=${jahr}&monat=${monat}` : null
   );
 
   async function einreichen() {
@@ -101,16 +100,14 @@ export default function AbschlussSeite() {
         <select className="w-full border rounded-sm px-3 py-2 mb-4" value={ksId ?? ""} onChange={(e) => setKsId(Number(e.target.value))}>
           <KostenstellenOptionen liste={kostenstellen} />
         </select>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Jahr</label>
-            <input type="number" className="w-full border rounded-sm px-3 py-2" value={jahr} onChange={(e) => setJahr(Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Monat</label>
-            <input type="number" min={1} max={12} className="w-full border rounded-sm px-3 py-2" value={monat} onChange={(e) => setMonat(Number(e.target.value))} />
-          </div>
-        </div>
+        <label htmlFor="abschluss-periode" className="block text-sm font-medium mb-1">Monat</label>
+        <PeriodenWahl
+          id="abschluss-periode"
+          className="mb-4"
+          jahr={jahr}
+          monat={monat}
+          onChange={(j, m) => { setJahr(j); setMonat(m); }}
+        />
         <FreieNummernHinweis
           nummern={freieNummern}
           className="mb-4"

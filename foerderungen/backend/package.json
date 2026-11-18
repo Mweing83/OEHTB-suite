@@ -1,6 +1,6 @@
 {
   "name": "foerderungen-backend",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Backend fuer das Foerderungen-Tool OEHTB",
   "main": "dist/index.js",
   "scripts": {

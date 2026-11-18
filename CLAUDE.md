@@ -43,4 +43,4 @@ Versionen werden bei jeder Änderung **selbstständig** vergeben, ohne Rückfrag
   „<Tool> vX“). Die Frontends lesen die Version beim Build aus ihrer
   `package.json` (`__APP_VERSION__` per Vite `define`).
 
-Stand 18.11.2026: Suite 0.11.4, Handkassen 0.11.4, Stunden 0.1.5, Förderungen 0.1.4.
+Stand 18.11.2026: Suite 0.12.0, Handkassen 0.12.0, Stunden 0.1.6, Förderungen 0.2.0.

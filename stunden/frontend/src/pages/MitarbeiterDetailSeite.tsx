@@ -5,6 +5,7 @@ import { MitarbeiterDetail } from "../lib/typen";
 import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
 import DatumEingabe from "../components/DatumEingabe";
+import MitarbeiterFormular from "../components/MitarbeiterFormular";
 import { bestaetigen, hinweis } from "../components/dialog";
 import { datumDe } from "../lib/datum";
 import { beschaeftigungPruefen } from "../lib/beschaeftigung";
@@ -33,16 +34,8 @@ export default function MitarbeiterDetailSeite() {
   const [formFehler, setFormFehler] = useState<string | null>(null);
   const [speichert, setSpeichert] = useState(false);
 
-  // Formular fuer Stammdaten bearbeiten
+  // Formular fuer Stammdaten bearbeiten (components/MitarbeiterFormular)
   const [zeigeBearbeiten, setZeigeBearbeiten] = useState(false);
-  const [bVorname, setBVorname] = useState("");
-  const [bNachname, setBNachname] = useState("");
-  const [bPersonalnummer, setBPersonalnummer] = useState("");
-  const [bEmail, setBEmail] = useState("");
-  const [bBereich, setBBereich] = useState("");
-  const [bAustritt, setBAustritt] = useState("");
-  const [bFehler, setBFehler] = useState<string | null>(null);
-  const [bSpeichert, setBSpeichert] = useState(false);
 
   // Loesch-Auswahl (anonymisieren vs. endgueltig loeschen)
   const [zeigeLoeschen, setZeigeLoeschen] = useState(false);
@@ -75,45 +68,6 @@ export default function MitarbeiterDetailSeite() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  }
-
-  // Stammdaten-Bearbeitung oeffnen: Felder aus den aktuellen Daten vorbelegen.
-  function bearbeitenOeffnen() {
-    if (!daten) return;
-    setBVorname(daten.vorname);
-    setBNachname(daten.nachname);
-    setBPersonalnummer(daten.personalnummer);
-    setBEmail(daten.email ?? "");
-    setBBereich(daten.bereich ?? "");
-    setBAustritt(daten.austrittAm ?? "");
-    setBFehler(null);
-    setZeigeBearbeiten(true);
-  }
-
-  async function stammdatenSpeichern(e: FormEvent) {
-    e.preventDefault();
-    setBFehler(null);
-    if (!bVorname.trim() || !bNachname.trim() || !bPersonalnummer.trim()) {
-      setBFehler("Vorname, Nachname und Personalnummer sind erforderlich.");
-      return;
-    }
-    setBSpeichert(true);
-    try {
-      await api.put(`/api/mitarbeiter/${id}`, {
-        vorname: bVorname.trim(),
-        nachname: bNachname.trim(),
-        personalnummer: bPersonalnummer.trim(),
-        email: bEmail.trim(),
-        bereich: bBereich.trim(),
-        austrittAm: bAustritt,
-      });
-      setZeigeBearbeiten(false);
-      laden();
-    } catch (err) {
-      setBFehler(err instanceof Error ? err.message : "Fehler beim Speichern.");
-    } finally {
-      setBSpeichert(false);
-    }
   }
 
   // Loeschung (nur Admin). hart=true entfernt die Person inkl. Verlauf
@@ -208,9 +162,7 @@ export default function MitarbeiterDetailSeite() {
           <div className="flex gap-2">
             {darfBearbeiten && (
               <button
-                onClick={() =>
-                  zeigeBearbeiten ? setZeigeBearbeiten(false) : bearbeitenOeffnen()
-                }
+                onClick={() => setZeigeBearbeiten((v) => !v)}
                 className={
                   "border border-gray-300 rounded-sm px-2.5 py-1.5 text-gray-700 hover:bg-gray-50 " +
                   (zeigeBearbeiten ? "bg-gray-100" : "")
@@ -272,92 +224,15 @@ export default function MitarbeiterDetailSeite() {
           </div>
         </div>
         {zeigeBearbeiten && (
-          <form
-            onSubmit={stammdatenSpeichern}
-            className="mt-4 bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-4"
-          >
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Vorname</label>
-              <input
-                value={bVorname}
-                onChange={(e) => setBVorname(e.target.value)}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Nachname</label>
-              <input
-                value={bNachname}
-                onChange={(e) => setBNachname(e.target.value)}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Personalnummer
-              </label>
-              <input
-                value={bPersonalnummer}
-                onChange={(e) => setBPersonalnummer(e.target.value)}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Bereich (z. B. VBW)
-              </label>
-              <input
-                value={bBereich}
-                onChange={(e) => setBBereich(e.target.value)}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm text-gray-700 mb-1">
-                E-Mail (optional)
-              </label>
-              <input
-                type="email"
-                value={bEmail}
-                onChange={(e) => setBEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm text-gray-700 mb-1">
-                Austrittsdatum (optional)
-              </label>
-              <DatumEingabe
-                value={bAustritt}
-                onChange={setBAustritt}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Leer = beschäftigt. Ab diesem Tag zählt die Person nicht mehr zum
-                aktuellen Stand und wird in Stichtags-Exporten danach
-                ausgeblendet.
-              </p>
-            </div>
-            {bFehler && (
-              <p className="col-span-2 text-sm text-red-600">{bFehler}</p>
-            )}
-            <div className="col-span-2 flex gap-2">
-              <button
-                type="submit"
-                disabled={bSpeichert}
-                className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
-              >
-                {bSpeichert ? "Speichern …" : "Stammdaten speichern"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setZeigeBearbeiten(false)}
-                className="border border-gray-300 rounded-sm px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Abbrechen
-              </button>
-            </div>
-          </form>
+          <MitarbeiterFormular
+            mitarbeiter={daten}
+            className="mt-4 bg-gray-50 rounded-lg p-4"
+            onGespeichert={() => {
+              setZeigeBearbeiten(false);
+              laden();
+            }}
+            onAbbrechen={() => setZeigeBearbeiten(false)}
+          />
         )}
 
         {zeigeLoeschen && istAdmin && (

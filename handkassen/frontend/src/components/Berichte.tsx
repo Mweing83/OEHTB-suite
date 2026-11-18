@@ -3,8 +3,9 @@ import { useAuth } from "../lib/auth.js";
 import { api, apiUrl } from "../lib/api.js";
 import DatumFeld from "./DatumFeld.js";
 import FreieNummernHinweis from "./FreieNummernHinweis.js";
+import PeriodenWahl from "./PeriodenWahl.js";
 import { herunterladen } from "../lib/download.js";
-import { periodeGueltig, useFreieNummern, type Kostenstelle } from "../lib/daten.js";
+import { useFreieNummern, type Kostenstelle } from "../lib/daten.js";
 
 interface Props {
   kostenstelleId: number;
@@ -75,7 +76,7 @@ export default function Berichte({ kostenstelleId, kostenstellen }: Props) {
 
   // Vor dem Export auf frei gewordene, offene Belegnummern hinweisen (Lücke nach NTCS).
   const freieNummern = useFreieNummern(
-    darfBmd && exportFirma && periodeGueltig(bmdJahr, bmdMonat) ? `/export/freie-belegnummern?${exportParameter}` : null
+    darfBmd && exportFirma ? `/export/freie-belegnummern?${exportParameter}` : null
   );
 
   // BMD-CSV oder ZIP (CSV + Belegdateien) herunterladen. Per fetch, damit eine
@@ -127,17 +128,14 @@ export default function Berichte({ kostenstelleId, kostenstellen }: Props) {
       </div>
 
       {modus === "monat" ? (
-        <div className="grid grid-cols-2 gap-4 mb-4 max-w-xs">
-          <div>
-            <label className="block text-sm font-medium mb-1">Jahr</label>
-            <input type="number" className="w-full border rounded-sm px-3 py-2"
-              value={jahr} onChange={(e) => setJahr(Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Monat</label>
-            <input type="number" min={1} max={12} className="w-full border rounded-sm px-3 py-2"
-              value={monat} onChange={(e) => setMonat(Number(e.target.value))} />
-          </div>
+        <div className="mb-4">
+          <label htmlFor="bericht-periode" className="block text-sm font-medium mb-1">Monat</label>
+          <PeriodenWahl
+            id="bericht-periode"
+            jahr={jahr}
+            monat={monat}
+            onChange={(j, m) => { setJahr(j); setMonat(m); }}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 mb-4 max-w-md">
@@ -203,14 +201,13 @@ export default function Berichte({ kostenstelleId, kostenstellen }: Props) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Jahr</label>
-              <input type="number" className="border rounded-sm px-3 py-2 w-28"
-                value={bmdJahr} onChange={(e) => setBmdJahr(Number(e.target.value))} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Monat</label>
-              <input type="number" min={1} max={12} className="border rounded-sm px-3 py-2 w-24"
-                value={bmdMonat} onChange={(e) => setBmdMonat(Number(e.target.value))} />
+              <label htmlFor="export-periode" className="block text-sm font-medium mb-1">Monat</label>
+              <PeriodenWahl
+                id="export-periode"
+                jahr={bmdJahr}
+                monat={bmdMonat}
+                onChange={(j, m) => { setBmdJahr(j); setBmdMonat(m); }}
+              />
             </div>
             <button onClick={() => bmdExport("bmd")} disabled={bmdLaedt !== ""}
               className="bg-slate-700 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-slate-800 disabled:opacity-50">

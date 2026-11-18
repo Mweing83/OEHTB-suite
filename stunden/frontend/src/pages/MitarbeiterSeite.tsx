@@ -1,10 +1,10 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import { MitarbeiterListe } from "../lib/typen";
 import { useAuth } from "../lib/auth";
 import Layout from "../components/Layout";
-import DatumEingabe from "../components/DatumEingabe";
+import MitarbeiterFormular from "../components/MitarbeiterFormular";
 import { bestaetigen, hinweis } from "../components/dialog";
 import { datumDe } from "../lib/datum";
 
@@ -18,21 +18,11 @@ export default function MitarbeiterSeite() {
   const [liste, setListe] = useState<MitarbeiterListe[]>([]);
   const [laedt, setLaedt] = useState(true);
   const [zeigeFormular, setZeigeFormular] = useState(false);
-  // null = Anlegen-Modus, sonst die ID des bearbeiteten Mitarbeiters.
-  const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
+  // null = Anlegen-Modus, sonst der bearbeitete Mitarbeiter.
+  const [bearbeite, setBearbeite] = useState<MitarbeiterListe | null>(null);
   // Welche Zeile gerade im Loesch-Bestaetigungsmodus ist.
   const [loeschId, setLoeschId] = useState<string | null>(null);
   const [loescht, setLoescht] = useState(false);
-
-  // Formularfelder
-  const [vorname, setVorname] = useState("");
-  const [nachname, setNachname] = useState("");
-  const [personalnummer, setPersonalnummer] = useState("");
-  const [email, setEmail] = useState("");
-  const [bereich, setBereich] = useState("");
-  const [austrittAm, setAustrittAm] = useState("");
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [speichert, setSpeichert] = useState(false);
 
   function laden() {
     api
@@ -43,60 +33,20 @@ export default function MitarbeiterSeite() {
 
   useEffect(laden, []);
 
-  function felderLeeren() {
-    setVorname("");
-    setNachname("");
-    setPersonalnummer("");
-    setEmail("");
-    setBereich("");
-    setAustrittAm("");
-    setFehler(null);
-  }
-
   function neuOeffnen() {
-    setBearbeiteId(null);
-    felderLeeren();
+    setBearbeite(null);
     setZeigeFormular(true);
   }
 
   function bearbeitenOeffnen(m: MitarbeiterListe) {
-    setBearbeiteId(m.id);
-    setVorname(m.vorname);
-    setNachname(m.nachname);
-    setPersonalnummer(m.personalnummer);
-    setEmail(m.email ?? "");
-    setBereich(m.bereich ?? "");
-    setAustrittAm(m.austrittAm ?? "");
-    setFehler(null);
+    setBearbeite(m);
     setZeigeFormular(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function abbrechen() {
     setZeigeFormular(false);
-    setBearbeiteId(null);
-    felderLeeren();
-  }
-
-  async function speichern(e: FormEvent) {
-    e.preventDefault();
-    setFehler(null);
-    setSpeichert(true);
-    try {
-      const daten = { vorname, nachname, personalnummer, email, bereich };
-      if (bearbeiteId) {
-        // Austrittsdatum nur beim Bearbeiten (neue Mitarbeiter sind aktiv).
-        await api.put(`/api/mitarbeiter/${bearbeiteId}`, { ...daten, austrittAm });
-      } else {
-        await api.post("/api/mitarbeiter", daten);
-      }
-      abbrechen();
-      laden();
-    } catch (err) {
-      setFehler(err instanceof Error ? err.message : "Fehler beim Speichern.");
-    } finally {
-      setSpeichert(false);
-    }
+    setBearbeite(null);
   }
 
   // hart=true entfernt die Person inkl. Verlauf vollstaendig; sonst wird
@@ -141,105 +91,17 @@ export default function MitarbeiterSeite() {
       {zeigeFormular && (
         <div className="bg-white rounded-lg shadow-xs p-6 mb-6">
           <h3 className="font-semibold text-gray-800 mb-4">
-            {bearbeiteId ? "Mitarbeiter bearbeiten" : "Neuen Mitarbeiter anlegen"}
+            {bearbeite ? "Mitarbeiter bearbeiten" : "Neuen Mitarbeiter anlegen"}
           </h3>
-          <form onSubmit={speichern} className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Vorname</label>
-              <input
-                value={vorname}
-                onChange={(e) => setVorname(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Nachname
-              </label>
-              <input
-                value={nachname}
-                onChange={(e) => setNachname(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Personalnummer
-              </label>
-              <input
-                value={personalnummer}
-                onChange={(e) => setPersonalnummer(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Bereich (z. B. VBW)
-              </label>
-              <input
-                value={bereich}
-                onChange={(e) => setBereich(e.target.value)}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm text-gray-700 mb-1">
-                E-Mail (optional)
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-              />
-            </div>
-
-            {bearbeiteId && (
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">
-                  Austrittsdatum (optional)
-                </label>
-                <DatumEingabe
-                  value={austrittAm}
-                  onChange={setAustrittAm}
-                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  Leer = beschäftigt. Ab diesem Tag zählt die Person nicht mehr
-                  zum aktuellen Stand und wird in Stichtags-Exporten danach
-                  ausgeblendet.
-                </p>
-              </div>
-            )}
-
-            {fehler && (
-              <p className="col-span-2 text-sm text-red-600">{fehler}</p>
-            )}
-
-            <div className="col-span-2 flex gap-2">
-              <button
-                type="submit"
-                disabled={speichert}
-                className="bg-marke-600 text-white rounded-sm px-4 py-2 text-sm font-medium hover:bg-marke-700 disabled:opacity-50"
-              >
-                {speichert
-                  ? "Speichern …"
-                  : bearbeiteId
-                  ? "Änderungen speichern"
-                  : "Anlegen"}
-              </button>
-              <button
-                type="button"
-                onClick={abbrechen}
-                className="border border-gray-300 rounded-sm px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Abbrechen
-              </button>
-            </div>
-          </form>
+          <MitarbeiterFormular
+            key={bearbeite?.id ?? "neu"}
+            mitarbeiter={bearbeite}
+            onGespeichert={() => {
+              abbrechen();
+              laden();
+            }}
+            onAbbrechen={abbrechen}
+          />
         </div>
       )}
 

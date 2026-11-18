@@ -1,12 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import Layout from "../components/Layout";
+import QuelleFormular, { QuelleWerte } from "../components/QuelleFormular";
 import { api } from "../lib/api";
 import {
   Foerderquelle,
   Ausschreibung,
-  Ebene,
-  Kategorie,
   EBENE_LABEL,
   KATEGORIE_LABEL,
   fristText,
@@ -23,15 +22,9 @@ export default function QuelleDetailSeite() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
 
-  // Bearbeitungsfelder (werden beim Laden befuellt)
-  const [name, setName] = useState("");
-  const [traeger, setTraeger] = useState("");
-  const [ebene, setEbene] = useState<Ebene>("BUND");
-  const [kategorie, setKategorie] = useState<Kategorie>("PROJEKT");
-  const [themen, setThemen] = useState("");
-  const [webseite, setWebseite] = useState("");
-  const [kontakt, setKontakt] = useState("");
-  const [beschreibung, setBeschreibung] = useState("");
+  // Zählt die Ladevorgänge: baut das Stammdaten-Formular nach jedem Laden
+  // mit den Werten vom Server neu auf.
+  const [stand, setStand] = useState(0);
 
   // Neue Ausschreibung
   const [neuTitel, setNeuTitel] = useState("");
@@ -46,36 +39,23 @@ export default function QuelleDetailSeite() {
       .get<Foerderquelle>(`/api/quellen/${id}`)
       .then((q) => {
         setQuelle(q);
-        setName(q.name);
-        setTraeger(q.traeger);
-        setEbene(q.ebene);
-        setKategorie(q.kategorie);
-        setThemen(q.themen.join(", "));
-        setWebseite(q.webseite ?? "");
-        setKontakt(q.kontakt ?? "");
-        setBeschreibung(q.beschreibung);
+        setStand((n) => n + 1);
       })
       .catch((e) => setFehler(e.message))
       .finally(() => setLaedt(false));
   }
   useEffect(laden, [id]);
 
-  async function speichern(e: FormEvent) {
-    e.preventDefault();
+  async function speichern(werte: QuelleWerte) {
     setFehler(null);
     setMeldung(null);
     try {
       await api.patch(`/api/quellen/${id}`, {
-        name,
-        traeger,
-        ebene,
-        kategorie,
-        themen: themen.split(",").map((t) => t.trim()).filter(Boolean),
+        ...werte,
         // Leere Felder ausdrücklich leeren (null bzw. ""), nicht weglassen –
         // sonst bliebe der alte Wert stehen.
-        webseite: webseite.trim() || null,
-        kontakt: kontakt.trim() || null,
-        beschreibung,
+        webseite: werte.webseite || null,
+        kontakt: werte.kontakt || null,
       });
       setMeldung("Gespeichert.");
       laden();
@@ -142,29 +122,7 @@ export default function QuelleDetailSeite() {
       {fehler && <p className="text-gefahr-700 mb-4">{fehler}</p>}
       {meldung && <p className="text-erfolg-700 mb-4">{meldung}</p>}
 
-      <form onSubmit={speichern} className="bg-white rounded-lg shadow-xs border border-gray-200 p-4 mb-8 grid gap-3 sm:grid-cols-2">
-        <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className={eingabeKlasse} />
-        <input required value={traeger} onChange={(e) => setTraeger(e.target.value)} placeholder="Träger" className={eingabeKlasse} />
-        <select value={ebene} onChange={(e) => setEbene(e.target.value as Ebene)} className={eingabeKlasse} aria-label="Ebene">
-          {Object.entries(EBENE_LABEL).map(([w, l]) => (
-            <option key={w} value={w}>{l}</option>
-          ))}
-        </select>
-        <select value={kategorie} onChange={(e) => setKategorie(e.target.value as Kategorie)} className={eingabeKlasse} aria-label="Kategorie">
-          {Object.entries(KATEGORIE_LABEL).map(([w, l]) => (
-            <option key={w} value={w}>{l}</option>
-          ))}
-        </select>
-        <input value={themen} onChange={(e) => setThemen(e.target.value)} placeholder="Themen (kommagetrennt)" className={eingabeKlasse} />
-        <input value={webseite} onChange={(e) => setWebseite(e.target.value)} placeholder="Webseite" className={eingabeKlasse} />
-        <input value={kontakt} onChange={(e) => setKontakt(e.target.value)} placeholder="Kontakt" className={eingabeKlasse} />
-        <textarea value={beschreibung} onChange={(e) => setBeschreibung(e.target.value)} placeholder="Beschreibung" className={eingabeKlasse + " sm:col-span-2"} rows={3} />
-        <div className="sm:col-span-2">
-          <button type="submit" className="rounded-md bg-marke-600 text-white px-4 py-2 text-sm font-medium hover:bg-marke-700">
-            Speichern
-          </button>
-        </div>
-      </form>
+      <QuelleFormular key={stand} quelle={quelle} knopfText="Speichern" onSpeichern={speichern} className="mb-8" />
 
       <h2 className="text-lg font-semibold text-gray-800 mb-3">Ausschreibungen</h2>
       <ul className="space-y-2 mb-6">

@@ -1,28 +1,19 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api } from "../lib/api.js";
-import { centZuEingabe, formatCent, formatProzent } from "../lib/geld.js";
+import { centZuEingabe, formatCent } from "../lib/geld.js";
 import {
   LEER,
   betragCent,
+  fehlendeFelder,
+  gesamtUndRest,
   positionsSumme,
   restzeileAnpassen,
+  tagAusEingabe,
   type Position,
   type Typ,
 } from "../lib/splitbuchung.js";
 import BelegErfassung from "./BelegErfassung.js";
-
-interface Konto {
-  id: number;
-  nummer: string;
-  bezeichnung: string;
-  fixSteuersatz: number | null; // z. B. 0 bei Dotationen; null = frei wählbar
-}
-
-interface Steuersatz {
-  id: number;
-  prozent: number;
-  bezeichnung: string;
-}
+import PositionsFelder, { feldKlasse, type Konto, type Steuersatz } from "./PositionsFelder.js";
 
 // Vorbelegung für den Bearbeiten-Modus (bestehende Buchung direkt ändern)
 export interface BearbeitenVorlage {
@@ -54,9 +45,6 @@ interface Props {
 function zweistellig(n: number): string {
   return String(n).padStart(2, "0");
 }
-
-const feldKlasse = (fehlt: boolean) =>
-  `w-full border rounded-sm px-3 py-2 ${fehlt ? "border-amber-400" : ""} disabled:bg-slate-100 disabled:text-slate-600`;
 
 export default function BuchungsFormular({
   kostenstelleId,
@@ -174,35 +162,16 @@ export default function BuchungsFormular({
     fokusNachRender.current = null;
   });
 
-  const kontoVon = (id: number) => konten.find((k) => k.id === id);
-
   // --- abgeleitete Werte ---
-  const tagZahl = /^\d{1,2}$/.test(tag.trim()) ? Number(tag) : NaN;
-  const tagOk = tagZahl >= 1 && tagZahl <= tageImMonat;
-  const belegdatum = `${jahr}-${zweistellig(monat)}-${zweistellig(tagOk ? tagZahl : 1)}`;
-  const posCent = positionen.map((p) => betragCent(p.betrag));
+  const tagZahl = tagAusEingabe(tag, tageImMonat);
+  const tagOk = tagZahl != null;
+  const belegdatum = `${jahr}-${zweistellig(monat)}-${zweistellig(tagZahl ?? 1)}`;
   // Zeilen vom Typ der Buchung zählen plus, Zeilen des anderen Typs minus
   // (Hofer: 10 + 20 − 5 Pfand = 25 bezahlt).
-  const zeilenTyp = (p: Position): Typ => p.typ ?? typ;
   const summeCent = positionsSumme(positionen, typ);
-  const gesamtCent = split ? betragCent(gesamt) : posCent[0];
-  const restCent = split && gesamtCent != null ? gesamtCent - summeCent : 0;
-
-  const fehlend: string[] = [];
-  if (!tagOk) fehlend.push(tag.trim() ? `Tag (1–${tageImMonat})` : "Tag");
-  if (split && gesamtCent == null) fehlend.push("Gesamtbetrag");
-  positionen.forEach((p, i) => {
-    const vor = split ? `Position ${i + 1}: ` : "";
-    if (!p.kontoId) fehlend.push(`${vor}Konto`);
-    if (posCent[i] == null) fehlend.push(`${vor}Betrag`);
-    if (p.steuersatz == null) fehlend.push(`${vor}Steuersatz`);
-    if (split && !p.text.trim()) fehlend.push(`${vor}Beschreibung`);
-  });
-  if (split && gesamtCent != null && restCent !== 0) {
-    fehlend.push(restCent > 0 ? `noch ${formatCent(restCent)} aufzuteilen` : `${formatCent(-restCent)} zu viel aufgeteilt`);
-  }
-  // Ohne Split eine Beschreibung für die Buchung, mit Split je Zeile (oben).
-  if (!split && !beschreibung.trim()) fehlend.push("Beschreibung");
+  const { gesamtCent, restCent } = gesamtUndRest(split, gesamt, positionen, typ);
+  // Noch offene Pflichtangaben (leer = Speichern möglich).
+  const fehlend = fehlendeFelder({ tag, tageImMonat, typ, split, gesamt, positionen, beschreibung });
   const vollstaendig = fehlend.length === 0;
 
   // --- Änderungen ---
@@ -224,11 +193,6 @@ export default function BuchungsFormular({
   function typAendern(neu: Typ) {
     setTyp(neu);
     setPositionen((alt) => mitRestzeile(alt, gesamt, neu));
-  }
-
-  // Konto gewählt: fixer Steuersatz wird übernommen, sonst muss er neu gewählt werden.
-  function kontoWaehlen(i: number, kontoId: number) {
-    positionAendern(i, { kontoId, steuersatz: kontoVon(kontoId)?.fixSteuersatz ?? null });
   }
 
   // Neue Split-Position mit dem offenen Restbetrag als Vorschlag.
@@ -314,12 +278,12 @@ export default function BuchungsFormular({
         beschreibung: split ? positionen.map((p) => p.text.trim()).join(" / ") : beschreibung.trim(),
         betragCent: summeCent,
         belegId,
-        positionen: positionen.map((p, i) => ({
-          betragCent: posCent[i],
+        positionen: positionen.map((p) => ({
+          betragCent: betragCent(p.betrag),
           steuersatz: p.steuersatz,
           kontoId: p.kontoId,
           text: split ? p.text.trim() : null,
-          typ: split ? zeilenTyp(p) : typ,
+          typ: split ? (p.typ ?? typ) : typ,
         })),
       };
 
@@ -348,91 +312,19 @@ export default function BuchungsFormular({
     }
   }
 
-  // Steuersatz-Auswahl; ein inzwischen inaktiver Satz (Bearbeiten) bleibt sichtbar.
-  function steuerOptionen(aktuell: number | null) {
-    const liste = [...steuersaetze];
-    if (aktuell != null && !liste.some((s) => s.prozent === aktuell)) {
-      liste.push({ id: -1, prozent: aktuell, bezeichnung: "" });
-    }
-    return liste.map((s) => (
-      <option key={s.id} value={String(s.prozent)}>{formatProzent(s.prozent)} %</option>
-    ));
-  }
-
-  function positionsFelder(p: Position, i: number) {
-    const fix = kontoVon(p.kontoId)?.fixSteuersatz;
-    return (
-      <>
-        {split && (
-          <div className="col-span-2">
-            {i === 0 && <label className="block text-sm font-medium mb-1">Art *</label>}
-            <select
-              data-feld={`pos-typ-${i}`}
-              className={feldKlasse(false)}
-              value={zeilenTyp(p)}
-              onChange={(e) => positionAendern(i, { typ: e.target.value as Typ })}
-            >
-              <option value="ausgang">Ausgabe</option>
-              <option value="eingang">Einnahme</option>
-            </select>
-          </div>
-        )}
-        <div className={split ? "col-span-3" : "col-span-6"}>
-          {(!split || i === 0) && <label className="block text-sm font-medium mb-1">Konto *</label>}
-          <select
-            data-feld={`pos-konto-${i}`}
-            className={feldKlasse(versucht && !p.kontoId)}
-            value={p.kontoId}
-            onChange={(e) => kontoWaehlen(i, Number(e.target.value))}
-          >
-            <option value={0}>Konto wählen…</option>
-            {konten.map((k) => (
-              <option key={k.id} value={k.id}>
-                {k.nummer} – {k.bezeichnung}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={split ? "col-span-2" : "col-span-3"}>
-          {(!split || i === 0) && <label className="block text-sm font-medium mb-1">Betrag (brutto) *</label>}
-          <input
-            data-feld={`pos-betrag-${i}`}
-            inputMode="decimal"
-            className={`${feldKlasse(versucht && posCent[i] == null)} text-right`}
-            placeholder="0,00"
-            value={p.betrag}
-            onChange={(e) => positionAendern(i, { betrag: e.target.value })}
-          />
-        </div>
-        <div className={split ? "col-span-2" : "col-span-3"}>
-          {(!split || i === 0) && <label className="block text-sm font-medium mb-1">Steuersatz *</label>}
-          <select
-            data-feld={`pos-steuer-${i}`}
-            className={feldKlasse(versucht && p.steuersatz == null)}
-            value={p.steuersatz == null ? "" : String(p.steuersatz)}
-            disabled={fix != null}
-            title={fix != null ? "Fixer Steuersatz dieses Kontos" : undefined}
-            onChange={(e) => positionAendern(i, { steuersatz: e.target.value === "" ? null : Number(e.target.value) })}
-          >
-            <option value="">wählen…</option>
-            {steuerOptionen(p.steuersatz)}
-          </select>
-        </div>
-        {split && (
-          <div className="col-span-2">
-            {i === 0 && <label className="block text-sm font-medium mb-1">Beschreibung *</label>}
-            <input
-              data-feld={`pos-text-${i}`}
-              className={feldKlasse(versucht && !p.text.trim())}
-              placeholder="z. B. Lebensmittel"
-              value={p.text}
-              onChange={(e) => positionAendern(i, { text: e.target.value })}
-            />
-          </div>
-        )}
-      </>
-    );
-  }
+  // Felder einer Buchungszeile (Konto, Betrag, Steuersatz; bei Split auch Art und Text).
+  const positionsFelder = (p: Position, i: number) => (
+    <PositionsFelder
+      position={p}
+      index={i}
+      split={split}
+      buchungsTyp={typ}
+      konten={konten}
+      steuersaetze={steuersaetze}
+      versucht={versucht}
+      onAendern={(aenderung) => positionAendern(i, aenderung)}
+    />
+  );
 
   const anzeigeNr = istBearbeiten ? bearbeiten!.belegnummer : vorschauNr;
 

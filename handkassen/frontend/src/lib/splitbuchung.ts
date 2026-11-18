@@ -1,5 +1,5 @@
 // Reine Rechenlogik des Buchungsformulars (ohne React) – per Unit-Test prüfbar.
-import { centZuEingabe, euroStringZuCent } from "./geld.js";
+import { centZuEingabe, euroStringZuCent, formatCent } from "./geld.js";
 
 export type Typ = "eingang" | "ausgang";
 
@@ -30,6 +30,61 @@ const gegenTyp = (typ: Typ): Typ => (typ === "ausgang" ? "eingang" : "ausgang");
 // des anderen Typs minus (Hofer: 10 + 20 − 5 Pfand = 25 bezahlt).
 export function positionsSumme(positionen: Position[], typ: Typ): number {
   return positionen.reduce((s, p) => s + ((p.typ ?? typ) === typ ? 1 : -1) * (betragCent(p.betrag) ?? 0), 0);
+}
+
+// Gesamtbetrag und offener Rest. Bei der Splitbuchung zählt der eingegebene
+// Gesamtbetrag laut Beleg; ohne Split ist es der Betrag der einzigen Zeile
+// (Rest 0). Rest > 0 = noch aufzuteilen, < 0 = zu viel aufgeteilt.
+export function gesamtUndRest(
+  split: boolean,
+  gesamt: string,
+  positionen: Position[],
+  typ: Typ
+): { gesamtCent: number | null; restCent: number } {
+  const gesamtCent = betragCent(split ? gesamt : (positionen[0]?.betrag ?? ""));
+  const restCent = split && gesamtCent != null ? gesamtCent - positionsSumme(positionen, typ) : 0;
+  return { gesamtCent, restCent };
+}
+
+// Eingabe im Tag-Feld als Tag des Monats; null, wenn leer oder ungültig.
+export function tagAusEingabe(tag: string, tageImMonat: number): number | null {
+  const zahl = /^\d{1,2}$/.test(tag.trim()) ? Number(tag) : NaN;
+  return zahl >= 1 && zahl <= tageImMonat ? zahl : null;
+}
+
+// Stand der Eingaben im Buchungsformular (für die Pflichtfeld-Prüfung).
+export interface FormularStand {
+  tag: string;
+  tageImMonat: number;
+  typ: Typ;
+  split: boolean;
+  gesamt: string; // Gesamtbetrag laut Beleg (nur Splitbuchung)
+  positionen: Position[];
+  beschreibung: string; // Beschreibung der Buchung (nur ohne Split)
+}
+
+// Pflichtfeld-Prüfung: Liste der noch offenen Angaben in Formular-Reihenfolge
+// (leer = vollständig, Speichern möglich).
+export function fehlendeFelder(s: FormularStand): string[] {
+  const fehlend: string[] = [];
+  if (tagAusEingabe(s.tag, s.tageImMonat) == null) {
+    fehlend.push(s.tag.trim() ? `Tag (1–${s.tageImMonat})` : "Tag");
+  }
+  const { gesamtCent, restCent } = gesamtUndRest(s.split, s.gesamt, s.positionen, s.typ);
+  if (s.split && gesamtCent == null) fehlend.push("Gesamtbetrag");
+  s.positionen.forEach((p, i) => {
+    const vor = s.split ? `Position ${i + 1}: ` : "";
+    if (!p.kontoId) fehlend.push(`${vor}Konto`);
+    if (betragCent(p.betrag) == null) fehlend.push(`${vor}Betrag`);
+    if (p.steuersatz == null) fehlend.push(`${vor}Steuersatz`);
+    if (s.split && !p.text.trim()) fehlend.push(`${vor}Beschreibung`);
+  });
+  if (restCent !== 0) {
+    fehlend.push(restCent > 0 ? `noch ${formatCent(restCent)} aufzuteilen` : `${formatCent(-restCent)} zu viel aufgeteilt`);
+  }
+  // Ohne Split eine Beschreibung für die Buchung, mit Split je Zeile (oben).
+  if (!s.split && !s.beschreibung.trim()) fehlend.push("Beschreibung");
+  return fehlend;
 }
 
 // Bearbeiten einer Splitbuchung: entsteht durch eine Änderung ein Restbetrag,

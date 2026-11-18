@@ -45,8 +45,3 @@ export function useFreieNummern(pfad: string | null, neuLadenBei?: unknown): str
   }, [pfad, neuLadenBei]);
   return nummern;
 }
-
-// Gültige Periode für Abfragen? (Jahr/Monat kommen teils aus Zahlenfeldern.)
-export function periodeGueltig(jahr: number, monat: number): boolean {
-  return Number.isInteger(jahr) && jahr >= 2000 && jahr <= 2100 && Number.isInteger(monat) && monat >= 1 && monat <= 12;
-}
