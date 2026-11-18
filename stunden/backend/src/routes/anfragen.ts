@@ -84,7 +84,7 @@ anfragenRouter.post(
     }
 
     if (automatischUebernehmen && ergebnis) {
-      await uebernehmen(anfrage.id, ergebnis, req.benutzer?.userId ?? null, true);
+      await uebernehmen(anfrage.id, ergebnis, req.benutzer?.userId ?? null);
       const fertig = await prisma.aenderungsanfrage.findUnique({
         where: { id: anfrage.id },
       });
@@ -404,8 +404,7 @@ anfragenRouter.post(
 async function uebernehmen(
   anfrageId: string,
   ergebnis: AufbereitetesErgebnis,
-  userId: string | null,
-  automatisch: boolean
+  userId: string | null
 ): Promise<void> {
   // Gleiche Wertgrenzen wie beim manuellen Bestaetigen (istUebernahmefaehig).
   if (!istUebernahmefaehig(ergebnis)) return;
@@ -431,7 +430,7 @@ async function uebernehmen(
         quelle: "MAIL_PASTE",
         erfasstVon: userId,
         aenderungsanfrageId: anfrageId,
-        notiz: automatisch ? "Automatisch übernommen" : null,
+        notiz: "Automatisch übernommen",
       },
     });
     return true;
@@ -440,7 +439,7 @@ async function uebernehmen(
 
   await auditLog({
     userId,
-    aktion: automatisch ? "ANFRAGE_AUTOMATISCH_UEBERNOMMEN" : "ANFRAGE_BESTAETIGT",
+    aktion: "ANFRAGE_AUTOMATISCH_UEBERNOMMEN",
     betroffenerMitarbeiterId: ergebnis.mitarbeiterId,
     details: { anfrageId },
   });

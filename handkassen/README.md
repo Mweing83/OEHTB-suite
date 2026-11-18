@@ -91,7 +91,7 @@ Backup und Wiederherstellung: `BACKUP.md`.
 Im `backend`-Ordner:
 
 ```bash
-# Unit-Tests (ohne Datenbank) – Buchungslogik, Geld, Sperre, BMD-Zuordnung
+# Unit-Tests (ohne Datenbank) – Buchungslogik, Sperre, BMD-Export
 npm test
 
 # Integrationstests (API gegen eine SEPARATE Testdatenbank)

@@ -1,6 +1,4 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import request from "supertest";
-import { app } from "../server.js";
 import { prisma } from "../lib/db.js";
 import { resetDb, seedBasis, alsAgent } from "../test/helfer.js";
 

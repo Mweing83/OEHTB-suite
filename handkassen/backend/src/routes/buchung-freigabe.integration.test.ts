@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { app } from "../server.js";
 import { prisma } from "../lib/db.js";
 import { resetDb, seedBasis, alsAgent, buchungEingabe } from "../test/helfer.js";
 

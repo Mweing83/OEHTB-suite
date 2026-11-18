@@ -1,6 +1,6 @@
 {
   "name": "foerderungen-backend",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Backend fuer das Foerderungen-Tool OEHTB",
   "main": "dist/index.js",
   "scripts": {
@@ -15,7 +15,6 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
-    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^18.0.8",
@@ -33,7 +32,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^24.19.2",
     "@types/supertest": "^7.2.1",
-    "cross-env": "^10.1.0",
     "prisma": "^7.10.1",
     "supertest": "^7.3.1",
     "typescript": "^6.0.3",

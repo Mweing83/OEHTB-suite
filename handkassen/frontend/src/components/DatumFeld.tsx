@@ -25,13 +25,12 @@ interface Props {
   wert: string;
   onChange: (iso: string) => void;
   className?: string;
-  size?: "normal" | "klein";
 }
 
 // Datumsfeld im deutschen Format (TT.MM.JJJJ). Anzeige und Eingabe sind immer
 // deutsch – unabhängig von der Browser-/Windows-Spracheinstellung. Über das
 // Kalendersymbol lässt sich zusätzlich der native Kalender öffnen.
-export default function DatumFeld({ wert, onChange, className = "", size = "normal" }: Props) {
+export default function DatumFeld({ wert, onChange, className = "" }: Props) {
   const [text, setText] = useState(isoZuDe(wert));
   const [fehlerhaft, setFehlerhaft] = useState(false);
   const nativeRef = useRef<HTMLInputElement | null>(null);
@@ -78,15 +77,13 @@ export default function DatumFeld({ wert, onChange, className = "", size = "norm
     el?.focus();
   }
 
-  const groesse = size === "klein" ? "px-3 py-1.5 text-sm" : "px-3 py-2";
-
   return (
     <div className={`relative ${className}`}>
       <input
         type="text"
         inputMode="numeric"
         placeholder="TT.MM.JJJJ"
-        className={`w-full border rounded-sm pr-9 ${groesse} ${fehlerhaft ? "border-red-400 bg-red-50" : ""}`}
+        className={`w-full border rounded-sm pr-9 px-3 py-2 ${fehlerhaft ? "border-red-400 bg-red-50" : ""}`}
         value={text}
         onChange={(e) => textGeaendert(e.target.value)}
         onBlur={beimVerlassen}

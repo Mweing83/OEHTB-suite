@@ -706,7 +706,7 @@ function SteuersaetzeTab() {
 //  TAB: Kontenplan
 // ============================================================
 
-interface Konto { id: number; firmaId: number; nummer: string; bezeichnung: string; beschreibung?: string; anmerkung?: string; aktiv: boolean; bereichIds: number[]; fixSteuersatz: number | null; }
+interface Konto { id: number; firmaId: number; nummer: string; bezeichnung: string; beschreibung?: string; aktiv: boolean; bereichIds: number[]; fixSteuersatz: number | null; }
 
 // Fixer Steuersatz im Formular: "" = frei wählbar, sonst der Prozentwert als Text.
 function fixAusText(t: string): number | null {
@@ -724,10 +724,10 @@ function KontenTab() {
   useEffect(() => {
     if (!firmaId && firmen.length) setFirmaId(firmen[0].id);
   }, [firmen, firmaId]);
-  const [neu, setNeu] = useState<{ nummer: string; bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[]; fix: string }>({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
+  const [neu, setNeu] = useState<{ nummer: string; bezeichnung: string; beschreibung: string; bereichIds: number[]; fix: string }>({ nummer: "", bezeichnung: "", beschreibung: "", bereichIds: [], fix: "" });
   // Inline-Bearbeitung
   const [bearbeiteId, setBearbeiteId] = useState<number | null>(null);
-  const [entwurf, setEntwurf] = useState<{ firmaId: number; bezeichnung: string; beschreibung: string; anmerkung: string; bereichIds: number[]; fix: string }>({ firmaId: 0, bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
+  const [entwurf, setEntwurf] = useState<{ firmaId: number; bezeichnung: string; beschreibung: string; bereichIds: number[]; fix: string }>({ firmaId: 0, bezeichnung: "", beschreibung: "", bereichIds: [], fix: "" });
 
   function laden() {
     if (firmaId) api.get<Konto[]>(`/admin/konten?firma=${firmaId}`).then(setListe).catch(() => {});
@@ -743,7 +743,7 @@ function KontenTab() {
     try {
       const { fix, ...daten } = neu;
       await api.post("/admin/konten", { ...daten, firmaId, fixSteuersatz: fixAusText(fix) });
-      setNeu({ nummer: "", bezeichnung: "", beschreibung: "", anmerkung: "", bereichIds: [], fix: "" });
+      setNeu({ nummer: "", bezeichnung: "", beschreibung: "", bereichIds: [], fix: "" });
       laden();
     } catch (e) {
       setFehler((e as Error).message);
@@ -756,7 +756,7 @@ function KontenTab() {
   function bearbeitenStarten(k: Konto) {
     setFehler("");
     setBearbeiteId(k.id);
-    setEntwurf({ firmaId: k.firmaId, bezeichnung: k.bezeichnung, beschreibung: k.beschreibung ?? "", anmerkung: k.anmerkung ?? "", bereichIds: k.bereichIds, fix: k.fixSteuersatz == null ? "" : String(k.fixSteuersatz) });
+    setEntwurf({ firmaId: k.firmaId, bezeichnung: k.bezeichnung, beschreibung: k.beschreibung ?? "", bereichIds: k.bereichIds, fix: k.fixSteuersatz == null ? "" : String(k.fixSteuersatz) });
   }
   async function bearbeitenSpeichern(id: number) {
     setFehler("");
@@ -764,7 +764,6 @@ function KontenTab() {
       await api.put(`/admin/konten/${id}`, {
         bezeichnung: entwurf.bezeichnung,
         beschreibung: entwurf.beschreibung,
-        anmerkung: entwurf.anmerkung,
         bereichIds: entwurf.bereichIds,
         fixSteuersatz: fixAusText(entwurf.fix),
         firmaId: entwurf.firmaId,

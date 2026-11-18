@@ -1,14 +1,8 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
-import { belegPflichtAktiv } from "../lib/einstellungen.js";
 
 export const stammdatenRouter = Router();
-
-// --- Einstellungen, die das Buchungsformular braucht (für alle Angemeldeten) ---
-stammdatenRouter.get("/einstellungen", angemeldet, async (_req, res) => {
-  res.json({ belegPflicht: await belegPflichtAktiv() });
-});
 
 // --- Kontaktdaten des Administrators (für alle Angemeldeten sichtbar) ---
 stammdatenRouter.get("/kontakt", angemeldet, async (_req, res) => {
@@ -48,23 +42,6 @@ stammdatenRouter.get("/steuersaetze", angemeldet, async (_req, res) => {
     orderBy: { prozent: "asc" },
   });
   res.json(saetze.map((s) => ({ ...s, prozent: s.prozent.toNumber() })));
-});
-
-// --- Aktive Bereiche / Kassenarten (für die Kostenstellen-Maske) ---
-stammdatenRouter.get("/bereiche", angemeldet, async (_req, res) => {
-  const bereiche = await prisma.bereich.findMany({
-    where: { aktiv: true },
-    orderBy: { bezeichnung: "asc" },
-  });
-  res.json(bereiche);
-});
-
-stammdatenRouter.get("/kassenarten", angemeldet, async (_req, res) => {
-  const arten = await prisma.kassenart.findMany({
-    where: { aktiv: true },
-    orderBy: { bezeichnung: "asc" },
-  });
-  res.json(arten);
 });
 
 // --- Kostenstellen ---
