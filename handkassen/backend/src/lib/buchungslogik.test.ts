@@ -5,6 +5,8 @@ import {
   belegnummerFormat,
   textNormalisieren,
   positionsText,
+  positionsSumme,
+  positionsTyp,
   type BuchungEingabe,
 } from "./buchungslogik.js";
 
@@ -119,6 +121,48 @@ describe("Splitbuchung: Text je Zeile", () => {
     expect(einfach.positionen[0].text).toBeNull();
     expect(positionsText({ text: null }, "Beleg")).toBe("Beleg");
     expect(positionsText({ text: "Zeile" }, "Beleg")).toBe("Zeile");
+  });
+});
+
+describe("Splitbuchung: Einnahme-Zeilen in einer Ausgabe-Rechnung", () => {
+  // Hofer: 10 + 20 (Ausgabe) − 5 Pfand retour (Einnahme) = 25 bezahlt
+  const hofer = (betragCent: number) =>
+    basis({
+      betragCent,
+      positionen: [
+        { betragCent: 1000, steuersatz: 10, kontoId: 1, text: "Lebensmittel", typ: "ausgang" },
+        { betragCent: 2000, steuersatz: 20, kontoId: 1, text: "Getränke", typ: "ausgang" },
+        { betragCent: 500, steuersatz: 20, kontoId: 1, text: "Pfand retour", typ: "eingang" },
+      ],
+    });
+
+  it("zieht Zeilen des anderen Typs ab", () => {
+    expect(positionsSumme(hofer(2500))).toBe(2500);
+    expect(buchungValidieren(hofer(2500)).ok).toBe(true);
+    expect(buchungValidieren(hofer(3500)).ok).toBe(false);
+  });
+
+  it("ohne Zeilentyp gilt der Typ der Buchung; ungültiger Typ wird abgelehnt", () => {
+    expect(positionsTyp({ typ: null }, "ausgang")).toBe("ausgang");
+    expect(positionsTyp({ typ: "eingang" }, "ausgang")).toBe("eingang");
+    const kaputt = hofer(2500);
+    (kaputt.positionen[2] as { typ: string }).typ = "egal";
+    expect(buchungValidieren(kaputt).ok).toBe(false);
+  });
+
+  it("normalisieren: ohne Split immer Typ der Buchung, mit Split Standard = Buchungstyp", () => {
+    const einfach = textNormalisieren(basis({ positionen: [{ betragCent: 1000, steuersatz: 20, kontoId: 1, typ: "eingang" }] }));
+    expect(einfach.positionen[0].typ).toBe("ausgang");
+    const split = textNormalisieren(
+      basis({
+        betragCent: 1500,
+        positionen: [
+          { betragCent: 1000, steuersatz: 20, kontoId: 1, text: "a" },
+          { betragCent: 500, steuersatz: 20, kontoId: 1, text: "b" },
+        ],
+      })
+    );
+    expect(split.positionen.map((p) => p.typ)).toEqual(["ausgang", "ausgang"]);
   });
 });
 

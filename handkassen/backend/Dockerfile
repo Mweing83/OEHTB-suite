@@ -52,6 +52,8 @@ RUN npx prisma generate
 # Kompiliertes Backend + gebautes Frontend uebernehmen
 COPY --from=backend /app/dist ./dist
 COPY --from=frontend /fe/dist ./public
+# Logo fuer den Briefkopf der PDF-Berichte (lib/pdf.ts liest ./assets).
+COPY backend/assets ./assets
 
 # Quellordner mitnehmen: der Seed (prisma/seed.ts) importiert aus ../src und
 # wird ueber tsx ausgefuehrt. Ohne src schluege "npm run seed" fehl.

@@ -40,6 +40,15 @@ export function regexEscape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Sucht einen Namen/Begriff als ganzes Wort. Bewusst NICHT mit \b: das kennt
+// nur ASCII-Wortzeichen und verfehlt Namen, die mit Umlaut beginnen oder auf
+// ß/é enden ("Özdemir", "Groß", "André") – der Klarname ginge dann an die KI.
+// Stattdessen Unicode-Buchstaben/-Ziffern als Grenze; "Mayer" trifft weiterhin
+// nicht in "Mayerhofer".
+export function namensRegex(begriff: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${regexEscape(begriff)}(?![\\p{L}\\p{N}])`, "giu");
+}
+
 // Ersetzt alle bekannten Mitarbeiternamen im Text durch Platzhalter.
 export async function pseudonymisieren(
   rohtext: string
@@ -66,8 +75,7 @@ export async function pseudonymisieren(
     // E-Mail-Adresse zuerst (enthaelt oft den Nachnamen), dann Namen.
     const varianten = [...(m.email ? [m.email] : []), ...namensVarianten(m.vorname, m.nachname)];
     for (const variante of varianten) {
-      // Wortgrenzen, damit "Mayer" nicht in "Mayerhofer" trifft.
-      const re = new RegExp(`\\b${regexEscape(variante)}\\b`, "gi");
+      const re = namensRegex(variante);
       if (re.test(text)) {
         if (!idZuPlatzhalter[m.id]) {
           zaehler += 1;

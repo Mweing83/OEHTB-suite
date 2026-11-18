@@ -130,6 +130,10 @@ fehlt.
 8. **Beschreibung** – kurzer Text, was gekauft/eingenommen wurde.
 9. **Beleg** – optional ein Foto/Scan/PDF (siehe Abschnitt 5).
 
+Nach dem Speichern steht im Feld **Tag** wieder das Datum der vorherigen
+Buchung, bereits markiert: Bleibt es gleich, mit Enter bestätigen; sonst
+einfach den neuen Tag eintippen, er überschreibt den Vorschlag.
+
 Mit der **Enter-Taste** springt man jeweils zum nächsten Feld; Enter im letzten
 Feld (Beschreibung) speichert die Buchung. Rechts wird laufend die **Summe**
 angezeigt.
@@ -140,7 +144,11 @@ Enthält ein Beleg Positionen mit **unterschiedlichen Konten oder Steuersätzen*
 wählen:
 
 - Zuerst den **Gesamtbetrag laut Beleg** (brutto) eingeben.
-- Danach je Position **Konto → Betrag → Steuersatz → Beschreibung**. Jede
+- Danach je Position **Art → Konto → Betrag → Steuersatz → Beschreibung**.
+  Die **Art** ist „Ausgabe“ (Vorschlag) oder „Einnahme“, z. B. für „Pfand
+  retour“ auf einer Einkaufsrechnung. Als Gesamtbetrag gilt, was laut Rechnung
+  tatsächlich bezahlt wurde: Ausgaben werden hinzugerechnet, Einnahmen
+  abgezogen (Beispiel: 10,00 + 20,00 − 5,00 Pfand = 25,00 €). Jede
   Zeile bekommt ihren eigenen Text (Pflichtfeld, z. B. „Lebensmittel“,
   „Taschentücher“); das allgemeine Beschreibungsfeld entfällt bei der
   Splitbuchung. Die Kassa zeigt laufend, welcher Betrag **noch aufzuteilen**
@@ -148,7 +156,12 @@ wählen:
 - **Enter** in der Beschreibung der letzten Position legt bei offenem
   Restbetrag eine neue Position an; ist der Rest 0,00 €, wird gespeichert.
 - Gespeichert werden kann erst, wenn der Restbetrag **0,00 €** ist. Eine
-  überflüssige Position lässt sich mit dem **✕** entfernen.
+  überflüssige Position lässt sich mit dem **✕** entfernen. Der Restbetrag
+  aktualisiert sich bei jeder Änderung sofort.
+- Wird eine gespeicherte Splitbuchung **bearbeitet** und entsteht dabei ein
+  Restbetrag, schlägt die Kassa automatisch eine weitere Zeile mit diesem
+  Restbetrag vor (bei zu viel aufgeteiltem Betrag als Zeile der anderen Art).
+  Diese Zeile noch mit Konto, Steuersatz und Beschreibung ergänzen.
 
 ### Speichern
 Mit **Buchung speichern** wird die Buchung festgeschrieben. Anschließend
@@ -313,8 +326,9 @@ oder gedruckt werden.
 
 ### Export je Firma (nur Finanzen/Admin)
 Im unteren Abschnitt – nur für Finanzen und Admin sichtbar – gibt es den
-monatsweisen Export **über alle Kostenstellen einer Firma**. Zuerst die
-**Firma** wählen: Jede Firma wird getrennt exportiert, damit die Buchungen in
+monatsweisen Export **über alle Kostenstellen einer Firma** in einer Datei
+oder – über die Auswahl **Kostenstelle** – für eine einzelne Kostenstelle.
+Zuerst die **Firma** wählen: Jede Firma wird getrennt exportiert, damit die Buchungen in
 den jeweils richtigen NTCS-Mandanten eingespielt werden. Der Dateiname enthält
 die Firma (z. B. `bmd_ka_oehtb_wohnen_gmbh_2026_09.csv`).
 

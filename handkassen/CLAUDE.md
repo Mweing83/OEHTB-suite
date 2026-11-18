@@ -42,14 +42,17 @@ Handkassen-System", Version 1.0.
 - **Geldbeträge immer als Ganzzahl in Cent speichern und rechnen.** Niemals Float.
 - Eine Rechnung = eine Buchung. Keine Sammelrechnungen.
 - Eine Buchung kann mehrere Positionen haben (Split): jede Position hat
-  Betrag (Cent), Steuersatz (0/10/20) und ein Konto. Summe der Positionen muss
-  exakt dem Buchungsbetrag entsprechen.
+  Betrag (Cent, immer positiv), Steuersatz, Konto, Text und einen Typ
+  (Ausgabe/Einnahme; null = Typ der Buchung). Positionen vom Typ der Buchung
+  zählen plus, die des anderen Typs minus; das Ergebnis muss exakt dem
+  Buchungsbetrag (= tatsächlich bezahlt) entsprechen. Beispiel Hofer:
+  10 + 20 (Ausgabe) − 5 Pfand retour (Einnahme) = 25. Exporte geben je
+  Position eine Zeile mit eigenem Typ/Buchungscode aus.
 - Erlaubte Steuersätze kommen aus der Tabelle "steuersatz" (durch Admin pflegbar).
   buchungValidieren erhält die aktiven Sätze als Parameter. Standard/Fallback: 0, 10, 20.
   Ausländische/handgeschriebene Belege: 0.
 - Trinkgeld -> Konto 76900 "Spenden & Trinkgelder" (0 %).
-- Pfand wird auf dem Konto des Belegs mitgebucht; ergibt sich ein Minus ->
-  Konto 99900 "Unklare Buchungsfälle".
+- Pfand retour wird in der Splitbuchung als eigene Einnahme-Zeile erfasst.
 - Buchungsnummer wird automatisch fortlaufend vergeben.
 - Belegnummer wird automatisch fortlaufend vergeben und hängt an der Buchung
   (Spalte buchung.belegnummer); sie wird IMMER vergeben, auch ohne hinterlegtes Foto.
@@ -62,7 +65,8 @@ Handkassen-System", Version 1.0.
   sie in Belegnummer und Belegdateinamen steckt). Gebucht werden darf nur auf
   Konten der Firma der Kostenstelle. Sichtbarkeit einer Firma ergibt sich aus
   den freigeschalteten Kostenstellen; finanzen/admin sehen alle. Exporte
-  (BMD, BMD-ZIP, CSV) verlangen ?firma=. Firmenwechsel einer Kostenstelle bzw.
+  (BMD, BMD-ZIP, CSV) verlangen ?firma=, optional ?kostenstelle= für den
+  Export einer einzelnen Kostenstelle. Firmenwechsel einer Kostenstelle bzw.
   eines Kontos (nur Admin) auch mit Buchungen, aber nicht mehr nach der ersten
   Monatsfreigabe (gesperrte Buchungen bzw. freigegebener Abschluss).
 - Monatsabschluss-Status: offen -> eingereicht -> geprüft -> freigegeben.

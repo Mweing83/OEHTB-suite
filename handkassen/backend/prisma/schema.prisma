@@ -249,6 +249,9 @@ model BuchungsPosition {
   // Text der Buchungszeile (Pflicht bei Splitbuchungen, z. B. "Lebensmittel",
   // "Taschentücher"). Ohne Split null – dann gilt die Beschreibung der Buchung.
   text        String?
+  // Typ der Buchungszeile (Splitbuchung: z. B. Pfand retour als Einnahme in
+  // einer Ausgabe-Rechnung). null = Typ der Buchung (Altbestand).
+  typ         BuchungsTyp?
 
   @@index([buchungId])
   @@map("buchungsposition")

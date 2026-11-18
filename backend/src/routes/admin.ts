@@ -236,6 +236,22 @@ adminRouter.post(
   }
 );
 
+// Bleibt ausser dieser Person noch ein aktiver Verwaltungs-Admin uebrig?
+// (Nicht einfach alle aktiven Admins zaehlen: sonst liesse sich ein
+// deaktivierter Ex-Admin nie entrechten oder loeschen, solange es nur einen
+// aktiven Admin gibt.)
+async function andererAktiverVerwalter(ohneUserId: string): Promise<boolean> {
+  const anzahl = await prisma.zugriff.count({
+    where: {
+      tool: { slug: "verwaltung" },
+      rolle: "admin",
+      userId: { not: ohneUserId },
+      user: { aktiv: true },
+    },
+  });
+  return anzahl > 0;
+}
+
 // ---------------------------------------------------------------------------
 // PUT /api/suite/admin/benutzer/:id/zugriff – Zugriffsmatrix einer Person.
 // Body: { zugriff: { <toolSlug>: <rolle> | null } } – null entzieht Zutritt.
@@ -283,23 +299,11 @@ adminRouter.put(
     // Schutz: der letzte Verwaltungs-Admin darf den Verwaltungs-Zugriff
     // nicht verlieren (sonst sperrt sich die Organisation selbst aus).
     const verwaltung = proSlug.get("verwaltung");
-    const entziehtVerwaltung =
-      verwaltung &&
-      Object.entries(parse.data.zugriff).some(
-        ([slug, rolle]) => slug === "verwaltung" && rolle === null
-      );
-    if (verwaltung && entziehtVerwaltung) {
-      const adminAnzahl = await prisma.zugriff.count({
-        where: {
-          toolId: verwaltung.id,
-          rolle: "admin",
-          user: { aktiv: true },
-        },
-      });
+    if (verwaltung && parse.data.zugriff["verwaltung"] === null) {
       const hatVerwaltung = await prisma.zugriff.findUnique({
         where: { userId_toolId: { userId, toolId: verwaltung.id } },
       });
-      if (hatVerwaltung && adminAnzahl <= 1) {
+      if (hatVerwaltung && !(await andererAktiverVerwalter(userId))) {
         res.status(409).json({
           fehler:
             "Der letzte Verwaltungs-Administrator kann nicht entfernt werden.",
@@ -373,19 +377,7 @@ adminRouter.delete(
       (z) => z.tool.slug === "verwaltung" && z.rolle === "admin"
     );
     if (istVerwalter) {
-      const verwaltung = await prisma.tool.findUnique({
-        where: { slug: "verwaltung" },
-      });
-      const adminAnzahl = verwaltung
-        ? await prisma.zugriff.count({
-            where: {
-              toolId: verwaltung.id,
-              rolle: "admin",
-              user: { aktiv: true },
-            },
-          })
-        : 0;
-      if (adminAnzahl <= 1) {
+      if (!(await andererAktiverVerwalter(zielId))) {
         res.status(409).json({
           fehler:
             "Der letzte Verwaltungs-Administrator kann nicht gelöscht werden.",

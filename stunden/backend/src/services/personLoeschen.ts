@@ -1,5 +1,5 @@
 import type { Prisma } from "../generated/prisma/client";
-import { namensVarianten, regexEscape } from "./pseudonym";
+import { namensVarianten, namensRegex } from "./pseudonym";
 
 // ---------------------------------------------------------------------------
 // DSGVO Art. 17: Person aus allen Aenderungsanfragen entfernen.
@@ -43,8 +43,7 @@ export async function personAusAnfragenEntfernen(
 
     let text = a.rohtext;
     for (const begriff of suchbegriffe) {
-      const re = new RegExp(`(?<![\\p{L}\\p{N}])${regexEscape(begriff)}(?![\\p{L}\\p{N}])`, "giu");
-      text = text.replace(re, platzhalter);
+      text = text.replace(namensRegex(begriff), platzhalter);
     }
 
     let mappingGeaendert = false;

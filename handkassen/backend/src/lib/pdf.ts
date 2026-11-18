@@ -16,8 +16,6 @@ function logoPfadFinden(): string | null {
   return null;
 }
 
-export const ORGANISATION = "ÖHTB Wohnen GmbH";
-
 // Geldformat: Cent -> "1.234,56 €"
 export function eur(cent: number): string {
   return (cent / 100).toLocaleString("de-AT", { style: "currency", currency: "EUR" });
@@ -36,6 +34,8 @@ export function zeitraumText(von: Date, bis: Date): string {
 }
 
 interface KopfInfo {
+  // Name der Firma, zu der die Kostenstelle gehört (mehrere Firmen).
+  organisation: string;
   titel: string;
   kostenstelle: string;
   bereich?: string;
@@ -60,7 +60,7 @@ export function neuesDokumentMitKopf(info: KopfInfo): PDFKit.PDFDocument {
   }
 
   // Organisation + Titel links
-  doc.fillColor(blau).fontSize(18).font("Helvetica-Bold").text(ORGANISATION, 50, 50);
+  doc.fillColor(blau).fontSize(18).font("Helvetica-Bold").text(info.organisation, 50, 50);
   doc.moveDown(0.2);
   doc.fillColor("#000000").fontSize(14).font("Helvetica-Bold").text(info.titel);
 
@@ -82,7 +82,7 @@ export function neuesDokumentMitKopf(info: KopfInfo): PDFKit.PDFDocument {
 }
 
 // Zeichnet eine einfache Fußzeile mit Seitenzahl auf die aktuelle Seite.
-export function fusszeile(doc: PDFKit.PDFDocument, seite: number) {
+export function fusszeile(doc: PDFKit.PDFDocument, seite: number, organisation: string) {
   const unten = doc.page.height - 40;
   // Wichtig: Die Fußzeile liegt bewusst im unteren Seitenrand. Würde man dort
   // ohne Schutz schreiben, legt pdfkit automatisch eine neue (leere) Seite an,
@@ -92,7 +92,7 @@ export function fusszeile(doc: PDFKit.PDFDocument, seite: number) {
   doc.page.margins.bottom = 0;
   doc.fontSize(8).fillColor("#808080").font("Helvetica");
   doc.text(
-    `${ORGANISATION} – erstellt mit dem Handkassen-System`,
+    `${organisation} – erstellt mit dem Handkassen-System`,
     50,
     unten,
     { align: "left", width: doc.page.width - 100, lineBreak: false }

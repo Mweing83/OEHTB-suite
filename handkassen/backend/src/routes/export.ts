@@ -7,7 +7,7 @@ import { csvFeld } from "../lib/csv.js";
 import { angemeldet, rolleErforderlich } from "../middleware/auth.js";
 import { UPLOAD_DIR } from "../lib/uploads.js";
 import { bmdCsv, centZuStr, nettoUndSteuer } from "../lib/bmd-export.js";
-import { positionsText } from "../lib/buchungslogik.js";
+import { positionsText, positionsTyp } from "../lib/buchungslogik.js";
 
 export const exportRouter = Router();
 
@@ -20,15 +20,42 @@ function datumDeCsv(d: Date): string {
 
 // CSV-Feld escapen inkl. Formel-Neutralisierung: siehe lib/csv.ts.
 
-// Zahlen aus der Query prüfen (firma/jahr/monat), sonst null. Exporte laufen
-// je Firma, damit die Buchungen in den jeweils richtigen NTCS-Mandanten gehen.
-function monatAusQuery(q: Record<string, unknown>): { firmaId: number; jahr: number; monat: number } | null {
+// Zahlen aus der Query prüfen (firma/jahr/monat, optional kostenstelle), sonst
+// null. Exporte laufen je Firma (ein NTCS-Mandant) über alle Kostenstellen oder
+// für eine einzelne Kostenstelle der Firma.
+interface ExportAuswahl {
+  firmaId: number;
+  jahr: number;
+  monat: number;
+  kostenstelleId: number | null;
+}
+function monatAusQuery(q: Record<string, unknown>): ExportAuswahl | null {
   const firmaId = Number(q.firma);
   const jahr = Number(q.jahr);
   const monat = Number(q.monat);
   if (!Number.isInteger(firmaId) || firmaId <= 0) return null;
   if (!Number.isInteger(jahr) || !Number.isInteger(monat) || monat < 1 || monat > 12 || jahr < 2000) return null;
-  return { firmaId, jahr, monat };
+  let kostenstelleId: number | null = null;
+  if (q.kostenstelle !== undefined && q.kostenstelle !== "") {
+    kostenstelleId = Number(q.kostenstelle);
+    if (!Number.isInteger(kostenstelleId) || kostenstelleId <= 0) return null;
+  }
+  return { firmaId, jahr, monat, kostenstelleId };
+}
+
+// Prisma-Filter auf die Kostenstelle(n) des Exports.
+function ksFilter(a: ExportAuswahl) {
+  return { firmaId: a.firmaId, ...(a.kostenstelleId ? { id: a.kostenstelleId } : {}) };
+}
+
+// Dateinamen-Teil: Firma, bei Einzelexport zusätzlich die Kostenstelle
+// ("oehtb_wohnen_gmbh" bzw. "oehtb_wohnen_gmbh_ks2160"). null = ungültig.
+async function exportKuerzel(a: ExportAuswahl): Promise<string | null> {
+  const kuerzel = await firmaKuerzel(a.firmaId);
+  if (!kuerzel || !a.kostenstelleId) return kuerzel;
+  const ks = await prisma.kostenstelle.findFirst({ where: ksFilter(a), select: { nummer: true } });
+  if (!ks) return null; // Kostenstelle gehört nicht zur Firma
+  return `${kuerzel}_ks${ks.nummer.replace(/[^\w-]+/g, "_")}`;
 }
 
 // Dateinamen-Teil aus dem Firmennamen ("ÖHTB Wohnen GmbH" -> "oehtb_wohnen_gmbh").
@@ -49,15 +76,16 @@ type BmdDaten =
 // Lädt alle Positionen des Monats und baut die BMD-CSV. Liefert zusätzlich die
 // Belegdateien für den ZIP-Export. Der Name in der Spalte "dokument" ist exakt
 // der Dateiname im Upload-Ordner und im ZIP (Belegnummer + Endung, eindeutig).
-async function bmdDatenLaden(firmaId: number, jahr: number, monat: number): Promise<BmdDaten> {
-  const kuerzel = await firmaKuerzel(firmaId);
-  if (!kuerzel) return { fehler: "Unbekannte Firma." };
+async function bmdDatenLaden(auswahl: ExportAuswahl): Promise<BmdDaten> {
+  const { jahr, monat } = auswahl;
+  const kuerzel = await exportKuerzel(auswahl);
+  if (!kuerzel) return { fehler: "Unbekannte Firma oder Kostenstelle." };
   const von = new Date(jahr, monat - 1, 1);
   const bis = new Date(jahr, monat, 1);
 
   const positionen = await prisma.buchungsPosition.findMany({
     where: {
-      buchung: { belegdatum: { gte: von, lt: bis }, storniert: false, kostenstelle: { firmaId } },
+      buchung: { belegdatum: { gte: von, lt: bis }, storniert: false, kostenstelle: ksFilter(auswahl) },
     },
     include: { konto: true, buchung: { include: { kostenstelle: true, beleg: true } } },
     orderBy: [{ buchungId: "asc" }, { id: "asc" }],
@@ -98,7 +126,8 @@ async function bmdDatenLaden(firmaId: number, jahr: number, monat: number): Prom
       betragCent: p.betragCent,
       steuersatz: Number(p.steuersatz),
       kontoNummer: p.konto.nummer,
-      typ: p.buchung.typ,
+      // Typ der Buchungszeile (Splitbuchung: z. B. Pfand retour = Einnahme).
+      typ: positionsTyp(p, p.buchung.typ),
       belegdatum: p.buchung.belegdatum,
       // belegnr = echte Belegnummer der Buchung (z. B. "2026-1370-01");
       // alle Positionen einer Buchung tragen dieselbe Belegnummer.
@@ -127,7 +156,7 @@ exportRouter.get(
     const m = monatAusQuery(req.query);
     if (!m) return res.status(400).json({ fehler: "firma, jahr und monat erforderlich." });
     const frei = await prisma.freieBelegnummer.findMany({
-      where: { belegJahr: m.jahr, monat: m.monat, kostenstelle: { firmaId: m.firmaId } },
+      where: { belegJahr: m.jahr, monat: m.monat, kostenstelle: ksFilter(m) },
       orderBy: [{ kostenstelleId: "asc" }, { belegLaufnummer: "asc" }],
       select: { belegnummer: true, kostenstelle: { select: { nummer: true, bezeichnung: true } } },
     });
@@ -143,7 +172,7 @@ exportRouter.get(
   async (req, res) => {
     const m = monatAusQuery(req.query);
     if (!m) return res.status(400).json({ fehler: "firma, jahr und monat erforderlich." });
-    const daten = await bmdDatenLaden(m.firmaId, m.jahr, m.monat);
+    const daten = await bmdDatenLaden(m);
     if ("fehler" in daten) return res.status(400).json({ fehler: daten.fehler });
 
     res
@@ -163,7 +192,7 @@ exportRouter.get(
   async (req, res) => {
     const m = monatAusQuery(req.query);
     if (!m) return res.status(400).json({ fehler: "firma, jahr und monat erforderlich." });
-    const daten = await bmdDatenLaden(m.firmaId, m.jahr, m.monat);
+    const daten = await bmdDatenLaden(m);
     if ("fehler" in daten) return res.status(400).json({ fehler: daten.fehler });
 
     res
@@ -218,15 +247,15 @@ exportRouter.get(
   async (req, res) => {
     const m = monatAusQuery(req.query);
     if (!m) return res.status(400).json({ fehler: "firma, jahr und monat erforderlich." });
-    const { firmaId, jahr, monat } = m;
-    const kuerzel = await firmaKuerzel(firmaId);
-    if (!kuerzel) return res.status(400).json({ fehler: "Unbekannte Firma." });
+    const { jahr, monat } = m;
+    const kuerzel = await exportKuerzel(m);
+    if (!kuerzel) return res.status(400).json({ fehler: "Unbekannte Firma oder Kostenstelle." });
 
     const von = new Date(jahr, monat - 1, 1);
     const bis = new Date(jahr, monat, 1);
 
     const buchungen = await prisma.buchung.findMany({
-      where: { belegdatum: { gte: von, lt: bis }, storniert: false, kostenstelle: { firmaId } },
+      where: { belegdatum: { gte: von, lt: bis }, storniert: false, kostenstelle: ksFilter(m) },
       include: {
         positionen: { include: { konto: true }, orderBy: { id: "asc" } },
         kostenstelle: { include: { bereich: true } },
@@ -245,7 +274,9 @@ exportRouter.get(
     const zeilen = buchungen.flatMap((b) =>
       b.positionen.map((p) => {
         const mwst = nettoUndSteuer(p.betragCent, Number(p.steuersatz)).steuerCent;
-        const signiert = b.typ === "ausgang" ? -p.betragCent : p.betragCent;
+        // Vorzeichen und Typ je Zeile (Einnahme in einer Ausgabe-Rechnung = +)
+        const typ = positionsTyp(p, b.typ);
+        const signiert = typ === "ausgang" ? -p.betragCent : p.betragCent;
         return [
           csvFeld(b.kostenstelle.nummer),
           csvFeld(b.kostenstelle.bezeichnung),
@@ -253,7 +284,7 @@ exportRouter.get(
           csvFeld(b.buchungsnummer),
           csvFeld(b.belegnummer),
           csvFeld(datumDeCsv(b.belegdatum)),
-          csvFeld(b.typ === "ausgang" ? "Ausgang" : "Eingang"),
+          csvFeld(typ === "ausgang" ? "Ausgang" : "Eingang"),
           csvFeld(positionsText(p, b.beschreibung)),
           csvFeld(`${p.konto.nummer} (${p.steuersatz}%)`),
           csvFeld(centZuStr(mwst)),

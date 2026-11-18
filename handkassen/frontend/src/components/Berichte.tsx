@@ -17,8 +17,12 @@ export default function Berichte({ kostenstelleId }: Props) {
   const [modus, setModus] = useState<"monat" | "zeitraum">("monat");
   const [jahr, setJahr] = useState(heute.getFullYear());
   const [monat, setMonat] = useState(heute.getMonth() + 1);
-  const [von, setVon] = useState(new Date(heute.getFullYear(), heute.getMonth(), 1).toISOString().slice(0, 10));
-  const [bis, setBis] = useState(heute.toISOString().slice(0, 10));
+  // Lokales Datum als "JJJJ-MM-TT" (toISOString rechnet in UTC um und liefert
+  // in Mitteleuropa für den Monatsersten den Vortag).
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const [von, setVon] = useState(iso(new Date(heute.getFullYear(), heute.getMonth(), 1)));
+  const [bis, setBis] = useState(iso(heute));
 
   function url(bericht: "kassabericht" | "detailbericht" | "zaehlliste" | "csv"): string {
     const basis = apiUrl(`/berichte/${bericht}?kostenstelle=${kostenstelleId}`);
@@ -63,16 +67,26 @@ export default function Berichte({ kostenstelleId }: Props) {
       })
       .catch(() => {});
   }, [darfBmd]);
+  // Optional nur eine Kostenstelle der Firma exportieren (0 = alle Kostenstellen).
+  const [exportKostenstellen, setExportKostenstellen] = useState<{ id: number; nummer: string; bezeichnung: string; firma: { id: number } }[]>([]);
+  const [exportKs, setExportKs] = useState(0);
+  useEffect(() => {
+    if (!darfBmd) return;
+    api.get<typeof exportKostenstellen>("/kostenstellen").then(setExportKostenstellen).catch(() => {});
+  }, [darfBmd]);
+  const ksDerExportFirma = exportKostenstellen.filter((k) => k.firma.id === exportFirma);
+  // Gemeinsamer Teil der Export-Adressen
+  const exportParameter = `firma=${exportFirma}${exportKs ? `&kostenstelle=${exportKs}` : ""}&jahr=${bmdJahr}&monat=${bmdMonat}`;
   const [freieNummern, setFreieNummern] = useState<string[]>([]);
 
   // Vor dem Export auf frei gewordene, offene Belegnummern hinweisen (Lücke nach NTCS).
   useEffect(() => {
     if (!darfBmd || !exportFirma || !(bmdMonat >= 1 && bmdMonat <= 12) || !bmdJahr) { setFreieNummern([]); return; }
     api
-      .get<{ belegnummer: string }[]>(`/export/freie-belegnummern?firma=${exportFirma}&jahr=${bmdJahr}&monat=${bmdMonat}`)
+      .get<{ belegnummer: string }[]>(`/export/freie-belegnummern?${exportParameter}`)
       .then((l) => setFreieNummern(l.map((f) => f.belegnummer)))
       .catch(() => setFreieNummern([]));
-  }, [darfBmd, exportFirma, bmdJahr, bmdMonat]);
+  }, [darfBmd, exportParameter]);
 
   // BMD-CSV oder ZIP (CSV + Belegdateien) herunterladen. Per fetch, damit eine
   // Fehlermeldung des Servers (z. B. fehlendes Gegenkonto) angezeigt werden kann.
@@ -80,7 +94,7 @@ export default function Berichte({ kostenstelleId }: Props) {
     setBmdFehler("");
     setBmdLaedt(art);
     try {
-      const res = await fetch(apiUrl(`/export/${art}?firma=${exportFirma}&jahr=${bmdJahr}&monat=${bmdMonat}`), {
+      const res = await fetch(apiUrl(`/export/${art}?${exportParameter}`), {
         credentials: "include",
       });
       if (!res.ok) {
@@ -109,7 +123,7 @@ export default function Berichte({ kostenstelleId }: Props) {
   // CSV über alle Kassen der Firma im gewählten Monat herunterladen.
   function csvAlleHerunterladen() {
     const a = document.createElement("a");
-    a.href = apiUrl(`/export/csv?firma=${exportFirma}&jahr=${bmdJahr}&monat=${bmdMonat}`);
+    a.href = apiUrl(`/export/csv?${exportParameter}`);
     a.download = "";
     document.body.appendChild(a);
     a.click();
@@ -187,7 +201,8 @@ export default function Berichte({ kostenstelleId }: Props) {
         <div className="mt-6 pt-4 border-t">
           <h3 className="font-semibold text-marke-900 mb-1">Export je Firma (Buchhaltung)</h3>
           <p className="text-xs text-slate-500 mb-3">
-            Für den gewählten Monat über <strong>alle</strong> Kostenstellen der gewählten Firma (je Firma ein NTCS-Mandant):
+            Für den gewählten Monat über <strong>alle</strong> Kostenstellen der gewählten Firma in einer Datei
+            (je Firma ein NTCS-Mandant) oder nur für eine einzelne Kostenstelle:
             die Buchungssatz-Datei (CSV) für den BMD-Import, wahlweise als ZIP zusammen mit
             allen Belegdateien, oder eine CSV-Tabelle (Excel).
           </p>
@@ -195,8 +210,16 @@ export default function Berichte({ kostenstelleId }: Props) {
             <div>
               <label className="block text-sm font-medium mb-1">Firma</label>
               <select className="border rounded-sm px-3 py-2" value={exportFirma}
-                onChange={(e) => setExportFirma(Number(e.target.value))}>
+                onChange={(e) => { setExportFirma(Number(e.target.value)); setExportKs(0); }}>
                 {firmen.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Kostenstelle</label>
+              <select className="border rounded-sm px-3 py-2" value={exportKs}
+                onChange={(e) => setExportKs(Number(e.target.value))}>
+                <option value={0}>Alle Kostenstellen der Firma</option>
+                {ksDerExportFirma.map((k) => <option key={k.id} value={k.id}>{k.nummer} {k.bezeichnung}</option>)}
               </select>
             </div>
             <div>

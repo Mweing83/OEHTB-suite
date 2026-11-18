@@ -7,12 +7,24 @@ export function formatCent(cent: number): string {
   });
 }
 
-// Eingabe "12,50" oder "12.50" -> 1250 Cent
+// Betragseingabe -> Cent. Streng: alles, was nicht eindeutig ein Betrag ist,
+// ergibt NaN (kein Raten, kein stilles Abschneiden).
+//   "12,50" -> 1250      "12" -> 1200        "1.250,00" -> 125000
+//   "12.50" -> 1250      (Punkt vom Ziffernblock als Dezimaltrenner)
+//   "1.250" -> 125000    (drei Stellen nach dem Punkt = Tausenderpunkt)
+//   "12abc", "1,2,3", "12,345" -> NaN
+// Gerechnet wird in Ganzzahlen (kein Float-Rundungsfehler).
 export function euroStringZuCent(eingabe: string): number {
-  const norm = eingabe.replace(/\./g, "").replace(",", ".").trim();
-  const zahl = parseFloat(norm);
-  if (isNaN(zahl)) return NaN;
-  return Math.round(zahl * 100);
+  const t = eingabe.trim().replace(/\s|€/g, "");
+  // Deutsche Schreibweise: optionale Tausenderpunkte, Komma vor den Cent.
+  let m = /^(-?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/.exec(t);
+  // Punkt als Dezimaltrenner: genau ein Punkt mit ein oder zwei Nachkommastellen.
+  if (!m) m = /^(-?)(\d+)\.(\d{1,2})$/.exec(t);
+  if (!m) return NaN;
+  const euro = Number(m[2].replace(/\./g, ""));
+  const cent = Number((m[3] ?? "").padEnd(2, "0"));
+  const betrag = euro * 100 + cent;
+  return m[1] ? -betrag : betrag;
 }
 
 // Aus einem Brutto-Betrag (in Cent) den enthaltenen MwSt-Anteil herausrechnen.

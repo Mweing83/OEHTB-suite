@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { csvFeld } from "../lib/csv.js";
 import { angemeldet, darfKostenstelle } from "../middleware/auth.js";
-import { positionsText } from "../lib/buchungslogik.js";
+import { positionsText, positionsTyp } from "../lib/buchungslogik.js";
 import {
   neuesDokumentMitKopf,
   fusszeile,
@@ -55,7 +55,7 @@ async function ladeDaten(req: any, res: any) {
     return null;
   }
 
-  const kostenstelle = await prisma.kostenstelle.findUnique({ where: { id: kostenstelleId }, include: { bereich: true } });
+  const kostenstelle = await prisma.kostenstelle.findUnique({ where: { id: kostenstelleId }, include: { bereich: true, firma: true } });
   if (!kostenstelle) {
     res.status(404).json({ fehler: "Kostenstelle nicht gefunden." });
     return null;
@@ -88,6 +88,7 @@ berichtRouter.get("/kassabericht", angemeldet, async (req, res) => {
   const { kostenstelle, buchungen, zeitraum } = daten;
 
   const doc = neuesDokumentMitKopf({
+    organisation: kostenstelle.firma.name,
     titel: "Kassabericht (Einnahmen und Ausgaben)",
     kostenstelle: kostenstelle.bezeichnung,
     bereich: kostenstelle.bereich.bezeichnung,
@@ -136,7 +137,7 @@ berichtRouter.get("/kassabericht", angemeldet, async (req, res) => {
     { width: doc.page.width - 100 }
   );
 
-  fusszeile(doc, 1);
+  fusszeile(doc, 1, kostenstelle.firma.name);
   doc.end();
 });
 
@@ -149,6 +150,7 @@ berichtRouter.get("/detailbericht", angemeldet, async (req, res) => {
   const { kostenstelle, buchungen, zeitraum } = daten;
 
   const doc = neuesDokumentMitKopf({
+    organisation: kostenstelle.firma.name,
     titel: "Detailbericht – Buchungen der Kassa",
     kostenstelle: kostenstelle.bezeichnung,
     bereich: kostenstelle.bereich.bezeichnung,
@@ -182,7 +184,7 @@ berichtRouter.get("/detailbericht", angemeldet, async (req, res) => {
 
   function seitenumbruchPruefen() {
     if (doc.y > doc.page.height - 70) {
-      fusszeile(doc, seite);
+      fusszeile(doc, seite, kostenstelle.firma.name);
       doc.addPage();
       seite++;
       kopfzeile();
@@ -197,7 +199,12 @@ berichtRouter.get("/detailbericht", angemeldet, async (req, res) => {
     const mwst = b.positionen.reduce((s, p) => s + enthalteneSteuerCent(p.betragCent, Number(p.steuersatz)), 0);
     // Splitbuchung: Zeilentexte je Konto anzeigen.
     const konten = b.positionen
-      .map((p) => `${p.konto.nummer} (${p.steuersatz}%)${p.text ? " " + p.text : ""}`)
+      .map(
+        (p) =>
+          `${p.konto.nummer} (${p.steuersatz}%)${p.text ? " " + p.text : ""}` +
+          // Zeile mit anderem Typ als die Buchung (z. B. Pfand retour) kennzeichnen
+          (positionsTyp(p, b.typ) !== b.typ ? (b.typ === "ausgang" ? " [Einnahme]" : " [Ausgabe]") : "")
+      )
       .join(", ");
     const beschreibung = (b.beschreibung ? b.beschreibung + " — " : "") + konten;
     const vorzeichen = b.typ === "ausgang" ? "- " : "+ ";
@@ -226,7 +233,7 @@ berichtRouter.get("/detailbericht", angemeldet, async (req, res) => {
   doc.text(`Einnahmen: ${eur(summeEin)}    Ausgaben: ${eur(summeAus)}    Saldo (Zeitraum): ${eur(summeEin - summeAus)}`,
     50, doc.y, { width: doc.page.width - 100, align: "right" });
 
-  fusszeile(doc, seite);
+  fusszeile(doc, seite, kostenstelle.firma.name);
   doc.end();
 });
 
@@ -253,6 +260,7 @@ berichtRouter.get("/zaehlliste", angemeldet, async (req, res) => {
   }
 
   const doc = neuesDokumentMitKopf({
+    organisation: kostenstelle.firma.name,
     titel: "Zählliste (Kassenbestand)",
     kostenstelle: kostenstelle.bezeichnung,
     bereich: kostenstelle.bereich.bezeichnung,
@@ -304,7 +312,7 @@ berichtRouter.get("/zaehlliste", angemeldet, async (req, res) => {
   doc.moveDown(1);
   doc.text("Datum: ________________     Unterschrift: ________________________");
 
-  fusszeile(doc, 1);
+  fusszeile(doc, 1, kostenstelle.firma.name);
   doc.end();
 });
 
@@ -331,13 +339,14 @@ berichtRouter.get("/csv", angemeldet, async (req, res) => {
   for (const b of buchungen) {
     for (const p of b.positionen) {
       const mwst = enthalteneSteuerCent(p.betragCent, Number(p.steuersatz));
-      const signiert = b.typ === "ausgang" ? -p.betragCent : p.betragCent;
+      const typ = positionsTyp(p, b.typ);
+      const signiert = typ === "ausgang" ? -p.betragCent : p.betragCent;
       zeilen.push(
         [
           feld(b.buchungsnummer),
           feld(b.belegnummer),
           feld(datumDe(b.belegdatum)),
-          feld(b.typ === "ausgang" ? "Ausgang" : "Eingang"),
+          feld(typ === "ausgang" ? "Ausgang" : "Eingang"),
           feld(positionsText(p, b.beschreibung)),
           feld(`${p.konto.nummer} (${p.steuersatz}%)`),
           feld(betrag(mwst)),

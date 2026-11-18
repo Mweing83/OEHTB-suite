@@ -11,6 +11,9 @@ export interface PositionEingabe {
   steuersatz: number;
   kontoId: number;
   text?: string | null; // Pflicht bei Splitbuchung (mehrere Positionen)
+  // Typ der Zeile; fehlt er, gilt der Typ der Buchung. Bei einer Splitbuchung
+  // kann z. B. "Pfand retour" eine Einnahme in einer Ausgabe-Rechnung sein.
+  typ?: "eingang" | "ausgang" | null;
 }
 
 export interface BuchungEingabe {
@@ -58,6 +61,9 @@ export function buchungValidieren(
     if (!Number.isInteger(pos.kontoId)) {
       fehler.push(`Position ${i + 1}: gültiges Konto erforderlich.`);
     }
+    if (pos.typ != null && pos.typ !== "eingang" && pos.typ !== "ausgang") {
+      fehler.push(`Position ${i + 1}: Typ muss 'eingang' oder 'ausgang' sein.`);
+    }
     // Splitbuchung: jede Buchungszeile braucht einen eigenen Text, weil sie
     // als eigene Zeile exportiert wird (Key-User-Feedback 2026-11).
     if ((b.positionen ?? []).length > 1 && (typeof pos.text !== "string" || pos.text.trim() === "")) {
@@ -65,8 +71,10 @@ export function buchungValidieren(
     }
   }
 
-  // Split-Regel: Summe der Positionen = Buchungsbetrag (cent-genau).
-  const summe = (b.positionen ?? []).reduce((s, p) => s + p.betragCent, 0);
+  // Split-Regel: Zeilen vom Typ der Buchung zählen plus, Zeilen des anderen
+  // Typs minus; das Ergebnis muss cent-genau dem Buchungsbetrag (= tatsächlich
+  // bezahlt bzw. eingenommen) entsprechen. Beispiel: 10 + 20 − 5 (Pfand) = 25.
+  const summe = positionsSumme(b);
   if (b.positionen && b.positionen.length > 0 && summe !== b.betragCent) {
     fehler.push(
       `Summe der Positionen (${summe} Cent) entspricht nicht dem Buchungsbetrag (${b.betragCent} Cent).`
@@ -106,14 +114,34 @@ export function datumGueltig(wert: unknown): boolean {
 export function textNormalisieren<T extends BuchungEingabe>(b: T): T {
   const positionen = b.positionen ?? [];
   if (positionen.length <= 1) {
-    return { ...b, positionen: positionen.map((p) => ({ ...p, text: null })) };
+    return { ...b, positionen: positionen.map((p) => ({ ...p, text: null, typ: b.typ })) };
   }
-  const mitText = positionen.map((p) => ({ ...p, text: typeof p.text === "string" ? p.text.trim() : p.text }));
+  const mitText = positionen.map((p) => ({
+    ...p,
+    text: typeof p.text === "string" ? p.text.trim() : p.text,
+    typ: p.typ ?? b.typ,
+  }));
   const beschreibung =
     typeof b.beschreibung === "string" && b.beschreibung.trim()
       ? b.beschreibung
       : mitText.map((p) => p.text).filter(Boolean).join(" / ");
   return { ...b, beschreibung, positionen: mitText };
+}
+
+// Typ einer Buchungszeile: eigener Typ, sonst der Typ der Buchung.
+export function positionsTyp(
+  p: { typ?: "eingang" | "ausgang" | null },
+  buchungsTyp: "eingang" | "ausgang"
+): "eingang" | "ausgang" {
+  return p.typ ?? buchungsTyp;
+}
+
+// Vorzeichenbehaftete Summe der Positionen aus Sicht des Buchungstyps.
+export function positionsSumme(b: Pick<BuchungEingabe, "typ" | "positionen">): number {
+  return (b.positionen ?? []).reduce(
+    (s, p) => s + (positionsTyp(p, b.typ) === b.typ ? p.betragCent : -p.betragCent),
+    0
+  );
 }
 
 // Text einer Buchungszeile für Exporte: eigener Text, sonst Buchungsbeschreibung.

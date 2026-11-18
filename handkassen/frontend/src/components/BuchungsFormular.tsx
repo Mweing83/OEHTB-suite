@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { api } from "../lib/api.js";
-import { euroStringZuCent, formatCent, formatProzent } from "../lib/geld.js";
+import { formatCent, formatProzent } from "../lib/geld.js";
+import {
+  LEER,
+  betragCent,
+  centZuEingabe,
+  positionsSumme,
+  restzeileAnpassen,
+  type Position,
+  type Typ,
+} from "../lib/splitbuchung.js";
 import BelegErfassung from "./BelegErfassung.js";
 
 interface Konto {
@@ -16,13 +25,6 @@ interface Steuersatz {
   bezeichnung: string;
 }
 
-interface Position {
-  text: string; // Beschreibung der Buchungszeile (nur bei Splitbuchung)
-  betrag: string; // Eingabe als Text ("12,50")
-  steuersatz: number | null; // null = noch nicht gewählt (kein Vorschlag)
-  kontoId: number;
-}
-
 // Vorbelegung für den Bearbeiten-Modus (bestehende Buchung direkt ändern)
 export interface BearbeitenVorlage {
   buchungId: number;
@@ -32,7 +34,7 @@ export interface BearbeitenVorlage {
   typ: "eingang" | "ausgang";
   beschreibung: string;
   hatBeleg: boolean;
-  positionen: { text: string; betrag: string; steuersatz: number; kontoId: number }[];
+  positionen: { typ: Typ | null; text: string; betrag: string; steuersatz: number; kontoId: number }[];
 }
 
 interface Props {
@@ -50,21 +52,8 @@ interface Props {
   onBearbeitenAbbrechen?: () => void;
 }
 
-const LEER: Position = { text: "", betrag: "", steuersatz: null, kontoId: 0 };
-
 function zweistellig(n: number): string {
   return String(n).padStart(2, "0");
-}
-
-function centZuEingabe(cent: number): string {
-  return (cent / 100).toFixed(2).replace(".", ",");
-}
-
-// Betrag gültig, wenn positiv und höchstens zwei Nachkommastellen.
-function betragCent(text: string): number | null {
-  if (!/^\d+([.,]\d{1,2})?$/.test(text.trim())) return null;
-  const c = euroStringZuCent(text);
-  return isNaN(c) || c <= 0 ? null : c;
 }
 
 const feldKlasse = (fehlt: boolean) =>
@@ -98,20 +87,47 @@ export default function BuchungsFormular({
   const wurzel = useRef<HTMLDivElement>(null);
   // Nach dem Anlegen einer Split-Position deren Konto-Feld fokussieren.
   const fokusNachRender = useRef<string | null>(null);
+  // true, sobald der Tag von Hand geändert wurde (bis zum Speichern bzw. Periodenwechsel).
+  const tagGeaendert = useRef(false);
 
   const istBearbeiten = !!bearbeiten;
   const tageImMonat = new Date(jahr, monat, 0).getDate();
 
-  // Bei Wechsel in den Bearbeiten-Modus: Formular mit den bisherigen Werten vorausfüllen.
+  // Eingaben der Buchung verwerfen (nach dem Speichern bzw. Abbrechen).
+  function formularLeeren() {
+    setSplit(false);
+    setGesamt("");
+    setPositionen([{ ...LEER }]);
+    setBeschreibung("");
+    setDatei(null);
+    setBelegReset((n) => n + 1);
+    setVersucht(false);
+  }
+
+  // Wechsel in den Bearbeiten-Modus: Formular mit den bisherigen Werten füllen.
+  // Ende des Bearbeiten-Modus (gespeichert, abgebrochen, Periode/Kostenstelle
+  // gewechselt): nichts von der bearbeiteten Buchung darf unter „Neue Buchung“
+  // stehen bleiben.
+  const warBearbeiten = useRef(false);
   useEffect(() => {
-    if (!bearbeiten) return;
+    tagGeaendert.current = false;
+    if (!bearbeiten) {
+      if (warBearbeiten.current) {
+        formularLeeren();
+        setTyp("ausgang");
+        setFehler("");
+      }
+      warBearbeiten.current = false;
+      return;
+    }
+    warBearbeiten.current = true;
     setTag(String(Number(bearbeiten.belegdatum.slice(8, 10))));
     setTyp(bearbeiten.typ);
     setBeschreibung(bearbeiten.beschreibung);
     const pos = bearbeiten.positionen.length ? bearbeiten.positionen : [{ ...LEER }];
     setPositionen(pos);
     setSplit(pos.length > 1);
-    setGesamt(centZuEingabe(pos.reduce((s, p) => s + (betragCent(p.betrag) ?? 0), 0)));
+    setGesamt(centZuEingabe(positionsSumme(pos, bearbeiten.typ)));
     setDatei(null);
     setBelegReset((n) => n + 1);
     setFehler("");
@@ -119,11 +135,19 @@ export default function BuchungsFormular({
     setVersucht(false);
   }, [bearbeiten]);
 
-  // Vorschlag: Datum des vorherigen Belegs (bei neuer Periode bzw. nach dem Laden).
+  // Vorschlag: Datum des vorherigen Belegs. Bei neuer Periode/Kostenstelle
+  // immer; sonst nur, solange der Tag nicht gerade von Hand geändert wurde
+  // (ein Neuladen der Liste darf eine laufende Eingabe nicht überschreiben).
+  const letztePeriode = useRef("");
+  const periode =`${kostenstelleId}-${jahr}-${monat}`;
   useEffect(() => {
     if (bearbeiten) return;
+    const neuePeriode = letztePeriode.current !== periode;
+    letztePeriode.current = periode;
+    if (!neuePeriode && tagGeaendert.current) return;
     setTag(vorschlagTag ? String(vorschlagTag) : "");
-  }, [vorschlagTag, jahr, monat, kostenstelleId, bearbeiten]);
+    tagGeaendert.current = false;
+  }, [vorschlagTag, periode, bearbeiten]);
 
   useEffect(() => {
     if (!kostenstelleId) { setKonten([]); return; }
@@ -145,7 +169,9 @@ export default function BuchungsFormular({
 
   useEffect(() => {
     if (!fokusNachRender.current) return;
-    wurzel.current?.querySelector<HTMLElement>(`[data-feld="${fokusNachRender.current}"]`)?.focus();
+    const el = wurzel.current?.querySelector<HTMLElement>(`[data-feld="${fokusNachRender.current}"]`);
+    el?.focus();
+    if (el instanceof HTMLInputElement) el.select();
     fokusNachRender.current = null;
   });
 
@@ -156,7 +182,10 @@ export default function BuchungsFormular({
   const tagOk = tagZahl >= 1 && tagZahl <= tageImMonat;
   const belegdatum = `${jahr}-${zweistellig(monat)}-${zweistellig(tagOk ? tagZahl : 1)}`;
   const posCent = positionen.map((p) => betragCent(p.betrag));
-  const summeCent = posCent.reduce<number>((s, c) => s + (c ?? 0), 0);
+  // Zeilen vom Typ der Buchung zählen plus, Zeilen des anderen Typs minus
+  // (Hofer: 10 + 20 − 5 Pfand = 25 bezahlt).
+  const zeilenTyp = (p: Position): Typ => p.typ ?? typ;
+  const summeCent = positionsSumme(positionen, typ);
   const gesamtCent = split ? betragCent(gesamt) : posCent[0];
   const restCent = split && gesamtCent != null ? gesamtCent - summeCent : 0;
 
@@ -178,8 +207,24 @@ export default function BuchungsFormular({
   const vollstaendig = fehlend.length === 0;
 
   // --- Änderungen ---
+  // Bearbeiten einer Splitbuchung: nach jeder Änderung die Restbetrags-Zeile
+  // vorschlagen, anpassen bzw. entfernen (siehe restzeileAnpassen). Bewusst
+  // direkt bei der Änderung und nicht als nachlaufender Effekt.
+  function mitRestzeile(pos: Position[], gesamtText = gesamt, buchungsTyp: Typ = typ): Position[] {
+    return istBearbeiten && split ? restzeileAnpassen(pos, betragCent(gesamtText), buchungsTyp) : pos;
+  }
+
+  // Eine von Hand geänderte Zeile ist kein Vorschlag mehr (auto: false).
   function positionAendern(i: number, aenderung: Partial<Position>) {
-    setPositionen((alt) => alt.map((p, idx) => (idx === i ? { ...p, ...aenderung } : p)));
+    setPositionen((alt) => mitRestzeile(alt.map((p, idx) => (idx === i ? { ...p, ...aenderung, auto: false } : p))));
+  }
+  function gesamtAendern(wert: string) {
+    setGesamt(wert);
+    setPositionen((alt) => mitRestzeile(alt, wert));
+  }
+  function typAendern(neu: Typ) {
+    setTyp(neu);
+    setPositionen((alt) => mitRestzeile(alt, gesamt, neu));
   }
 
   // Konto gewählt: fixer Steuersatz wird übernommen, sonst muss er neu gewählt werden.
@@ -189,12 +234,18 @@ export default function BuchungsFormular({
 
   // Neue Split-Position mit dem offenen Restbetrag als Vorschlag.
   function positionHinzufuegen() {
-    const rest = restCent > 0 ? centZuEingabe(restCent) : "";
-    setPositionen((alt) => [...alt, { ...LEER, betrag: rest }]);
+    const rest = restCent !== 0 ? centZuEingabe(Math.abs(restCent)) : "";
+    const gegen: Typ = typ === "ausgang" ? "eingang" : "ausgang";
+    setPositionen((alt) => [...alt, { ...LEER, betrag: rest, typ: restCent < 0 ? gegen : null }]);
     fokusNachRender.current = `pos-konto-${positionen.length}`;
   }
+  // Wird die vorgeschlagene Restzeile selbst entfernt, bleibt sie weg (kein
+  // sofortiger neuer Vorschlag); sonst wird der Rest neu vorgeschlagen.
   function positionEntfernen(i: number) {
-    setPositionen((alt) => alt.filter((_, idx) => idx !== i));
+    setPositionen((alt) => {
+      const ohne = alt.filter((_, idx) => idx !== i);
+      return alt[i]?.auto ? ohne : mitRestzeile(ohne);
+    });
   }
 
   function splitUmschalten(an: boolean) {
@@ -223,7 +274,7 @@ export default function BuchungsFormular({
 
     const letztePos = positionen.length - 1;
     if (split && feld === `pos-text-${letztePos}`) {
-      if (restCent > 0) return positionHinzufuegen();
+      if (restCent !== 0 && gesamtCent != null) return positionHinzufuegen();
       if (restCent === 0 && vollstaendig) return void speichern();
     }
     if (feld === "beschreibung") return void speichern();
@@ -269,6 +320,7 @@ export default function BuchungsFormular({
           steuersatz: p.steuersatz,
           kontoId: p.kontoId,
           text: split ? p.text.trim() : null,
+          typ: split ? zeilenTyp(p) : typ,
         })),
       };
 
@@ -283,14 +335,9 @@ export default function BuchungsFormular({
       }
 
       // Zurücksetzen; Tag (= Datum des vorherigen Belegs) und Typ bleiben stehen.
-      setSplit(false);
-      setGesamt("");
-      setPositionen([{ ...LEER }]);
-      setBeschreibung("");
-      setDatei(null);
-      setBelegReset((n) => n + 1);
+      formularLeeren();
       setFehler("");
-      setVersucht(false);
+      tagGeaendert.current = false;
       setVorschauNeu((n) => n + 1);
       onGespeichert();
       if (istBearbeiten && onBearbeitenAbbrechen) onBearbeitenAbbrechen(); // Bearbeiten-Modus verlassen
@@ -317,7 +364,21 @@ export default function BuchungsFormular({
     const fix = kontoVon(p.kontoId)?.fixSteuersatz;
     return (
       <>
-        <div className={split ? "col-span-4" : "col-span-6"}>
+        {split && (
+          <div className="col-span-2">
+            {i === 0 && <label className="block text-sm font-medium mb-1">Art *</label>}
+            <select
+              data-feld={`pos-typ-${i}`}
+              className={feldKlasse(false)}
+              value={zeilenTyp(p)}
+              onChange={(e) => positionAendern(i, { typ: e.target.value as Typ })}
+            >
+              <option value="ausgang">Ausgabe</option>
+              <option value="eingang">Einnahme</option>
+            </select>
+          </div>
+        )}
+        <div className={split ? "col-span-3" : "col-span-6"}>
           {(!split || i === 0) && <label className="block text-sm font-medium mb-1">Konto *</label>}
           <select
             data-feld={`pos-konto-${i}`}
@@ -359,7 +420,7 @@ export default function BuchungsFormular({
           </select>
         </div>
         {split && (
-          <div className="col-span-3">
+          <div className="col-span-2">
             {i === 0 && <label className="block text-sm font-medium mb-1">Beschreibung *</label>}
             <input
               data-feld={`pos-text-${i}`}
@@ -410,7 +471,10 @@ export default function BuchungsFormular({
               maxLength={2}
               className={`${feldKlasse(versucht && !tagOk)} w-16 text-right ${tag.trim() && !tagOk ? "border-red-500" : ""}`}
               value={tag}
-              onChange={(e) => setTag(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => {
+                tagGeaendert.current = true;
+                setTag(e.target.value.replace(/\D/g, ""));
+              }}
             />
             <span className="text-slate-600">.{zweistellig(monat)}.{jahr}</span>
           </div>
@@ -434,7 +498,7 @@ export default function BuchungsFormular({
             data-feld="typ"
             className={feldKlasse(false)}
             value={typ}
-            onChange={(e) => setTyp(e.target.value as "eingang" | "ausgang")}
+            onChange={(e) => typAendern(e.target.value as Typ)}
           >
             <option value="ausgang">Ausgang</option>
             <option value="eingang">Eingang</option>
@@ -468,7 +532,7 @@ export default function BuchungsFormular({
                 className={`${feldKlasse(versucht && gesamtCent == null)} text-right`}
                 placeholder="0,00"
                 value={gesamt}
-                onChange={(e) => setGesamt(e.target.value)}
+                onChange={(e) => gesamtAendern(e.target.value)}
               />
             </div>
             <div className="col-span-8 text-right text-sm">

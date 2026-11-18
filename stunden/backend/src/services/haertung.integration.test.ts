@@ -5,7 +5,7 @@ import { prisma } from "../lib/prisma";
 import { applyUpsert } from "../lib/provision";
 import { tokenSignieren } from "../lib/suiteAuth";
 import { resetDb } from "../test/helfer";
-import { pseudonymisieren, reIdentifizieren } from "./pseudonym";
+import { pseudonymisieren, reIdentifizieren, namensRegex } from "./pseudonym";
 import { istUebernahmefaehig, type AufbereitetesErgebnis } from "./anfrage";
 
 const run = process.env.TEST_DATABASE_URL ? describe : describe.skip;
@@ -19,6 +19,16 @@ describe("Platzhalter und Uebernahme-Grenzen (Unit)", () => {
     expect(reIdentifizieren("__proto__", mapping)).toBeNull();
     expect(reIdentifizieren("constructor", mapping)).toBeNull();
     expect(reIdentifizieren("toString", mapping)).toBeNull();
+  });
+
+  it("findet Namen mit Umlaut/ß/Akzent an der Wortgrenze, aber keine Teilwoerter", () => {
+    const trifft = (name: string, text: string) => namensRegex(name).test(text);
+    expect(trifft("Özdemir", "Bitte Herr Özdemir auf 30h")).toBe(true);
+    expect(trifft("Groß", "Frau Groß reduziert")).toBe(true);
+    expect(trifft("André", "Herr André ab Mai")).toBe(true);
+    expect(trifft("Mayer", "Frau Mayer ab Mai")).toBe(true);
+    expect(trifft("Mayer", "Frau Mayerhofer ab Mai")).toBe(false);
+    expect(trifft("Groß", "Frau Großmann ab Mai")).toBe(false);
   });
 
   it("uebernimmt automatisch nur Werte in den Grenzen des manuellen Bestaetigens", () => {
@@ -61,6 +71,18 @@ run("Pseudonymisierung und Rollen (Stunden, Integration)", () => {
     );
     expect(text).not.toMatch(/Ehemalig|example\.org/);
     expect(Object.keys(mapping)).toEqual(["PERSON_1"]);
+  });
+
+  it("pseudonymisiert Namen mit Umlaut am Anfang bzw. ß am Ende", async () => {
+    await prisma.mitarbeiter.createMany({
+      data: [
+        { vorname: "Emre", nachname: "Özdemir", personalnummer: "910" },
+        { vorname: "Ida", nachname: "Groß", personalnummer: "911" },
+      ],
+    });
+    const { text, mapping } = await pseudonymisieren("Herr Özdemir geht auf 30h, Frau Groß auf 20h.");
+    expect(text).not.toMatch(/Özdemir|Groß/);
+    expect(Object.keys(mapping)).toHaveLength(2);
   });
 
   it("Personalverrechnung darf Beschaeftigungen direkt anlegen", async () => {

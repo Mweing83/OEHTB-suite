@@ -153,16 +153,24 @@ privaten Repository müssen die Zugangsdaten hinterlegt sein (beim ersten
 
 ## Rollback
 
-Die Suite ändert an den Tool-Datenbanken nur **additiv** (Spalte `suiteUserId`).
-Zurück zur Einzel-Installation:
+Einen eigenständigen Betrieb einzelner Tools gibt es nicht mehr. **Auf dem
+Suite-Server niemals `docker compose up` in einem Tool-Ordner (z. B.
+`handkassen\`) ausführen:** Ein zweiter PostgreSQL-Container auf demselben
+Datenverzeichnis zerstört die Datenbank (Vorfall vom 13.10.2026). Die Tools
+haben auch keine lokalen Logins mehr; angemeldet wird nur über das Portal.
 
-```
-cd OEHTB-Suite && docker compose --profile produktion down
-cd handkassen && docker compose up -d         # Tool eigenständig, Daten unverändert
-```
+Geht nach einem Update etwas schief, führt der Weg zurück über die Daten:
 
-Die alten lokalen Logins der Handkassen sind weiterhin vorhanden (Passwort-Hashes
-wurden nicht gelöscht). Für Stunden ggf. Admin-Passwort neu setzen.
+- **Datenbank-Stand vor dem Update:** `SERVER - Aktualisieren.bat` legt vor jedem
+  Neubau einen `pg_dump` aller vier Datenbanken unter
+  `backups-vor-update\<Zeitstempel>\` ab (die letzten 10 bleiben liegen).
+- **Handkassen samt Belegfotos:** nächtliche Sicherung und Wiederherstellung
+  wie in `handkassen\BACKUP.md` beschrieben (Abschnitt „Wiederherstellung“).
+  Der Restore läuft immer über die laufende `handkassen-db` der Suite.
+
+Datenbank-Migrationen laufen nur vorwärts. Ein älterer Programmstand passt
+daher nicht ohne Weiteres zu einer bereits migrierten Datenbank – vor einem
+Zurücksetzen des Codes zuerst die zugehörige Sicherung einspielen.
 
 ## Sicherheits-Checkliste (vor Produktivbetrieb)
 
