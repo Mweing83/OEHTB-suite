@@ -12,6 +12,7 @@ import {
   type Position,
   type Typ,
 } from "../lib/splitbuchung.js";
+import { OPTION_NEUTRAL, typFarbe } from "../lib/typfarbe.js";
 import BelegErfassung from "./BelegErfassung.js";
 import PositionsFelder, { feldKlasse, type Konto, type Steuersatz } from "./PositionsFelder.js";
 
@@ -297,8 +298,11 @@ export default function BuchungsFormular({
         setErfolg(`Buchung gespeichert. Belegnummer ${buchung.belegnummer} – bitte auf den Papierbeleg schreiben.`);
       }
 
-      // Zurücksetzen; Tag (= Datum des vorherigen Belegs) und Typ bleiben stehen.
+      // Zurücksetzen; der Tag (= Datum des vorherigen Belegs) bleibt stehen.
+      // Der Typ ist für den nächsten Beleg immer wieder „Ausgang“ (Regelfall),
+      // egal was zuletzt gebucht wurde.
       formularLeeren();
+      setTyp("ausgang");
       setFehler("");
       tagGeaendert.current = false;
       setVorschauNeu((n) => n + 1);
@@ -387,12 +391,12 @@ export default function BuchungsFormular({
           <label className="block text-sm font-medium mb-1">Typ *</label>
           <select
             data-feld="typ"
-            className={feldKlasse(false)}
+            className={`${feldKlasse(false)} ${typFarbe(typ)}`}
             value={typ}
             onChange={(e) => typAendern(e.target.value as Typ)}
           >
-            <option value="ausgang">Ausgang</option>
-            <option value="eingang">Eingang</option>
+            <option value="ausgang" className={OPTION_NEUTRAL}>Ausgang</option>
+            <option value="eingang" className={OPTION_NEUTRAL}>Eingang</option>
           </select>
         </div>
         <div className="col-span-3">

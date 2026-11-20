@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, apiUrl } from "../lib/api.js";
 import { centZuEingabe, formatCent, formatProzent, summeSteuerCent } from "../lib/geld.js";
 import { useFreieNummern, useKostenstellen } from "../lib/daten.js";
+import { typFarbe } from "../lib/typfarbe.js";
 import BuchungsFormular, { type BearbeitenVorlage } from "../components/BuchungsFormular.js";
 import { isoZuDe } from "../components/DatumFeld.js";
 import { bestaetigen, hinweis } from "../components/dialog.js";
@@ -407,8 +408,16 @@ export default function BuchungenSeite() {
                       </div>
                     </td>
                     <td className="text-right">
-                      {b.typ === "ausgang" ? "−" : "+"}
-                      {formatCent(b.betragCent)}
+                      {/* Typ farblich: Ausgang rot, Eingang grün (stornierte bleiben grau) */}
+                      <span
+                        className={`inline-block rounded-sm border px-1.5 py-0.5 whitespace-nowrap ${
+                          b.storniert ? "border-transparent" : typFarbe(b.typ)
+                        }`}
+                        title={b.typ === "ausgang" ? "Ausgang" : "Eingang"}
+                      >
+                        {b.typ === "ausgang" ? "−" : "+"}
+                        {formatCent(b.betragCent)}
+                      </span>
                     </td>
                     <td className="text-right text-slate-600">
                       {formatCent(summeSteuerCent(b.positionen))}

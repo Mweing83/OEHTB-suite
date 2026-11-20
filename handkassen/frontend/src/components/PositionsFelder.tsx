@@ -1,5 +1,6 @@
 import { formatProzent } from "../lib/geld.js";
 import { betragCent, type Position, type Typ } from "../lib/splitbuchung.js";
+import { OPTION_NEUTRAL, typFarbe } from "../lib/typfarbe.js";
 
 export interface Konto {
   id: number;
@@ -65,12 +66,12 @@ export default function PositionsFelder({
           {i === 0 && <label className="block text-sm font-medium mb-1">Art *</label>}
           <select
             data-feld={`pos-typ-${i}`}
-            className={feldKlasse(false)}
+            className={`${feldKlasse(false)} ${typFarbe(p.typ ?? buchungsTyp)}`}
             value={p.typ ?? buchungsTyp}
             onChange={(e) => onAendern({ typ: e.target.value as Typ })}
           >
-            <option value="ausgang">Ausgabe</option>
-            <option value="eingang">Einnahme</option>
+            <option value="ausgang" className={OPTION_NEUTRAL}>Ausgabe</option>
+            <option value="eingang" className={OPTION_NEUTRAL}>Einnahme</option>
           </select>
         </div>
       )}

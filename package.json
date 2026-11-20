@@ -1,6 +1,6 @@
 {
   "name": "oehtb-suite",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "description": "OEHTB-Suite: Werkzeuge (Prettier/ESLint, Drift-/Versions-Check) fuer die gesamte Suite. Portal (backend, portal) und die Tools (handkassen, stunden, foerderungen) bleiben eigenstaendige npm-Projekte.",
